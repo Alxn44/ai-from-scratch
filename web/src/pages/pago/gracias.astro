@@ -1,0 +1,89 @@
+---
+export const prerender = false;
+import Public from '../../layouts/Public.astro';
+import { t } from '../../lib/i18n';
+import { publicPrefs } from '../../lib/prefs';
+import { getUser } from '../../lib/session';
+import { icon } from '../../lib/icons';
+
+const { lang } = publicPrefs(Astro.request);
+const L = t(lang);
+const P = L.pub.grx;
+
+// Mercado Pago vuelve con collection_status/status y payment_id en la query.
+const q = new URL(Astro.request.url).searchParams;
+const estado = q.get('collection_status') ?? q.get('status') ?? q.get('estado') ?? '';
+const ref = q.get('payment_id') ?? q.get('collection_id') ?? q.get('preference_id') ?? '';
+// La verdad la tiene el webhook, no la query: si users.paid ya está en 1, listo.
+const user = await getUser(Astro.request);
+const pagado = !!user?.paid;
+// Pendiente declarado por Mercado Pago (PSE, efectivo, transferencia): no se espera.
+const pendiente = !pagado && /pending|in_process|pendiente/i.test(estado);
+const inicial = pagado ? 'ok' : pendiente ? 'pend' : 'verif';
+---
+<Public title={P.eb} noindex ancho={860}>
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <p class="eb" id="eb">{inicial === 'ok' ? P.okEb : inicial === 'pend' ? P.pendEb : P.verifEb}</p>
+    <h1 class="h1" style="font-size:42px">{P.h1a} <span style="color:var(--l3)">{P.h1b}</span></h1>
+  </div>
+
+  <div class="card" id="estado" style="margin-top:26px;border-left:2px solid var(--ac);display:flex;gap:14px;align-items:flex-start">
+    <div id="ico" style="margin-top:2px">
+      <Fragment set:html={icon(inicial === 'ok' ? 'check' : 'clock', 20, inicial === 'ok' ? 'var(--ok)' : 'var(--ac)')} />
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+      <div class="h3" id="eH">{inicial === 'ok' ? P.okH : inicial === 'pend' ? P.pendH : P.verifH}</div>
+      <p class="p" style="font-size:14px" id="eB">{inicial === 'ok' ? P.okB : inicial === 'pend' ? P.pendB : P.verifB}</p>
+      <p class="s num" style="margin-top:6px">{P.ref}: {ref || P.sinRef}</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:24px;margin-top:32px;align-items:start">
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <p class="lbl">{P.siguiente}</p>
+      {[P.p1, P.p2, P.p3].map((x, i) => (
+        <div style="display:flex;gap:11px;align-items:flex-start">
+          <span class="num lbl" style="color:var(--l3);padding-top:2px">{i + 1}</span>
+          <p class="p" style="font-size:14px">{x}</p>
+        </div>
+      ))}
+      <p class="s" style="border-top:1px solid var(--hair2);padding-top:12px">{P.recibo}</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <a class="btn block" href="/panel" style="text-decoration:none">{P.irPanel}</a>
+      <a class="btn ghost block" href="/leccion/1" style="text-decoration:none">{P.irLeccion}</a>
+      <a class="btn ghost block" href="/soporte" style="text-decoration:none">{P.escribir}</a>
+    </div>
+  </div>
+
+  <script define:vars={{ P, inicial }}>
+    // El webhook puede llegar después que el pagador. Se sondea /api/me un rato
+    // corto y, si no confirma, se dice la verdad en vez de fingir acceso.
+    if (inicial === 'verif') {
+      const eb = document.getElementById('eb'), eH = document.getElementById('eH'), eB = document.getElementById('eB');
+      const caja = document.getElementById('estado'), ico = document.getElementById('ico');
+      const fin = Date.now() + 30000;
+      const tic = async () => {
+        try {
+          const res = await fetch('/api/me');
+          const d = res.ok ? await res.json() : null;
+          if (d?.user?.paid) {
+            eb.textContent = P.okEb; eH.textContent = P.okH; eB.textContent = P.okB;
+            caja.style.borderLeftColor = 'var(--ok)';
+            ico.querySelector('svg')?.setAttribute('stroke', 'var(--ok)');
+            window.toast('ok', P.tOk, P.tOkB);
+            return;
+          }
+        } catch {}
+        if (Date.now() > fin) {
+          eb.textContent = P.tardaEb; eH.textContent = P.tardaH; eB.textContent = P.tardaB;
+          caja.style.borderLeftColor = 'var(--or)';
+          ico.querySelector('svg')?.setAttribute('stroke', 'var(--or)');
+          return;
+        }
+        setTimeout(tic, 3000);
+      };
+      tic();
+    }
+  </script>
+</Public>

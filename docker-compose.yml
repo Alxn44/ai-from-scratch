@@ -1,0 +1,53 @@
+# Tres contenedores: base, backend y frontend. Un solo comando:
+#   docker compose up --build
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: curso
+      POSTGRES_PASSWORD: curso
+      POSTGRES_DB: curso
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"          # para conectarte desde la máquina, no lo necesita el resto
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curso -d curso"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://curso:curso@db:5432/curso
+      WEB_ORIGIN: http://localhost:4321
+      HOST: 0.0.0.0
+      PORT: "8787"
+      # Sin estas dos el checkout responde 501 en vez de fingir un pago.
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-solo-para-local}
+    # La siembra es idempotente: actualiza lecciones y labs sin borrar intentos.
+    command: sh -c "node src/seed.js && node src/server.js"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8787:8787"
+
+  web:
+    build: ./web
+    environment:
+      API_URL: http://api:8787
+      HOST: 0.0.0.0
+      PORT: "4321"
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+    depends_on:
+      - api
+    ports:
+      - "4321:4321"
+
+volumes:
+  pgdata:

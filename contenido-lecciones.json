@@ -1,0 +1,312 @@
+{
+  "lessons": [
+    {
+      "n": 1,
+      "technical": "El entrenamiento empieza con ejemplos que ya tienen una respuesta, no con una lista de reglas. El modelo recibe cada foto, produce una respuesta y la compara con la etiqueta correcta. Esa diferencia se convierte en una señal para ajustar sus números internos. Después repite el proceso con otros ejemplos y vuelve a comparar. Con 100.000 fotos de gato, aprende qué rasgos suelen aparecer juntos, aunque nadie le haya descrito las orejas o el hocico. El resultado no es una explicación en frases: es una capacidad para dar respuestas parecidas cuando llega una foto nueva. Aprender significa mejorar con ejemplos nuevos, no recitar los que ya vio.",
+      "analogy": "Es como enseñarle a alguien una caja llena de fotos, unas con la etiqueta «gato» y otras con «perro». No le dictas una regla sobre bigotes ni orejas. Le muestras una foto nueva y le preguntas qué ve. Con cada comparación, esa persona afina el ojo. La caja no le entrega una definición: le da casos para reconocer otros. La práctica termina cuando puede mirar una foto que no estaba en la caja y elegir la etiqueta más parecida."
+    },
+    {
+      "n": 2,
+      "technical": "En cada intento, el modelo compara su respuesta con la respuesta esperada. La diferencia se expresa como un error: un número que indica qué tan lejos quedó, no cuántas veces acertó. Si el error pasa de 94 a 23 y luego a 4, los ajustes lo acercaron a la respuesta correcta. El entrenamiento repite esa vuelta: intenta, mide la distancia y mueve sus números internos. No necesita comprender el error como una persona; usa esa señal para decidir hacia dónde cambiar. Mejorar no significa acumular datos ni aprender una regla aislada. Significa que el mismo proceso produce respuestas cada vez menos alejadas de lo esperado.",
+      "analogy": "Es como jugar frío y caliente con una sola señal. Buscas un objeto y, después de cada intento, alguien te dice qué tan lejos quedaste. Si ves que pasas de 94 a 23 y luego a 4, sabes que tus pasos van en la dirección correcta. No necesitas una explicación del escondite: solo corriges el siguiente movimiento con la señal recibida. El juego termina cuando te acercas lo suficiente."
+    },
+    {
+      "n": 3,
+      "technical": "Cuando termina el entrenamiento, no quedan guardadas las fotos ni las frases como documentos para consultar. Queda una colección de números internos, llamados parámetros, que modifican cómo el modelo transforma una entrada en una salida. Un modelo grande puede tener 70.000.000.000 de esos números. Cada uno aporta una pequeña parte a muchas respuestas; ninguno contiene por sí solo una definición completa de gato, contrato o tono. Al responder, el sistema combina esos números con los tokens del pedido. Copiar la colección de parámetros permite llevar el mismo modelo a otra máquina, sin repetir el entrenamiento.",
+      "analogy": "Es como un panel con 70.000.000.000 de perillas diminutas. Ninguna perilla guarda una foto ni una frase. Cada una está apenas girada y todas juntas cambian cómo responde el panel cuando mueves una entrada. Si desmontas el panel y copias exactamente la posición de cada perilla en otro igual, el segundo reacciona de la misma manera. Transportas posiciones, no recuerdos escritos."
+    },
+    {
+      "n": 4,
+      "technical": "El entrenamiento y la respuesta usan el mismo modelo, pero ocurren en momentos distintos. Durante el entrenamiento, el sistema calcula errores y cambia sus parámetros. Se entrena 1 vez; después, deja sus parámetros fijos y puede responder ∞ veces. Al escribirle, el modelo solo ejecuta esos parámetros sobre el texto que recibe y genera una respuesta; no vuelve a ajustar nada por lo que tú le digas. Puede usar lo escrito dentro de esa conversación mientras está disponible, pero eso no modifica lo aprendido. Por eso puede agradecer una corrección y fallar igual en una conversación nueva. Aprender requiere volver a entrenar el modelo.",
+      "analogy": "Es como un pan que sale del horno ya hecho. Puedes cortarlo, servirlo y volver a servirlo muchas veces, pero hablarle no cambia la masa. Si alguien te señala que una rebanada quedó mal, el pan no se corrige solo. Para cambiarlo tendrías que preparar otra masa y hornearla de nuevo. La conversación es el servicio; no es el horno."
+    },
+    {
+      "n": 5,
+      "technical": "El modelo nunca recibe letras ni palabras: recibe una lista de números. Antes de entrar al modelo, un tokenizador parte el texto en trozos frecuentes, llamados tokens, usando un vocabulario fijo que se armó contando qué secuencias aparecen más en todo el material de entrenamiento. Cada trozo tiene un número asignado, y ese número es lo único que viaja hacia adentro. La partición no es gramatical: «es» entra entera porque aparece millones de veces, y «Cartagena» se parte en «Carta» y «gena» porque como unidad es rara. Por eso 3 palabras pueden convertirse en 5 tokens. El límite de la conversación y el costo de cada petición se miden y se cobran en estos trozos, no en palabras.",
+      "analogy": "Es como un cajero que solo tiene billetes de ciertas denominaciones. Le pides «Cartagena» y no tiene un billete de «Cartagena»: te lo cambia por uno de «Carta» y otro de «gena». De «es» sí tiene, porque es de los que más circulan. Al final no cuenta cuántas palabras le diste: cuenta cuántos billetes tuvo que usar."
+    },
+    {
+      "n": 6,
+      "technical": "Para escribir, el modelo toma todos los tokens que ya recibió y calcula un puntaje para cada posible token siguiente. Ese puntaje expresa qué opción encaja mejor con el contexto, no si la opción es verdadera. En «El gato se subió al…», «tejado» puede recibir 31 de 100, mientras otras opciones reciben menos. El sistema elige una opción según esos puntajes, la agrega al contexto y calcula de nuevo. Por eso escribe un pedacito cada vez. Si la opción más fuerte no domina, otra puede salir; el mismo pedido no garantiza el mismo texto. Generar es repetir esa elección hasta terminar.",
+      "analogy": "Es como completar una frase sacando una tarjeta de una bolsa organizada por preferencia. Para «El gato se subió al…», la tarjeta «tejado» queda arriba, pero «sofá» o «árbol» siguen disponibles. Sacas una, la colocas al final de la frase y vuelves a mirar las tarjetas para escoger la siguiente. Si la preferida no gana por mucho, el resultado puede cambiar en otro intento. La bolsa no sabe si la frase es cierta: solo ordena continuaciones."
+    },
+    {
+      "n": 7,
+      "technical": "Un pedido útil reduce decisiones abiertas. Primero dice qué tarea debe hacer el modelo. Luego aclara para quién va dirigida la respuesta, porque no se escribe igual para un cliente que para una persona técnica. Por último indica cómo quieres el resultado: extensión, tono, estructura o formato. También puedes decir qué evitar cuando una salida tiene límites importantes. Esas instrucciones entran como contexto junto con tu solicitud. El modelo solo procesa la información incluida en ese contexto. Si faltan el destinatario, la extensión o el formato, genera una salida general basada en sus patrones aprendidos. Indicar qué debe hacer, para quién y cómo debe responder especifica las condiciones de la tarea y reduce las decisiones que debe completar.",
+      "analogy": "Es como pedir un sándwich en una tienda. Si dices solo «hazme uno», quien atiende tiene que escoger el pan, el relleno y el tamaño. Si dices qué quieres, para quién es y cómo debe venir, el pedido deja menos decisiones abiertas. También puedes pedir que quite un ingrediente. El resultado no mejora porque quien atiende adivine más: mejora porque tú dejaste claro el encargo."
+    },
+    {
+      "n": 8,
+      "technical": "El modelo trabaja con una ventana de contexto: el conjunto de tokens que puede tener presente al responder. Esa ventana incluye tu pedido y la conversación que lo acompaña. Cuando la conversación llega a ≈ 120.000 palabras, el sistema alcanza su límite y debe dejar fuera parte de lo anterior. En general, lo más viejo sale primero, aunque para ti siga siendo importante. El modelo no conserva ese material en otra memoria personal: deja de recibirlo como parte de la entrada actual. Por eso una instrucción del comienzo puede desaparecer sin aviso. Resumir o volver a pegar lo esencial mantiene la información dentro de la ventana.",
+      "analogy": "Es como una mesa donde solo caben ≈ 120.000 palabras de memoria escritas en papeles. Cada vez que pones una hoja nueva, el montón ocupa más espacio. Cuando ya no cabe otra, retiras la hoja más antigua para dejar sitio. La persona sentada frente a la mesa no ve ese papel retirado y tampoco recibe un aviso. Si algo sigue siendo importante, tienes que escribirlo otra vez sobre la mesa."
+    },
+    {
+      "n": 9,
+      "technical": "La temperatura es un ajuste que cambia cómo se elige entre los puntajes de los tokens posibles. Con una temperatura baja, la opción con mayor puntaje sale 99 de 100 veces y la respuesta tiende a repetirse. Con una temperatura alta, las opciones menos probables reciben más oportunidades y aparecen combinaciones raras. El ajuste no cambia el conocimiento guardado ni verifica la verdad de una respuesta. Solo cambia la variedad de la elección. Para un correo de trabajo suele convenir una salida estable; para una lluvia de ideas puede servir aceptar opciones inesperadas. Una respuesta repetible no por eso es correcta: la temperatura controla el riesgo de variar, no la certeza.",
+      "analogy": "Es como una perilla de una radio que decide cuánto ruido entra en la selección de canciones. Abajo, casi siempre suena la canción que ya estaba arriba de la lista. Al subirla, entran opciones menos esperadas y la mezcla cambia. La perilla no convierte una canción falsa en verdadera ni arregla la letra. Solo decide si quieres una elección previsible o una más atrevida."
+    },
+    {
+      "n": 10,
+      "technical": "El modelo calcula qué continuación suena más probable según los patrones que aprendió. Ese cálculo no incluye un verificador automático de hechos. Si una pregunta pide un artículo de ley que no conoce y que tampoco aparece en la fuente disponible, puede construir una respuesta con forma convincente: número, tono y palabras legales. La fluidez oculta la falta de evidencia. Pedir una fuente concreta, exigir una cita y permitir que responda «no está» reduce el espacio para inventar, pero no reemplaza la revisión humana. Hay que comprobar el documento y el dato. Que suene seguro describe la salida; no demuestra que sea cierta.",
+      "analogy": "Es como un actor improvisando una respuesta cuando olvidó una línea. Puede mantener el tono, completar la frase y sonar seguro delante del público. Si nadie abre el guion, cuesta notar que la línea salió de su cabeza. Darle el texto y pedirle que señale la línea limita la improvisación. Aun así, alguien debe mirar el guion y confirmar que la cita coincide."
+    },
+    {
+      "n": 11,
+      "technical": "El modelo tiene un corte en el material usado para entrenarlo. Su conocimiento interno llega hasta esa fecha; los hechos posteriores no forman parte de sus parámetros, aunque la respuesta tenga buen tono. Para consultar algo reciente, una herramienta conectada puede buscar en internet, leer los resultados y pasarlos al modelo como contexto. Entonces la respuesta depende de lo que encontró, no solo de sus parámetros antiguos. Eso tampoco garantiza que la fuente sea correcta: hay que revisar de dónde salió el dato. Sin búsqueda, una pregunta sobre hoy puede recibir una continuación basada en información anterior al cierre.",
+      "analogy": "Es como una biblioteca cuyo catálogo se cerró ayer. Dentro están los libros que llegaron hasta ese momento, pero no los periódicos de hoy. Si conectas la biblioteca con un mensajero, puede traer un periódico reciente y entregártelo para responder. La biblioteca no se actualizó por hablar contigo: solo recibió una fuente nueva para esa consulta. Todavía debes leer el periódico y comprobarlo."
+    },
+    {
+      "n": 12,
+      "technical": "El uso práctico empieza con una tarea que ya puedes evaluar. Escribes un pedido con qué necesitas, para quién es y cómo debe salir; recibes una propuesta y la comparas con tu propio criterio. Esa comparación te muestra qué parte del pedido faltó o qué afirmación debes revisar. Luego ajustas una instrucción y repites. Practicar 5 min al día crea un hábito pequeño y medible sin convertir la herramienta en quien decide. La IA puede acelerar un borrador, ordenar ideas o señalar opciones, pero la responsabilidad sigue contigo. Empieza por un trabajo conocido: solo así puedes distinguir ayuda útil de texto que suena bien y no sirve.",
+      "analogy": "Es como aprender a usar una herramienta nueva para arreglar algo que ya sabes hacer. Primero haces el trabajo a tu manera, luego pruebas la herramienta y comparas el resultado. Si falla, cambias la forma de usarla. La herramienta te ayuda con el arreglo, pero tú decides qué queda terminado. Con 5 min al día, la práctica entra en la rutina sin reemplazar tu criterio."
+    }
+  ],
+  "gramatica": [
+    {
+      "donde": "lessons.summary n=1",
+      "antes": "Nadie le escribe reglas: encuentra el parecido entre miles de ejemplos, sola.",
+      "despues": "Nadie le escribe las reglas: encuentra parecidos entre miles de ejemplos por sí sola.",
+      "motivo": "artículo, número y locución natural"
+    },
+    {
+      "donde": "lessons.summary n=2",
+      "antes": "Mejorar, para ella, es una sola cosa: que el número de «qué tan lejos quedé» baje.",
+      "despues": "Mejorar, para ella, es una sola cosa: bajar el número que mide qué tan lejos quedó.",
+      "motivo": "concordancia y claridad"
+    },
+    {
+      "donde": "lessons.summary n=3",
+      "antes": "Lo aprendido no son fotos ni frases: son millones de numeritos ajustados.",
+      "despues": "Lo que aprende no son fotos ni frases, sino millones de numeritos ajustados.",
+      "motivo": "construcción y contraste"
+    },
+    {
+      "donde": "lessons.math_cap n=4",
+      "antes": "se entrena, y cuesta millones. Responder cuesta centavos.",
+      "despues": "se entrena y cuesta millones. Responder cuesta centavos.",
+      "motivo": "puntuación"
+    },
+    {
+      "donde": "lessons.math_cap n=3",
+      "antes": "perillas tiene un modelo grande. Cada una es solo un número.",
+      "despues": "perillas en un modelo grande. Cada una es solo un número.",
+      "motivo": "orden natural de la frase"
+    },
+    {
+      "donde": "lessons.math_cap n=7",
+      "antes": "esa es toda la fórmula. Lo que no digas, lo rellena genérico.",
+      "despues": "esa es toda la fórmula. Lo que no digas, lo completa de forma genérica.",
+      "motivo": "construcción adverbial"
+    },
+    {
+      "donde": "lessons.math_cap n=9",
+      "antes": "veces gana la opción top con la perilla abajo.",
+      "despues": "veces gana la opción con mayor puntaje cuando la perilla está abajo.",
+      "motivo": "palabra en inglés y claridad"
+    },
+    {
+      "donde": "lessons.summary n=11",
+      "antes": "Estudió hasta un día concreto. Lo de después no existe… salvo que busque.",
+      "despues": "Estudió hasta un día concreto. Lo de después no existe… salvo que lo busque.",
+      "motivo": "pronombre necesario"
+    },
+    {
+      "donde": "lessons.summary n=8",
+      "antes": "Solo tiene presente cierta cantidad de conversación a la vez.",
+      "despues": "Solo puede mantener presente cierta cantidad de conversación a la vez.",
+      "motivo": "claridad del verbo"
+    },
+    {
+      "donde": "lessons.math_cap n=11",
+      "antes": "internet: hoy. Conectada deja de adivinar.",
+      "despues": "internet: hoy. Si está conectada, deja de adivinar.",
+      "motivo": "sujeto explícito y claridad"
+    },
+    {
+      "donde": "lessons.math_cap n=8",
+      "antes": "palabras le caben: un libro mediano. Lo viejo se cae.",
+      "despues": "palabras caben en la mesa: un libro mediano. Lo viejo se cae.",
+      "motivo": "orden natural de la frase"
+    },
+    {
+      "donde": "labs.explanation 1.1",
+      "antes": "Nadie le escribe «el gato tiene orejas puntudas». Ve cien mil fotos marcadas como gato o perro y saca el parecido sola. Por eso funciona con cosas que nadie sabría explicar con reglas.",
+      "despues": "Nadie le escribe «el gato tiene orejas puntudas». Ve cien mil fotos marcadas como gato o perro y encuentra el parecido por sí sola. Por eso funciona con cosas que nadie sabría explicar con reglas.",
+      "motivo": "locución natural"
+    },
+    {
+      "donde": "labs.explanation 1.2",
+      "antes": "Las tres piezas son obligatorias. Con 3 ejemplos sin marcar no aprende nada: a ti te bastan 3 fotos de gato porque llevas años viendo el mundo, ella arranca de cero.",
+      "despues": "Las tres piezas son obligatorias. Con 3 ejemplos sin marcar no aprende nada. A ti te bastan 3 fotos de gato porque llevas años viendo el mundo; ella arranca de cero.",
+      "motivo": "puntuación de dos oraciones"
+    },
+    {
+      "donde": "labs.prompt 2.1",
+      "antes": "Adivina el número entre 1 y 100 y mira bajar tu error",
+      "despues": "Adivina un número entre 1 y 100 y mira cómo baja tu error",
+      "motivo": "artículo y construcción verbal"
+    },
+    {
+      "donde": "labs.explanation 2.1",
+      "antes": "Entrenar es exactamente esto: intentar, medir qué tan lejos quedaste y volver a intentar más cerca. El número que baja es el error, no el acierto.",
+      "despues": "Entrenar es exactamente esto: intentar, medir qué tan lejos quedaste y volver a intentarlo para quedar más cerca. El número que baja es el error, no el acierto.",
+      "motivo": "claridad de la construcción"
+    },
+    {
+      "donde": "labs.explanation 2.2",
+      "antes": "El número que baja mide distancia, no acierto: qué tan lejos quedó de la respuesta buena. 23 sigue siendo estar lejos. Entrenar es exactamente hacer bajar ese número.",
+      "despues": "El número que baja mide distancia, no acierto: qué tan lejos quedó de la respuesta buena. 23 todavía indica que quedó lejos. Entrenar es exactamente hacer bajar ese número.",
+      "motivo": "construcción natural"
+    },
+    {
+      "donde": "labs.prompt 3.2",
+      "antes": "Una perilla quedó mal puesta. Muévela hasta acercarte al valor que la deja bien",
+      "despues": "Una perilla quedó mal puesta. Muévela hasta acercarte al valor correcto",
+      "motivo": "claridad"
+    },
+    {
+      "donde": "labs.explanation 3.2",
+      "antes": "Una perilla es solo un número: ni una idea, ni una palabra. Ajustar el modelo es esto, repetido setenta mil millones de veces a la vez.",
+      "despues": "Una perilla es solo un número: ni una idea ni una palabra. Ajustar el modelo es repetir esto con setenta mil millones de perillas a la vez.",
+      "motivo": "puntuación y claridad"
+    },
+    {
+      "donde": "labs.explanation 3.1",
+      "antes": "Setenta mil millones de números, cada uno movido un poquito por lo que vio. Ahí está todo lo aprendido y nada más.",
+      "despues": "Quedan setenta mil millones de números; cada uno se movió un poquito por lo que vio. Ahí está todo lo aprendido y nada más.",
+      "motivo": "oración nominal sin verbo"
+    },
+    {
+      "donde": "labs.explanation 5.2",
+      "antes": "Los cortes van en Carta|gena y her|mosa. «es» no se corta: aparece tantas veces en español que el modelo ya la tiene como un trozo propio. La regla no es gramatical, es de frecuencia.",
+      "despues": "Los cortes van en Carta|gena y her|mosa. «es» no se corta: aparece tantas veces en español que el modelo ya la tiene como un trozo propio. La regla no es gramatical: depende de la frecuencia.",
+      "motivo": "puntuación y claridad"
+    },
+    {
+      "donde": "labs.explanation 6.2",
+      "antes": "La palabra ganadora se lleva 31 de 100, no 90. Cuando ninguna arrasa, la segunda tiene chance real — y por eso el mismo pedido puede salir distinto.",
+      "despues": "La palabra ganadora se lleva 31 de 100. Cuando ninguna arrasa, la segunda tiene una oportunidad real; por eso el mismo pedido puede salir distinto.",
+      "motivo": "número sin contexto y claridad"
+    },
+    {
+      "donde": "labs.prompt 6.1",
+      "antes": "«El gato se subió al…» ¿qué palabra elige?",
+      "despues": "«El gato se subió al…» ¿Qué palabra elige?",
+      "motivo": "mayúscula después del signo de interrogación"
+    },
+    {
+      "donde": "labs.explanation 7.1",
+      "antes": "«Resume esto» le deja tres decisiones a ella: para quién, qué tan largo y qué dejar afuera. Lo que no dices, lo rellena genérico.",
+      "despues": "«Resume esto» le deja tres decisiones a ella: para quién, qué tan largo y qué dejar afuera. Lo que no dices, lo completa de forma genérica.",
+      "motivo": "construcción adverbial"
+    },
+    {
+      "donde": "labs.prompt 7.2",
+      "antes": "Arma el pedido: qué + para quién + cómo",
+      "despues": "Arma el pedido: qué + para quién + cómo.",
+      "motivo": "puntuación final"
+    },
+    {
+      "donde": "labs.explanation 7.3",
+      "antes": "«Qué evitar» es la ranura que casi nadie llena y la que más ahorra: sin ella te devuelve lo de siempre y te toca pedirlo otra vez.",
+      "despues": "«Qué evitar» es la ranura que casi nadie llena y la que más trabajo te ahorra: sin ella te devuelve lo de siempre y te toca pedirlo otra vez.",
+      "motivo": "objeto explícito y claridad"
+    },
+    {
+      "donde": "labs.explanation 8.3",
+      "antes": "Pegar las 300 páginas llena la mesa de cosas que no te interesan y empuja fuera tu propia pregunta. Menos texto y más preciso gana casi siempre.",
+      "despues": "Pegar las 300 páginas llena la mesa de cosas que no te interesan y empuja fuera tu propia pregunta. Menos texto y un pedido más preciso suelen funcionar mejor.",
+      "motivo": "paralelismo y claridad"
+    },
+    {
+      "donde": "labs.explanation 9.1",
+      "antes": "Abajo escoge la opción de mayor puntaje casi siempre: 99 de 100 veces. Repetible no significa cierta — la perilla no toca la verdad, solo el riesgo.",
+      "despues": "Con la perilla abajo, escoge casi siempre la opción de mayor puntaje: 99 de 100 veces. Repetible no significa cierta: la perilla no toca la verdad, solo el riesgo.",
+      "motivo": "orden y puntuación"
+    },
+    {
+      "donde": "labs.explanation 9.2",
+      "antes": "Con la perilla abajo casi siempre gana el mismo candidato: eso es lo que quieres en un correo. Subiéndola, los raros empiezan a tener chance — sirve para lluvia de ideas, no para trabajo formal.",
+      "despues": "Con la perilla abajo casi siempre gana el mismo candidato: eso es lo que quieres en un correo. Cuando la subes, los nombres raros empiezan a tener una oportunidad; sirve para lluvia de ideas, no para trabajo formal.",
+      "motivo": "participio colgante y claridad"
+    },
+    {
+      "donde": "labs.explanation 10.2",
+      "antes": "El permiso es la pieza clave: sin un «puedes decir que no está», inventar es la única salida que le dejas.",
+      "despues": "El permiso es la pieza clave: sin permitirle decir «no está», inventar es la única salida que le dejas.",
+      "motivo": "construcción y claridad"
+    },
+    {
+      "donde": "labs.explanation 11.2",
+      "antes": "Conectada deja de adivinar: busca, lee y te responde con lo que encontró. Sin conexión, cualquier cosa reciente sale de su memoria vieja.",
+      "despues": "Cuando está conectada, deja de adivinar: busca, lee y te responde con lo que encontró. Sin conexión, cualquier cosa reciente sale de su memoria vieja.",
+      "motivo": "sujeto explícito"
+    },
+    {
+      "donde": "labs.explanation 12.2",
+      "antes": "Sin la tercera ranura la rutina se cae en una semana: necesitas una señal de que te sirvió, no la sensación de estar usando algo moderno.",
+      "despues": "Sin la tercera ranura, la rutina se cae en una semana: necesitas una señal de que te sirvió, no la sensación de estar usando algo moderno.",
+      "motivo": "coma después del complemento inicial"
+    },
+    {
+      "donde": "labs.prompt 4.1",
+      "antes": "Hoy le corriges un error y te da las gracias. Mañana, en una conversación nueva, ¿lo recuerda?",
+      "despues": "Hoy le corriges un error y te da las gracias. Mañana, en una conversación nueva, ¿lo recordará?",
+      "motivo": "concordancia temporal"
+    },
+    {
+      "donde": "labs.explanation 7.2",
+      "antes": "Lo que no dices, lo rellena genérico. «Resume» sin para quién ni cómo devuelve un resumen para nadie.",
+      "despues": "Lo que no dices, lo completa de forma genérica. «Resume» sin indicar para quién ni cómo devuelve un resumen que no está hecho para nadie en particular.",
+      "motivo": "construcción adverbial y claridad"
+    },
+    {
+      "donde": "labs.prompt 9.2",
+      "antes": "Deja la perilla donde el resultado sea repetible para un correo de trabajo",
+      "despues": "Deja la perilla en una posición que produzca un resultado repetible para un correo de trabajo.",
+      "motivo": "régimen verbal y puntuación"
+    },
+    {
+      "donde": "labs.explanation 9.3",
+      "antes": "Arriba, «Sr. Mostacho» empieza a tener chance frente a «Max». Eso es basura en un correo de trabajo y es justo lo que quieres en una lluvia de ideas.",
+      "despues": "Arriba, «Sr. Mostacho» empieza a tener una oportunidad frente a «Max». Eso es basura en un correo de trabajo y es justo lo que quieres en una lluvia de ideas.",
+      "motivo": "palabra coloquial poco clara"
+    },
+    {
+      "donde": "labs.prompt 11.3",
+      "antes": "Ordena lo que pasa cuando le preguntas algo de esta semana y sí puede buscar",
+      "despues": "Ordena qué pasa cuando le preguntas algo de esta semana y puede buscarlo.",
+      "motivo": "claridad del objeto"
+    },
+    {
+      "donde": "labs.prompt 8.2",
+      "antes": "Ordena de lo primero que se cae de la mesa a lo último",
+      "despues": "Ordena qué se cae primero de la mesa y qué se cae al final.",
+      "motivo": "objeto explícito y claridad"
+    },
+    {
+      "donde": "labs.explanation 1.3",
+      "antes": "El último paso es el que importa: si acierta solo con los ejemplos que ya vio, se los memorizó. Aprender es acertar con los nuevos.",
+      "despues": "El último paso es el que importa: si acierta solo con los ejemplos que ya vio, los memorizó. Aprender es acertar con los nuevos.",
+      "motivo": "pronombre innecesario"
+    },
+    {
+      "donde": "labs.explanation 3.3",
+      "antes": "Los números SON el modelo. Copiarlos es copiarlo todo — por eso un modelo se puede descargar y correr en otro lado sin volver a entrenar nada.",
+      "despues": "Los números son el modelo. Copiarlos es copiarlo todo; por eso un modelo se puede descargar y ejecutar en otro lado sin volver a entrenar nada.",
+      "motivo": "mayúsculas enfáticas y claridad verbal"
+    },
+    {
+      "donde": "labs.explanation 6.1",
+      "antes": "«tejado» se lleva 31 de 100. Los puntajes de todas las opciones suman 100 y ninguna llega a la mitad: por eso el mismo pedido dos veces puede salir distinto.",
+      "despues": "«tejado» se lleva 31 de 100. Los puntajes muestran qué opción encaja mejor y ninguna llega a la mitad: por eso el mismo pedido dos veces puede salir distinto.",
+      "motivo": "inconsistencia entre los puntajes visibles y la explicación"
+    },
+    {
+      "donde": "labs.explanation 10.3",
+      "antes": "Si el enlace no abre o el documento no dice eso, el dato se cae — no se negocia.",
+      "despues": "Si el enlace no se abre o el documento no dice eso, el dato se cae; no se negocia.",
+      "motivo": "construcción verbal y puntuación"
+    }
+  ]
+}

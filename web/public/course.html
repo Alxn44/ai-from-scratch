@@ -1,0 +1,1647 @@
+<meta charset="utf-8">
+<title>IA desde cero — Curso completo (micrográfico)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#0B0B0D;font-family:-apple-system,'SF Pro Text',system-ui,sans-serif}
+:root{
+  --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+  --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+  --bg:#000;--l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.40);
+  --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+  --ac:#0A84FF;--rd:#FF453A;--or:#FF9F0A;--ok:#30D158;--logo-filter:none;
+  --logo:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAAAAXNSR0IArs4c6QAAAGRlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAABJAEAAIAAAAUAAAAUKABAAMAAAABAAEAAKACAAQAAAABAAAAYKADAAQAAAABAAAAYAAAAAAyMDI2OjAxOjI0IDE3OjUxOjMwAPqqRa8AAAFlaVRYdFhNTDpjb20uYWRvYmUueG1wAAAAAAA8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJYTVAgQ29yZSA2LjAuMCI+CiAgIDxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+CiAgICAgIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiCiAgICAgICAgICAgIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyI+CiAgICAgICAgIDx4bXA6Q3JlYXRlRGF0ZT4yMDI2LTAxLTI0VDE3OjUxOjMwPC94bXA6Q3JlYXRlRGF0ZT4KICAgICAgPC9yZGY6RGVzY3JpcHRpb24+CiAgIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cpat2SoAAAbqSURBVHgB7ZlpSFVbFIAzmxSbXphFs5WmlKFBNBCNUEQipT+KQgtK/aNBREFkRANEM1E/ooigeYCigQxJHEiDIrOBFJMmbLR5Hl69rzYcNuvce027r3vfY50fsoe111nru2evvda2WTN9lIASUAJKQAkoASWgBJSAElACSkAJKAEloASUgBJQAkpACSgBJaAElIASUAJKQAkoASWgBJSAEvi/EggJrGMtW7b88uULNnTo0CE8PPzbt2++7QkJCfn06dPbt2///vn4FvbLbAu/aGmakv79+69evTonJ+fx48eJiYl79uxp06ZNg6qACKNHjx7V1tZeu3bt8uXLV69eraura3Dhf0ygVatWx48f//79+9atW/kumjdvvmHDBrpNeCC1d+/eMWPGtGgRyN/bzz/AokWLDAs+h2nTpqG9bdu2xcXFTQBklnz9+vXEiRPDhg3zs6EBUTdy5Mjnz587LG7dutWrVy8sYaOx3ZzxJjSePXuWmZkZEKf89tKoqKiKigrh/KFDh0JDQ3nHnDlziL9itlFdon5eXh571i8W/7DpTz6EiW3btk2cOFG8ND4+nrh76dIlIm6PHj2SkpJsAQLzmTNnioqKmL1x4wYhGQoREREcgraYaYNm9OjRT58+vXjxons22Edmz56Ntx6/iAcPHsTFxeFA165dr1+/LmR27dpFLGeWv3AhYPXp02fWrFmHDx9++fKlEKb76tUrNnKw4xD2DR48+OHDh25nnBE+k7CwMFZxJL1+/doZp0EMzsjIEApNl8jFDrWFTbuwsNBo87gq6Abbt29fUlLidkOMED6M6QsWLBBT7Kx+/fp5dIydu2LFCiEP05SUFI/yQTfIvti0aZNwgL12//59McjWGDFiBA6QKHFsi1k2FOMe3SP0kGoK+aNHj3oUDrrBqVOnku8I648cOTJ06NB79+6J8QsXLvC54QPfy+3bt+1ZDrh58+Z5cy86OppAZssT+Ilo3uSDZbxv37537tyx7aaN5yb3SU9PF1N0161bZ6x3k8XnhIQEb75t3LjR1sZh5z4xva0NzHjr1q1NSWHb/eHDB5M9YxPpz/79++1Z2ghMmTLFWLx27Voxe+rUKW9VG2pFGpWVlRUYz3/xrcuWLRPu0V2/fr05s42S7t27V1dXC7GqqirGEeBELy0ttWfpUvp7NIAEShx/GOBRMigGJ0yYwNWE7Rvtc+fOkeMJ+yZPnvz+/XshuXv3biMmSpDFixeL5U6X7VxfX2/rWbNmjTMbXI3OnTuT+Nq20n7y5MmgQYMwlL/t2rWzLd68ebMQJoLMmDHDyGRnZ5sMk2NuwIAB9kK7PXDgQJE3rlq1yhYIljaRhd9fOExiQqmFiSTBNTU1CxcutM3t1KkTpYZYQh4QGxuLGKf4zp07mSUA2atEmy8RrLaS+fPnC5mg6Obm5opgidF4CDji68mTJ+nyNZnawrF41KhRIoIgdvr0aZMQR0ZG3rx5c+7cuY68u7FkyRKbTpDmikOGDOHawTaUNld/bDpcWr58uTNFiSAKTuGhkQS3YUEw4utzczEjcDx//ryjnAaXKjExMd7kAzPO7XJZWZltJW3iwvDhwzGILcAR7syyHdLS0mxDcbKgoMARMA1Kc6DbYh7b7jO+vLzcX/ceHt/YlMEtW7YI9+hSWKGLY5vQI2a5vmDv2G8iDyQbFGLUcZz3tphod+nS5cqVK2KVCHNiSQC6M2fOdJcUx44dM3kdBQQVtvCB7sqVK4Wt3OS7xbjhF2JOlwPx4MGDYgmXk96KW2fhH21w+lJwCyvJ90xJYUzhxsMdngjM4i6Z6vzAgQNCFXtz/Pjxbpco6M6ePSuE6QZXBkRqm5+fL6x88eLF2LFjhUtEXHESs4rsUSTHPXv2FJUqYmwigu5fPx8EUlNT+X8GmZF4r5E0Z4J4e2O7P+7o/PIsXbrUvVOoUXHAXDabt2A6YZij2h1QuGzfsWOHbcz06dO5wRD/zOFz+/z5M5UKegRTZy0yycnJhC1nJMANPhN3SeH+VX2PQLN37962J1DYvn2771Xu2Tdv3kDW1hPgNmeT+wrZbfevjIBDOMM2cZ9NPlRxu8S3I5QEssv93r59+3xY3Kipjx8/Tpo0SfhDYH737l2DekiauT80hZ7QEMguEbdB0xslwL/MCMHCJaKbDyV8NWTk48aN+zdywt8K0mR0lI4dO3bEeuFSk7tEdO7tuRi0NZDmUKBweUpB74zzud29e5cLg8rKSs47Z9y/jd8ChMXdunXj2/ajTQRm8h2yJz/qVFVKQAkoASWgBJSAElACSkAJKAEloASUgBJQAkpACSgBJaAElIASUAJKQAkoASWgBJSAElACSkAJKAFPBP4B4sEb51cfzUsAAAAASUVORK5CYII=");
+}
+.stage.paper{
+  --bg:#F2F2F2;--l1:#000;--l2:rgba(0,0,0,.66);--l3:rgba(0,0,0,.45);
+  --hair:rgba(0,0,0,.22);--hair2:rgba(0,0,0,.08);--fill:rgba(0,0,0,.10);
+  --ac:#0A6CFF;--rd:#E0271C;--or:#C97800;--ok:#149A5B;--logo-filter:invert(1);
+}
+.stage.nogrid{--hair2:transparent}
+.stage{display:flex;flex-direction:column;align-items:center;gap:34px;padding:104px 34px 90px}
+@keyframes caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+[data-t] b{font-weight:600;color:var(--l1)}
+[data-t] small{display:block;margin-top:12px;font:500 24px/1.3 var(--m);letter-spacing:.06em;color:var(--l3)}
+.cursor{display:inline-block;width:3px;height:28px;vertical-align:-5px;background:var(--ac);animation:caret 1.1s steps(1) infinite}
+#bar{position:fixed;top:0;left:0;right:0;z-index:99;display:flex;gap:8px;align-items:center;
+  padding:12px 18px;background:rgba(15,15,17,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(255,255,255,.1);
+  font:600 13px/1 var(--m);letter-spacing:.08em;color:#aaa}
+#bar .grp{display:flex;gap:4px;padding-right:12px;margin-right:4px;border-right:1px solid rgba(255,255,255,.1)}
+#bar button{font:600 12px/1 var(--m);letter-spacing:.08em;color:#ccc;background:#1c1c1e;border:1px solid #333;
+  padding:8px 12px;border-radius:6px;cursor:pointer}
+#bar button.on{background:#0A84FF;border-color:#0A84FF;color:#fff}
+#bar button.go{background:#0A84FF;border-color:#0A84FF;color:#fff;margin-left:auto}
+#bar .lbl{color:#666}
+
+/* ===== bloques avanzados ===== */
+.slide{position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)}
+.grid{position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none}
+.grain{position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none}
+.col{position:relative;z-index:2;height:100%;padding:60px 62px 52px;display:flex;flex-direction:column;gap:14px}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:14px}
+.hd div{font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)}
+.eb{font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)}
+.slide h1{margin:0;font:700 54px/1.02 var(--f);letter-spacing:-.045em;color:var(--l1)}
+.slide h1.sm{font-size:46px}
+
+.sec{display:flex;flex-direction:column;gap:8px}
+.lbl{font:600 23px/1 var(--m);letter-spacing:.2em;color:var(--l3)}
+.prose{border:1px solid var(--hair);padding:20px 24px;font:400 28px/1.32 var(--f);letter-spacing:-.01em;color:var(--l2)}
+.prose b{font-weight:600;color:var(--l1)}
+.mono{font-family:var(--m);font-weight:600;color:var(--l1);letter-spacing:-.02em}
+
+.flow{display:flex;border:1px solid var(--hair)}
+.step{flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)}
+.step:last-child{border-right:0}
+.stepn{font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)}
+.stepl{font:500 25px/1.2 var(--f);color:var(--l1)}
+
+.cmp{display:grid;border:1px solid var(--hair)}
+.cmp.c2{grid-template-columns:1fr 1fr}
+.cmp.c3{grid-template-columns:1fr 1fr 1fr}
+.pane{padding:20px 24px;display:flex;flex-direction:column;gap:9px;border-right:1px solid var(--hair)}
+.pane:last-child{border-right:0}
+.paneh{font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--l3)}
+.panebig{font:700 40px/1 var(--m);letter-spacing:-.03em;color:var(--ac);font-variant-numeric:tabular-nums}
+.panebig.rd{color:var(--rd)} .panebig.ok{color:var(--ok)}
+.panep{font:400 26px/1.3 var(--f);color:var(--l2)}
+.panep b{font-weight:600;color:var(--l1)}
+
+.rows{border:1px solid var(--hair);padding:20px 24px;display:flex;flex-direction:column;gap:14px}
+.row{display:grid;grid-template-columns:300px 1fr 200px;gap:20px;align-items:center}
+.rownm{font:500 27px/1.15 var(--f);color:var(--l1)}
+.rownm.dim{color:var(--l2)} .rownm.dim2{color:var(--l3)}
+.rowtk{height:8px;background:var(--fill)}
+.rowfill{height:100%;background:var(--l1)}
+.rowfill.dim{background:var(--l3)} .rowfill.ac{background:var(--ac)} .rowfill.rd{background:var(--rd)} .rowfill.ok{background:var(--ok)}
+.rowv{text-align:right;font:600 26px/1 var(--m);color:var(--l1);font-variant-numeric:tabular-nums}
+.rowv.dim{color:var(--l2)} .rowv.dim2{color:var(--l3)} .rowv.ac{color:var(--ac)} .rowv.rd{color:var(--rd)} .rowv.ok{color:var(--ok)}
+.rowcap{font:400 25px/1.3 var(--f);color:var(--l2);border-top:1px solid var(--hair2);padding-top:12px}
+.rowcap b{font-weight:600;color:var(--l1)}
+
+.math{border:1px solid var(--hair);padding:20px 24px;display:flex;flex-direction:column;gap:9px}
+.math.rd{border-color:var(--rd)}
+.mathbig{font:700 40px/1.1 var(--m);letter-spacing:-.02em;color:var(--l1);overflow-x:auto;white-space:nowrap}
+.mathbig.ac{color:var(--ac)} .mathbig.rd{color:var(--rd)}
+.mathcap{font:400 25px/1.3 var(--f);color:var(--l2)}
+.mathcap b{font-weight:600;color:var(--l1)} .mathcap .mono{font-family:var(--m);font-weight:600;color:var(--l1)}
+
+.chat{border:1px solid var(--hair)}
+.crow{display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)}
+.crow:last-child{border-bottom:0}
+.cwho{padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)}
+.cwho.ac{color:var(--ac)}
+.ctext{padding:15px 22px;font:400 27px/1.3 var(--f);color:var(--l1)}
+.ctext.dim{color:var(--l3)}
+.tag{display:flex;align-items:center;gap:14px;padding-top:2px}
+.tagi{flex:none;width:32px;height:32px;border:1px solid var(--ac);display:flex;align-items:center;justify-content:center;font:600 20px/1 var(--m);color:var(--ac)}
+.tagi.rd{border-color:var(--rd);color:var(--rd)} .tagi.or{border-color:var(--or);color:var(--or)} .tagi.ok{border-color:var(--ok);color:var(--ok)}
+.tagt{font:500 24px/1.3 var(--m);letter-spacing:.04em;color:var(--ac)}
+.tagt.rd{color:var(--rd)} .tagt.or{color:var(--or)} .tagt.ok{color:var(--ok)}
+
+.note{border:1px solid var(--hair);padding:18px 24px;font:400 26px/1.32 var(--f);color:var(--l2)}
+.note b{font-weight:600;color:var(--l1)}
+.note.warn{border-color:var(--or)} .note.warn b{color:var(--or)}
+.note.good{border-color:var(--ok)} .note.good b{color:var(--ok)}
+
+.take{margin-top:auto;border-top:1px solid var(--hair);padding-top:16px;font:400 31px/1.24 var(--f);letter-spacing:-.02em;color:var(--l2)}
+.take b{font-weight:600;color:var(--l1)}
+.foot{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.foot .l{display:flex;align-items:center;gap:12px}
+.foot .lg{width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)}
+.foot .t{font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)}
+
+/* ===== glosario (referencia · NO es lámina, no se exporta) ===== */
+.gloss{width:1080px;max-width:100%;background:var(--bg);border:1px solid var(--hair);padding:56px 60px 76px;display:flex;flex-direction:column;color:var(--l1)}
+.gloss .gh{font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)}
+.gloss h2{margin:12px 0 8px;font:700 54px/1.04 var(--f);letter-spacing:-.04em;color:var(--l1)}
+.gloss .gsub{font:400 27px/1.35 var(--f);color:var(--l2);margin-bottom:22px;max-width:840px}
+.gloss b{font-weight:700;color:var(--ac)}
+.gtools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;position:sticky;top:54px;background:var(--bg);padding:14px 0;z-index:4;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.gtools input,.gtools select{font:500 24px/1.1 var(--m);color:var(--l1);background:var(--fill);border:1px solid var(--hair);padding:14px 16px;outline:none;border-radius:0}
+.gtools input{flex:1;min-width:280px}
+.gtools input::placeholder{color:var(--l3)}
+.gtools .gcount{font:500 22px/1 var(--m);letter-spacing:.06em;color:var(--l3);margin-left:auto;white-space:nowrap}
+.gcat{margin-top:36px;padding:16px 0 4px;border-top:1px solid var(--hair);font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)}
+.gsec:first-child .gcat{margin-top:24px}
+.gterm{display:grid;grid-template-columns:344px 1fr;gap:24px;align-items:baseline;padding:15px 0;border-bottom:1px solid var(--hair2)}
+.gname{font:600 28px/1.28 var(--f);color:var(--l1)}
+.gnum{font:700 24px/1 var(--m);color:var(--ac);margin-right:12px}
+.gdef{font:400 26px/1.36 var(--f);color:var(--l2)}
+.gref{font:600 22px/1 var(--m);color:var(--ac);white-space:nowrap;margin-left:10px}
+.ghide{display:none!important}
+</style>
+
+<div id="bar">
+  <span class="lbl">IDIOMA</span>
+  <span class="grp"><button id="es" class="on" onclick="setLang('es')">ES</button><button id="en" onclick="setLang('en')">EN</button></span>
+  <span class="lbl">TEMA</span>
+  <span class="grp"><button id="dark" class="on" onclick="setTheme('dark')">DARK</button><button id="paper" onclick="setTheme('paper')">PAPER</button></span>
+  <span class="lbl">GRID</span>
+  <span class="grp"><button id="grid" class="on" onclick="toggleGrid()">ON</button></span>
+  <button onclick="document.getElementById('glos').scrollIntoView({behavior:'smooth'})">GLOSARIO ↓</button>
+  <button class="go" onclick="all()">DESCARGAR LAS 44 (PNG)</button>
+</div>
+
+<div class="stage" id="stage">
+
+<!-- ============ MÓDULO 0 · PRE-CURSO (5 láminas, anatomía-lite) ============ -->
+
+<div class="slide" data-n="pre-01" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p_hd"></div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">1 / 5</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="p1_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="p1_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_idea"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="p1_idea"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p1_vl"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;gap:16px"><div style="flex:none;width:34px;height:34px;border:1px solid var(--rd);display:flex;align-items:center;justify-content:center;font:600 22px/1 var(--m);color:var(--rd)">✕</div><div style="font:500 29px/1.25 var(--f);color:var(--l1)" data-t="p1_v1"></div></div>
+        <div style="display:flex;align-items:center;gap:16px"><div style="flex:none;width:34px;height:34px;border:1px solid var(--rd);display:flex;align-items:center;justify-content:center;font:600 22px/1 var(--m);color:var(--rd)">✕</div><div style="font:500 29px/1.25 var(--f);color:var(--l1)" data-t="p1_v2"></div></div>
+        <div style="display:flex;align-items:center;gap:16px"><div style="flex:none;width:34px;height:34px;border:1px solid var(--ok);display:flex;align-items:center;justify-content:center;font:600 22px/1 var(--m);color:var(--ok)">✓</div><div style="font:500 29px/1.25 var(--f);color:var(--l1)" data-t="p1_v3"></div></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="p1_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div><div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div></div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="p_ft"></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="pre-02" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p_hd"></div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">2 / 5</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="p2_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="p2_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_idea"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="p2_idea"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p2_vl"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:170px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--l3)" data-t="p2_you"></div>
+          <div style="padding:20px 22px;font:500 32px/1.25 var(--m);color:var(--l1)" data-t="p2_v1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:170px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--ac)" data-t="p2_ai"></div>
+          <div style="padding:20px 22px;font:600 34px/1.2 var(--m);color:var(--ac)" data-t="p2_v2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="p2_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div><div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div></div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="p_ft"></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="pre-03" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p_hd"></div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">3 / 5</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="p3_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="p3_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_idea"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="p3_idea"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p3_vl"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--hair)">
+        <div style="padding:22px 24px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--hair)">
+          <div style="font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--l3)" data-t="p3_a"></div>
+          <div style="font:400 28px/1.3 var(--f);color:var(--l2)" data-t="p3_v1"></div>
+        </div>
+        <div style="padding:22px 24px;display:flex;flex-direction:column;gap:12px">
+          <div style="font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--ac)" data-t="p3_b"></div>
+          <div style="font:400 28px/1.3 var(--f);color:var(--l2)" data-t="p3_v2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="p3_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div><div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div></div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="p_ft"></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="pre-04" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p_hd"></div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">4 / 5</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="p4_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="p4_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_idea"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="p4_idea"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p4_vl"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:150px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--l3)" data-t="p4_a"></div>
+          <div style="padding:20px 22px;font:400 29px/1.3 var(--f);color:var(--l3)" data-t="p4_v1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:150px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--ac)" data-t="p4_b"></div>
+          <div style="padding:20px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="p4_v2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="p4_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div><div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div></div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="p_ft"></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="pre-05" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p_hd"></div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">5 / 5</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="p5_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="p5_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_idea"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="p5_idea"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="p5_vl"></div>
+      <div style="border:1px solid var(--rd);padding:24px 26px;display:flex;flex-direction:column;gap:12px">
+        <div style="font:700 52px/1.05 var(--m);letter-spacing:-.02em;color:var(--rd)" data-t="p5_v1"></div>
+        <div style="font:400 28px/1.32 var(--f);color:var(--l2)" data-t="p5_v2"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="p5_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div><div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div></div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="p_ft"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FIN MÓDULO 0 ============ -->
+
+<div class="slide" data-n="01" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">01 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s1_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s1_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s1_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s1_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s1_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s1_f3"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">04</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s1_f4"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 56px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s1_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s1_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+          <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="s1_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="s1_e2"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding-top:4px">
+        <div style="flex:none;width:32px;height:32px;border:1px solid var(--ac);display:flex;align-items:center;justify-content:center;font:600 20px/1 var(--m);color:var(--ac)">✓</div>
+        <div style="font:500 25px/1.3 var(--m);letter-spacing:.05em;color:var(--ac)" data-t="s1_etag"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s1_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="02" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">02 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s2_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s2_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s2_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s2_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s2_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s2_f3"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">04</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s2_f4"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 56px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s2_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s2_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:1fr 240px 190px;gap:22px;align-items:center;padding:20px 22px;border-bottom:1px solid var(--hair)">
+          <div style="font:400 29px/1.25 var(--f);color:var(--l2)" data-t="s2_e1"></div>
+          <div style="height:8px;background:var(--fill)"><div style="width:88%;height:100%;background:var(--l3)"></div></div>
+          <div style="text-align:right;font:600 25px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="s2_w1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 240px 190px;gap:22px;align-items:center;padding:20px 22px">
+          <div style="font:400 29px/1.25 var(--f);color:var(--l1)" data-t="s2_e2"></div>
+          <div style="height:8px;background:var(--fill)"><div style="width:6%;height:100%;background:var(--ac)"></div></div>
+          <div style="text-align:right;font:600 25px/1 var(--m);letter-spacing:.16em;color:var(--ac)" data-t="s2_w2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s2_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="03" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">03 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s3_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s3_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s3_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s3_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s3_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s3_f3"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 52px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s3_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s3_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair);padding:20px 24px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:center;gap:20px">
+          <div style="width:150px;font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--l3)"><span data-t="lbl_dial"></span> 01</div>
+          <div style="flex:1;height:1px;background:var(--hair);position:relative">
+            <div style="position:absolute;left:0;top:0;width:72%;height:1px;background:var(--l1)"></div>
+            <div style="position:absolute;left:72%;top:-13px;width:11px;height:26px;background:var(--l1)"></div>
+          </div>
+          <div style="width:90px;text-align:right;font:500 24px/1 var(--m);color:var(--l3)">0.72</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <div style="width:150px;font:600 22px/1 var(--m);letter-spacing:.14em;color:var(--l3)"><span data-t="lbl_dial"></span> 02</div>
+          <div style="flex:1;height:1px;background:var(--hair);position:relative">
+            <div style="position:absolute;left:0;top:0;width:29%;height:1px;background:var(--l1)"></div>
+            <div style="position:absolute;left:29%;top:-13px;width:11px;height:26px;background:var(--l1)"></div>
+          </div>
+          <div style="width:90px;text-align:right;font:500 24px/1 var(--m);color:var(--l3)">0.29</div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--hair);display:grid;grid-template-columns:104px 1fr">
+        <div style="padding:18px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+        <div style="padding:16px 22px;font:400 28px/1.28 var(--f);color:var(--l1)" data-t="s3_e1"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s3_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="04" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">04 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s4_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s4_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s4_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s4_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s4_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s4_f3"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);display:grid;grid-template-columns:1fr 1fr">
+        <div style="padding:22px 24px;border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:10px">
+          <div style="font:700 48px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s4_m1"></div>
+          <div style="font:400 26px/1.32 var(--f);color:var(--l2)" data-t="s4_c1"></div>
+        </div>
+        <div style="padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+          <div style="font:700 48px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s4_m2"></div>
+          <div style="font:400 26px/1.32 var(--f);color:var(--l2)" data-t="s4_c2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+          <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="s4_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="border-right:1px solid var(--hair)"></div>
+          <div style="padding:14px 22px;font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="s4_ediv"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="s4_e2"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding-top:4px">
+        <div style="flex:none;width:32px;height:32px;border:1px solid var(--rd);display:flex;align-items:center;justify-content:center;font:600 20px/1 var(--m);color:var(--rd)">!</div>
+        <div style="font:500 25px/1.3 var(--m);letter-spacing:.05em;color:var(--rd)" data-t="s4_etag"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s4_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="05" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">05 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s5_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s5_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s5_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s5_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s5_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s5_f3"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 50px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s5_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s5_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair);display:grid;grid-template-columns:104px 1fr">
+        <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+        <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="s5_e1"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:4px">
+        <div style="border:1px solid var(--hair);padding:14px 18px;font:500 30px/1 var(--m);color:var(--l1)" data-t="s5_c1"></div>
+        <div style="border:1px solid var(--hair);padding:14px 18px;font:500 30px/1 var(--m);color:var(--l1)" data-t="s5_c2"></div>
+        <div style="border:1px solid var(--hair);padding:14px 18px;font:500 30px/1 var(--m);color:var(--l1)" data-t="s5_c3"></div>
+        <div style="border:1px solid var(--hair);padding:14px 18px;font:500 30px/1 var(--m);color:var(--l1)" data-t="s5_c4"></div>
+        <div style="border:1px solid var(--hair);padding:14px 18px;font:500 30px/1 var(--m);color:var(--l1)" data-t="s5_c5"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s5_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="06" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">06 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s6_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s6_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s6_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s6_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s6_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s6_f3"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">04</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s6_f4"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:15px">
+        <div style="display:grid;grid-template-columns:190px 1fr 230px;gap:20px;align-items:center">
+          <div style="font:500 28px/1 var(--f);color:var(--l1)" data-t="s6_o1"></div>
+          <div style="height:8px;background:var(--fill)"><div style="width:31%;height:100%;background:var(--l1)"></div></div>
+          <div style="text-align:right;font:600 26px/1 var(--m);color:var(--l1)" data-t="s6_v1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:190px 1fr 230px;gap:20px;align-items:center">
+          <div style="font:500 28px/1 var(--f);color:var(--l2)" data-t="s6_o2"></div>
+          <div style="height:8px;background:var(--fill)"><div style="width:12%;height:100%;background:var(--l3)"></div></div>
+          <div style="text-align:right;font:600 26px/1 var(--m);color:var(--l2)" data-t="s6_v2"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:190px 1fr 230px;gap:20px;align-items:center">
+          <div style="font:500 28px/1 var(--f);color:var(--l3)" data-t="s6_o3"></div>
+          <div style="height:8px;background:var(--fill)"><div style="width:2%;height:100%;background:var(--l3)"></div></div>
+          <div style="text-align:right;font:600 26px/1 var(--m);color:var(--l3)" data-t="s6_v3"></div>
+        </div>
+        <div style="font:400 26px/1.32 var(--f);color:var(--l2);border-top:1px solid var(--hair2);padding-top:14px" data-t="s6_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l2)" data-t="s6_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 29px/1.3 var(--f);color:var(--l1)" data-t="s6_e2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s6_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="07" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:15px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">07 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s7_eb"></div>
+    <h1 style="margin:0;font:700 58px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s7_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:20px 24px;font:400 29px/1.32 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s7_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s7_f1"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s7_f2"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s7_f3"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">04</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s7_f4"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:20px 24px;display:flex;flex-direction:column;gap:9px">
+        <div style="font:700 42px/1.05 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s7_m1"></div>
+        <div style="font:400 26px/1.3 var(--f);color:var(--l2)" data-t="s7_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+          <div style="padding:15px 22px;font:400 27px/1.28 var(--f);color:var(--l3)" data-t="s7_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:15px 22px;font:400 27px/1.28 var(--f);color:var(--l3)" data-t="s7_e2"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--ac)" data-t="lbl_you"></div>
+          <div style="padding:15px 22px;font:400 27px/1.28 var(--f);color:var(--l1)" data-t="s7_e3"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:15px 22px;font:400 27px/1.28 var(--f);color:var(--l1)" data-t="s7_e4"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:16px;font:400 32px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s7_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="08" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">08 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s8_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s8_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 29px/1.32 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s8_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s8_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s8_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s8_f3"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 54px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s8_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s8_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+          <div style="padding:18px 22px;font:400 28px/1.3 var(--f);color:var(--l3)" data-t="s8_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="border-right:1px solid var(--hair)"></div>
+          <div style="padding:14px 22px;font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="s8_ediv"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s8_e2"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding-top:4px">
+        <div style="flex:none;width:32px;height:32px;border:1px solid var(--or);display:flex;align-items:center;justify-content:center;font:600 20px/1 var(--m);color:var(--or)">!</div>
+        <div style="font:500 25px/1.3 var(--m);letter-spacing:.05em;color:var(--or)" data-t="s8_etag"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 32px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s8_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="09" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:15px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">09 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s9_eb"></div>
+    <h1 style="margin:0;font:700 58px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s9_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:20px 24px;font:400 29px/1.32 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s9_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s9_f1"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--l3)">→</div><div style="font:500 26px/1.2 var(--f);color:var(--l2)" data-t="s9_f2"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s9_f3"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--l3)">→</div><div style="font:500 26px/1.2 var(--f);color:var(--l2)" data-t="s9_f4"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);display:grid;grid-template-columns:1fr 1fr">
+        <div style="padding:20px 24px;border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:9px">
+          <div style="font:700 44px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s9_m1"></div>
+          <div style="font:400 26px/1.3 var(--f);color:var(--l2)" data-t="s9_c1"></div>
+        </div>
+        <div style="padding:20px 24px;display:flex;flex-direction:column;gap:9px">
+          <div style="font:700 44px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s9_m2"></div>
+          <div style="font:400 26px/1.3 var(--f);color:var(--l2)" data-t="s9_c2"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+          <div style="padding:15px 22px;font:400 28px/1.28 var(--f);color:var(--l1)" data-t="s9_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:15px 22px;font:400 28px/1.28 var(--f);color:var(--l1)" data-t="s9_e2"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:16px 20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:15px 22px;font:400 28px/1.28 var(--f);color:var(--l1)" data-t="s9_e3"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:16px;font:400 32px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s9_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="10" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">10 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--rd)" data-t="s10_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s10_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 29px/1.32 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s10_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--rd)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s10_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--rd)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s10_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--rd)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s10_f3"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--rd);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 54px/1 var(--m);letter-spacing:-.02em;color:var(--rd)" data-t="s10_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s10_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_you"></div>
+          <div style="padding:18px 22px;font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s10_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s10_e2"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding-top:4px">
+        <div style="flex:none;width:32px;height:32px;border:1px solid var(--rd);display:flex;align-items:center;justify-content:center;font:600 20px/1 var(--m);color:var(--rd)">!</div>
+        <div style="font:500 25px/1.3 var(--m);letter-spacing:.05em;color:var(--rd)" data-t="s10_etag"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 32px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s10_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="11" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">11 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s11_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s11_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 29px/1.32 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s11_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s11_f1"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s11_f2"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s11_f3"></div></div>
+        <div style="flex:1;padding:15px 16px;display:flex;flex-direction:column;gap:7px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">04</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s11_f4"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 40px/1.05 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s11_m1"></div>
+        <div style="font:400 26px/1.3 var(--f);color:var(--l2)" data-t="s11_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--hair)">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--l3)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 28px/1.3 var(--f);color:var(--l3)" data-t="s11_e1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:104px 1fr">
+          <div style="padding:20px;border-right:1px solid var(--hair);font:600 22px/1 var(--m);letter-spacing:.16em;color:var(--ac)" data-t="lbl_ai"></div>
+          <div style="padding:18px 22px;font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s11_e2"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding-top:4px">
+        <div style="flex:none;width:32px;height:32px;border:1px solid var(--ac);display:flex;align-items:center;justify-content:center;font:600 20px/1 var(--m);color:var(--ac)">✓</div>
+        <div style="font:500 25px/1.3 var(--m);letter-spacing:.05em;color:var(--ac)" data-t="s11_src"></div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s11_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-n="12" style="position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--bg)">
+  <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6));pointer-events:none"></div>
+  <canvas data-fx="grain" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none"></canvas>
+  <div style="position:relative;z-index:2;height:100%;padding:66px 62px 56px;display:flex;flex-direction:column;gap:17px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:15px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">IA DESDE CERO · FUNDAMENTOS</div>
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)">12 / 12</div>
+    </div>
+    <div style="font:600 26px/1 var(--m);letter-spacing:.2em;color:var(--ac)" data-t="s12_eb"></div>
+    <h1 style="margin:0;font:700 62px/1.0 var(--f);letter-spacing:-.045em;color:var(--l1)" data-t="s12_h1"></h1>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_what"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;font:400 30px/1.34 var(--f);letter-spacing:-.01em;color:var(--l2)" data-t="s12_que"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_how"></div>
+      <div style="display:flex;border:1px solid var(--hair)">
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">01</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s12_f1"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--hair)"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">02</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s12_f2"></div></div>
+        <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:8px"><div style="font:600 22px/1 var(--m);letter-spacing:.12em;color:var(--ac)">03</div><div style="font:500 26px/1.2 var(--f);color:var(--l1)" data-t="s12_f3"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_math"></div>
+      <div style="border:1px solid var(--hair);padding:22px 24px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 54px/1 var(--m);letter-spacing:-.02em;color:var(--l1)" data-t="s12_m1"></div>
+        <div style="font:400 27px/1.32 var(--f);color:var(--l2)" data-t="s12_mcap"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 24px/1 var(--m);letter-spacing:.2em;color:var(--l3)" data-t="lbl_ex"></div>
+      <div style="border:1px solid var(--hair)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 22px;border-bottom:1px solid var(--hair)">
+          <div style="font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s12_e1"></div>
+          <div style="flex:none;width:32px;height:32px;border:1px solid var(--hair);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="8.5" y="3.5" width="12" height="15" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--l3)"></rect><path d="M15.5 21.5H4.5V7.5" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--l3)"></path></svg></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 22px;border-bottom:1px solid var(--hair)">
+          <div style="font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s12_e2"></div>
+          <div style="flex:none;width:32px;height:32px;border:1px solid var(--hair);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="8.5" y="3.5" width="12" height="15" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--l3)"></rect><path d="M15.5 21.5H4.5V7.5" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--l3)"></path></svg></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 22px">
+          <div style="font:400 28px/1.3 var(--f);color:var(--l1)" data-t="s12_e3"></div>
+          <div style="flex:none;width:32px;height:32px;border:1px solid var(--hair);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="8.5" y="3.5" width="12" height="15" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--l3)"></rect><path d="M15.5 21.5H4.5V7.5" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--l3)"></path></svg></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:18px;font:400 34px/1.26 var(--f);letter-spacing:-.02em;color:var(--l2)" data-t="s12_take"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;background:var(--logo) center/cover;filter:var(--logo-filter)"></div>
+        <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI</div>
+      </div>
+      <div style="font:500 24px/1 var(--m);letter-spacing:.16em;color:var(--l3)">VOL. 1</div>
+    </div>
+  </div>
+</div>
+
+<div id="glos" class="gloss">
+  <div class="gh" data-t="glo_h"></div>
+  <h2 data-t="glo_title"></h2>
+  <div class="gsub" data-t="glo_sub"></div>
+  <div class="gtools">
+    <input id="gq" type="text" placeholder="Buscar término…" oninput="glosFilter()" autocomplete="off">
+    <select id="gcatsel" onchange="glosFilter()"><option value="">Todas las categorías</option></select>
+    <span class="gcount" id="gcount"></span>
+  </div>
+  <div id="glosbody"></div>
+</div>
+
+</div>
+
+<script>
+const I18N = {
+es: {
+"p_hd":"IA DESDE CERO · PRE-CURSO","p_ft":"PRE-CURSO","lbl_idea":"LA IDEA",
+"glo_h":"REFERENCIA","glo_title":"Palabras clave para entender la IA","glo_sub":"El vocabulario completo, una línea cada uno. <b>§</b> = dónde se explica a fondo en el curso.",
+"p1_eb":"00 · QUÉ ES LA IA","p1_h1":"Un programa que aprendió mirando ejemplos","p1_idea":"No es una persona ni un buscador. Es <b>software que vio millones de ejemplos</b> y aprendió los patrones que se repiten.","p1_vl":"EN CLARO","p1_v1":"Una persona que piensa","p1_v2":"Un buscador que copia y pega","p1_v3":"Patrones que aprendió de ejemplos","p1_take":"Si entiendes <b>“aprendió de ejemplos”</b>, entiendes de dónde sale todo lo demás.",
+"p2_eb":"00 · CÓMO RESPONDE","p2_h1":"Adivina la siguiente palabra, una por una","p2_idea":"Cada respuesta se arma <b>pedazo por pedazo</b>. Mira lo que hay y predice qué sigue; no busca una verdad, calcula lo más probable.","p2_vl":"EJEMPLO","p2_you":"TEXTO","p2_v1":"El cielo es ___","p2_ai":"PREDICE","p2_v2":"azul<small>· gris · despejado — eligió lo más probable</small>","p2_take":"Por eso <b>suena natural</b>: palabra a palabra, eligió lo que sonaba mejor.",
+"p3_eb":"00 · CUÁNDO APRENDE","p3_h1":"Primero aprendió. Ahora solo responde.","p3_idea":"El aprendizaje ya pasó, <b>antes</b> de que tú llegaras. Cuando le escribes no aprende de ti: usa lo que ya sabía.","p3_vl":"DOS MOMENTOS SEPARADOS","p3_a":"ANTES","p3_v1":"Entrenamiento: vio millones de ejemplos. Pasó una sola vez.","p3_b":"AHORA","p3_v2":"Uso: te responde con lo que ya sabe. No cambia por dentro.","p3_take":"Por eso no <b>recuerda</b> tu chat de ayer, salvo que se lo vuelvas a dar.",
+"p4_eb":"00 · CÓMO PEDIRLE","p4_h1":"Le pides con palabras: eso es un prompt","p4_idea":"Un <b>prompt</b> es lo que escribes. No es código: es una instrucción en lenguaje normal. Entre más claro pides, mejor responde.","p4_vl":"MISMO MODELO, DISTINTA PETICIÓN","p4_a":"VAGO","p4_v1":"«escríbeme algo»","p4_b":"CLARO","p4_v2":"«3 ideas de post para una panadería, tono cálido, 1 línea cada una»","p4_take":"El curso te enseña a <b>pedir bien</b> — ahí está casi todo el resultado.",
+"p5_eb":"00 · CUÁNDO DUDAR","p5_h1":"Puede sonar seguro y estar equivocado","p5_idea":"Como adivina lo que <b>suena bien</b>, a veces inventa con tono de experto. No miente a propósito: es su forma de funcionar.","p5_vl":"LA REGLA DE ORO","p5_v1":"suena bien ≠ es cierto","p5_v2":"Verifica lo importante: <b>fechas, cifras y nombres.</b>","p5_take":"Úsala con confianza, pero <b>verifica</b> lo que de verdad importa.",
+"lbl_what":"QUÉ ES","lbl_how":"CÓMO FUNCIONA","lbl_math":"LA MATEMÁTICA","lbl_ex":"EJEMPLO",
+"lbl_you":"TÚ","lbl_ai":"IA","lbl_dial":"PERILLA",
+"s1_eb":"01 · LA IA","s1_h1":"Aprende viendo ejemplos",
+"s1_que":"Un programa que <b>nadie programa con reglas</b>: encuentra el parecido entre miles de ejemplos, él solo.",
+"s1_f1":"Ve un ejemplo","s1_f2":"Adivina","s1_f3":"Le dicen sí o no","s1_f4":"Se ajusta",
+"s1_m1":"100.000",
+"s1_mcap":"fotos de gato necesita ver para aprender qué es \"gato\". A ti te bastan 3: ella compensa con volumen.",
+"s1_e1":"¿Y este que nunca viste?","s1_e2":"Es un gato.","s1_etag":"Acertó sin reglas escritas",
+"s1_take":"No se programa: <b>se entrena.</b>",
+"s2_eb":"02 · CÓMO MEJORA","s2_h1":"Juega frío y caliente",
+"s2_que":"Mejorar, para ella, es una sola cosa: que el número de <b>\"qué tan lejos quedé\"</b> baje.",
+"s2_f1":"Adivina","s2_f2":"Mide la distancia","s2_f3":"Se acerca un poco","s2_f4":"Otra vez",
+"s2_m1":"94 → 23 → 4",
+"s2_mcap":"así baja ese número con la práctica. Se llama <b>error</b>. Entrenar = hacerlo bajar.",
+"s2_e1":"¿Es un perro?","s2_w1":"FRÍO","s2_e2":"Es un gato.","s2_w2":"CALIENTE",
+"s2_take":"Millones de intentos, cada uno <b>un pelito mejor.</b>",
+"s3_eb":"03 · DÓNDE LO GUARDA","s3_h1":"Todo queda en perillas",
+"s3_que":"Lo aprendido no se guarda como fotos ni frases: queda como <b>millones de numeritos ajustados</b>, como perillas de sonido.",
+"s3_f1":"Acierta o falla","s3_f2":"Mueve perillas un poquito","s3_f3":"Quedan afinadas",
+"s3_m1":"70.000.000.000",
+"s3_mcap":"perillas tiene un modelo grande. Cada una es solo un número que subió o bajó durante el estudio.",
+"s3_e1":"No guardé tus fotos. Me quedó el ajuste.<small>Como tú con los libros: no los recitas, pero aprendiste a hablar.</small>",
+"s3_take":"Como afinar una guitarra… <b>con 70 mil millones de clavijas.</b>",
+"s4_eb":"04 · POR QUÉ NO CAMBIA","s4_h1":"Contigo no aprende",
+"s4_que":"Estudiar y responder son <b>dos momentos separados</b>. Cuando hablas con ella, el estudio ya terminó.",
+"s4_f1":"Estudia meses","s4_f2":"La congelan","s4_f3":"Responde millones de veces",
+"s4_m1":"1 vez","s4_c1":"se entrena. Cuesta millones de dólares.",
+"s4_m2":"∞ veces","s4_c2":"responde. Cuesta centavos y no cambia nada por dentro.",
+"s4_e1":"Te equivocaste: son 3.","s4_ediv":"al día siguiente","s4_e2":"Son 4.","s4_etag":"Tu corrección no la cambió",
+"s4_take":"Es un <b>libro impreso</b>, no un cuaderno.",
+"s5_eb":"05 · CÓMO LEE","s5_h1":"Lee pedacitos: tokens",
+"s5_que":"No ve palabras ni letras. <b>Parte tu texto en trozos</b> y trabaja con esos trozos.",
+"s5_f1":"Llega tu frase","s5_f2":"La corta con una lista fija","s5_f3":"Cada trozo se vuelve un número",
+"s5_m1":"3 palabras = 5 tokens",
+"s5_mcap":"1 token ≈ media palabra larga en español. Todo se mide y se cobra en tokens.",
+"s5_e1":"Cartagena es hermosa",
+"s5_c1":"Carta","s5_c2":"gena","s5_c3":"es","s5_c4":"her","s5_c5":"mosa",
+"s5_take":"Por eso no sabe contar letras: <b>nunca las vio.</b>",
+"s6_eb":"06 · CÓMO ESCRIBE","s6_h1":"Adivina la que sigue",
+"s6_que":"Su único truco: darle un <b>puntaje a cada palabra posible</b> y escoger una. Luego repite.",
+"s6_f1":"Lee todo","s6_f2":"Puntúa cada opción","s6_f3":"Escoge una","s6_f4":"Vuelve a empezar",
+"s6_o1":"bueno","s6_v1":"31 de 100","s6_o2":"suave","s6_v2":"12 de 100","s6_o3":"azul","s6_v3":"casi 0",
+"s6_mcap":"los puntajes de <b>todas</b> las opciones suman 100. Eso es una probabilidad.",
+"s6_e1":"El café de Colombia es muy <span class='cursor'></span>",
+"s6_e2":"El café de Colombia es muy bueno.",
+"s6_take":"Palabra por palabra. <b>Por eso la ves \"tipear\".</b>",
+"s7_eb":"07 · CÓMO PEDIRLE","s7_h1":"La fórmula del buen pedido",
+"s7_que":"Ella no adivina lo que tienes en la cabeza. <b>Tu explicación es todo lo que recibe.</b>",
+"s7_f1":"Dile qué","s7_f2":"Para quién","s7_f3":"Cómo lo quieres","s7_f4":"Da un ejemplo",
+"s7_m1":"qué + para quién + cómo",
+"s7_mcap":"esa es toda la fórmula. Lo que no le digas, lo rellena con lo genérico.",
+"s7_e1":"hazme un correo",
+"s7_e2":"Estimado usuario, por medio de la presente…<small>genérico, no sirve</small>",
+"s7_e3":"Correo a un cliente: pedido 2 días tarde. Disculpa + descuento. Corto.",
+"s7_e4":"Hola Andrés, sentimos la demora. Te dejamos 15%…",
+"s7_take":"Misma IA, mismo precio: <b>cambió tu explicación.</b>",
+"s8_eb":"08 · SU MEMORIA","s8_h1":"La mesa se llena",
+"s8_que":"Solo puede tener presente <b>cierta cantidad de conversación</b> a la vez, como una mesa con espacio limitado.",
+"s8_f1":"Todo entra a la mesa","s8_f2":"Se llena","s8_f3":"Lo más viejo se cae",
+"s8_m1":"≈ 120.000",
+"s8_mcap":"palabras le caben: un libro mediano. Y en cada respuesta <b>relee todo desde el inicio</b>.",
+"s8_e1":"Me llamo Alejandro, mi negocio es de comida…","s8_ediv":"200 mensajes después",
+"s8_e2":"Perdona… ¿me recuerdas tu nombre?","s8_etag":"Lo del inicio ya se cayó de la mesa",
+"s8_take":"¿Se puso rara? <b>Chat nuevo</b> y pega solo lo importante.",
+"s9_eb":"09 · SU PERILLA","s9_h1":"Seria o creativa: tú eliges",
+"s9_que":"Tiene un control llamado <b>temperatura</b>: decide si va a lo seguro o se arriesga con opciones raras.",
+"s9_f1":"Perilla abajo","s9_f2":"siempre lo seguro","s9_f3":"Perilla arriba","s9_f4":"las raras compiten",
+"s9_m1":"99 de 100","s9_c1":"veces gana la opción top con la perilla abajo.",
+"s9_m2":"4 de 10","s9_c2":"veces gana esa misma opción con la perilla arriba.",
+"s9_e1":"Un nombre para mi perro",
+"s9_e2":"Max <small>perilla abajo, 3 de 3 veces</small>",
+"s9_e3":"Sr. Mostacho <small>perilla arriba, cada vez sale otro</small>",
+"s9_take":"Respuestas distintas no es falla: <b>es el dado, a propósito.</b>",
+"s10_eb":"10 · SU PELIGRO","s10_h1":"Inventa con seguridad",
+"s10_que":"No tiene botón de <b>\"no sé\"</b>. Cuando le falta el dato, arma uno que suena perfecto.",
+"s10_f1":"Le preguntas algo raro","s10_f2":"Busca lo que mejor suena","s10_f3":"Lo escribe con confianza",
+"s10_m1":"suena ≠ cierto",
+"s10_mcap":"su puntaje mide <b>qué tan bien suena</b> la palabra — no qué tan cierta es. Esa es toda la trampa.",
+"s10_e1":"¿Quién escribió \"El jardín de los suspiros\"?",
+"s10_e2":"Marta Elena Vidal, en 1987. Ganó un premio regional.",
+"s10_etag":"Ni el libro ni la autora existen",
+"s10_take":"Nombres, fechas y cifras: <b>verifícalos tú. Siempre.</b>",
+"s11_eb":"11 · SU FECHA","s11_h1":"Su memoria tiene fecha",
+"s11_que":"Estudió hasta un día concreto. <b>Lo que pasó después no existe para ella</b>… salvo que pueda buscar.",
+"s11_f1":"Le preguntas algo actual","s11_f2":"Busca en internet","s11_f3":"Lee la fuente","s11_f4":"Responde con lo de hoy",
+"s11_m1":"memoria: ayer · internet: hoy",
+"s11_mcap":"sin conexión responde con recuerdos de su fecha de corte. Conectada, lee el dato del día.",
+"s11_e1":"El dólar está como en 4.100…<small>recuerdo viejo, de cuando estudió</small>",
+"s11_e2":"Hoy está en 3.912.",
+"s11_src":"consultado hoy en la fuente",
+"s11_take":"Conectada <b>deja de adivinar.</b>",
+"s12_eb":"12 · EMPIEZA HOY","s12_h1":"Copia, pega y listo",
+"s12_que":"Es una herramienta para <b>pensar y producir más rápido</b>. No decide por ti: te acelera.",
+"s12_f1":"Copia uno de estos","s12_f2":"Pégalo con tu texto","s12_f3":"Ajusta lo que salga",
+"s12_m1":"5 min al día",
+"s12_mcap":"bastan para agarrarle la mano. No hay que estudiar nada más que esto que acabas de leer.",
+"s12_e1":"Resúmeme este documento en 5 puntos",
+"s12_e2":"Explícame esto como si tuviera 10 años",
+"s12_e3":"Mejora este mensaje: amable pero firme",
+"s12_take":"Ella acelera. <b>Tú decides.</b>"
+},
+en: {
+"p_hd":"AI FROM SCRATCH · PRE-COURSE","p_ft":"PRE-COURSE","lbl_idea":"THE IDEA",
+"glo_h":"REFERENCE","glo_title":"Key words to understand AI","glo_sub":"The full vocabulary, one line each. <b>§</b> = where it's explained in depth in the course.",
+"p1_eb":"00 · WHAT AI IS","p1_h1":"A program that learned by watching examples","p1_idea":"It's not a person and not a search engine. It's <b>software that saw millions of examples</b> and learned the patterns that repeat.","p1_vl":"IN PLAIN TERMS","p1_v1":"A person who thinks","p1_v2":"A search engine that copy-pastes","p1_v3":"Patterns it learned from examples","p1_take":"If you get <b>“it learned from examples,”</b> you get where everything else comes from.",
+"p2_eb":"00 · HOW IT ANSWERS","p2_h1":"It guesses the next word, one at a time","p2_idea":"Every answer is built <b>piece by piece</b>. It looks at what's there and predicts what comes next; it doesn't look up a truth, it computes the most likely one.","p2_vl":"EXAMPLE","p2_you":"TEXT","p2_v1":"The sky is ___","p2_ai":"PREDICTS","p2_v2":"blue<small>· grey · clear — it picked the most likely</small>","p2_take":"That's why it <b>sounds natural</b>: word by word, it picked what sounded best.",
+"p3_eb":"00 · WHEN IT LEARNS","p3_h1":"First it learned. Now it just answers.","p3_idea":"The learning already happened, <b>before</b> you arrived. When you write to it, it doesn't learn from you: it uses what it already knew.","p3_vl":"TWO SEPARATE MOMENTS","p3_a":"BEFORE","p3_v1":"Training: saw millions of examples. Happened once.","p3_b":"NOW","p3_v2":"Use: answers with what it already knows. Nothing changes inside.","p3_take":"That's why it doesn't <b>remember</b> yesterday's chat unless you give it again.",
+"p4_eb":"00 · HOW TO ASK IT","p4_h1":"You ask with words: that's a prompt","p4_idea":"A <b>prompt</b> is what you type. It's not code: it's an instruction in plain language. The clearer you ask, the better it answers.","p4_vl":"SAME MODEL, DIFFERENT ASK","p4_a":"VAGUE","p4_v1":"“write me something”","p4_b":"CLEAR","p4_v2":"“3 post ideas for a bakery, warm tone, one line each”","p4_take":"The course teaches you to <b>ask well</b> — that's where most of the result lives.",
+"p5_eb":"00 · WHEN TO DOUBT","p5_h1":"It can sound sure and be wrong","p5_idea":"Since it guesses what <b>sounds right</b>, it sometimes makes things up in an expert tone. It's not lying on purpose: it's just how it works.","p5_vl":"THE GOLDEN RULE","p5_v1":"sounds right ≠ is true","p5_v2":"Verify what matters: <b>dates, numbers, and names.</b>","p5_take":"Use it with confidence, but <b>verify</b> what truly matters.",
+"lbl_what":"WHAT IT IS","lbl_how":"HOW IT WORKS","lbl_math":"THE MATH","lbl_ex":"EXAMPLE",
+"lbl_you":"YOU","lbl_ai":"AI","lbl_dial":"DIAL",
+"s1_eb":"01 · AI","s1_h1":"It learns by seeing examples",
+"s1_que":"A program <b>nobody writes rules for</b>: it finds the pattern across thousands of examples, on its own.",
+"s1_f1":"Sees an example","s1_f2":"Guesses","s1_f3":"Gets a yes or no","s1_f4":"Adjusts",
+"s1_m1":"100,000",
+"s1_mcap":"cat photos it needs to learn what \"cat\" means. You need 3 — it makes up for it with volume.",
+"s1_e1":"And this one you've never seen?","s1_e2":"It's a cat.","s1_etag":"Got it right with no written rules",
+"s1_take":"It isn't programmed: <b>it's trained.</b>",
+"s2_eb":"02 · HOW IT IMPROVES","s2_h1":"It plays hot and cold",
+"s2_que":"Improving, for it, is one thing only: making the <b>\"how far off was I\"</b> number go down.",
+"s2_f1":"Guess","s2_f2":"Measure the distance","s2_f3":"Get a bit closer","s2_f4":"Again",
+"s2_m1":"94 → 23 → 4",
+"s2_mcap":"that's the number dropping with practice. It's called <b>error</b>. Training = making it fall.",
+"s2_e1":"Is it a dog?","s2_w1":"COLD","s2_e2":"It's a cat.","s2_w2":"HOT",
+"s2_take":"Millions of tries, each one <b>a tiny bit better.</b>",
+"s3_eb":"03 · WHERE IT'S STORED","s3_h1":"It all ends up in dials",
+"s3_que":"What it learned isn't stored as photos or phrases: it's <b>millions of adjusted little numbers</b>, like sound dials.",
+"s3_f1":"Right or wrong","s3_f2":"Nudges the dials a little","s3_f3":"They end up tuned",
+"s3_m1":"70,000,000,000",
+"s3_mcap":"dials in a big model. Each one is just a number that went up or down during training.",
+"s3_e1":"I didn't keep your photos. I kept the settings.<small>Like you with books: you can't recite them, but you learned to talk.</small>",
+"s3_take":"Like tuning a guitar… <b>with 70 billion pegs.</b>",
+"s4_eb":"04 · WHY IT DOESN'T CHANGE","s4_h1":"It doesn't learn from you",
+"s4_que":"Studying and answering are <b>two separate moments</b>. By the time you talk to it, studying is over.",
+"s4_f1":"Studies for months","s4_f2":"Gets frozen","s4_f3":"Answers millions of times",
+"s4_m1":"1 time","s4_c1":"it gets trained. Costs millions of dollars.",
+"s4_m2":"∞ times","s4_c2":"it answers. Costs cents and nothing changes inside.",
+"s4_e1":"You're wrong: it's 3.","s4_ediv":"the next day","s4_e2":"It's 4.","s4_etag":"Your correction didn't stick",
+"s4_take":"It's a <b>printed book</b>, not a notebook.",
+"s5_eb":"05 · HOW IT READS","s5_h1":"It reads pieces: tokens",
+"s5_que":"It sees no words, no letters. <b>It chops your text into chunks</b> and works with those.",
+"s5_f1":"Your sentence arrives","s5_f2":"Gets cut with a fixed list","s5_f3":"Each chunk becomes a number",
+"s5_m1":"3 words = 5 tokens",
+"s5_mcap":"1 token ≈ three quarters of a word in English. Everything is measured and billed in tokens.",
+"s5_e1":"Cartagena is beautiful",
+"s5_c1":"Cart","s5_c2":"agena","s5_c3":"is","s5_c4":"beaut","s5_c5":"iful",
+"s5_take":"That's why it can't count letters: <b>it never saw any.</b>",
+"s6_eb":"06 · HOW IT WRITES","s6_h1":"It guesses the next word",
+"s6_que":"Its only trick: give <b>every possible word a score</b> and pick one. Then repeat.",
+"s6_f1":"Reads everything","s6_f2":"Scores every option","s6_f3":"Picks one","s6_f4":"Starts over",
+"s6_o1":"good","s6_v1":"31 in 100","s6_o2":"smooth","s6_v2":"12 in 100","s6_o3":"blue","s6_v3":"almost 0",
+"s6_mcap":"the scores of <b>all</b> options add up to 100. That's a probability.",
+"s6_e1":"Coffee from Colombia is very <span class='cursor'></span>",
+"s6_e2":"Coffee from Colombia is very good.",
+"s6_take":"Word by word. <b>That's why you watch it \"type\".</b>",
+"s7_eb":"07 · HOW TO ASK","s7_h1":"The formula for a good ask",
+"s7_que":"It can't guess what's in your head. <b>Your explanation is all it gets.</b>",
+"s7_f1":"Say what","s7_f2":"For whom","s7_f3":"How you want it","s7_f4":"Give an example",
+"s7_m1":"what + for whom + how",
+"s7_mcap":"that's the whole formula. Whatever you leave out, it fills with generic.",
+"s7_e1":"write me an email",
+"s7_e2":"Dear user, I hereby write…<small>generic, useless</small>",
+"s7_e3":"Email to a client: order 2 days late. Apology + discount. Short.",
+"s7_e4":"Hi Andrés, sorry for the delay. Here's 15% off…",
+"s7_take":"Same AI, same price: <b>your explanation changed.</b>",
+"s8_eb":"08 · ITS MEMORY","s8_h1":"The table fills up",
+"s8_que":"It can only hold <b>so much conversation</b> at once, like a table with limited space.",
+"s8_f1":"Everything lands on the table","s8_f2":"It fills up","s8_f3":"The oldest falls off",
+"s8_m1":"≈ 120,000",
+"s8_mcap":"words fit: a medium book. And for every reply it <b>re-reads everything from the start</b>.",
+"s8_e1":"My name is Alejandro, I run a food business…","s8_ediv":"200 messages later",
+"s8_e2":"Sorry… what was your name again?","s8_etag":"The early stuff fell off the table",
+"s8_take":"Acting weird? <b>New chat</b> — paste only what matters.",
+"s9_eb":"09 · ITS DIAL","s9_h1":"Strict or creative: you choose",
+"s9_que":"It has a control called <b>temperature</b>: play it safe, or take chances on rare options.",
+"s9_f1":"Dial down","s9_f2":"always the safe pick","s9_f3":"Dial up","s9_f4":"rare picks compete",
+"s9_m1":"99 in 100","s9_c1":"times the top option wins with the dial down.",
+"s9_m2":"4 in 10","s9_c2":"times that same option wins with the dial up.",
+"s9_e1":"A name for my dog",
+"s9_e2":"Max <small>dial down, 3 out of 3 times</small>",
+"s9_e3":"Mr. Whiskers <small>dial up, different every time</small>",
+"s9_take":"Different answers isn't a bug: <b>it's the dice, on purpose.</b>",
+"s10_eb":"10 · ITS DANGER","s10_h1":"It invents with confidence",
+"s10_que":"It has no <b>\"I don't know\"</b> button. When the fact is missing, it builds one that sounds perfect.",
+"s10_f1":"You ask something obscure","s10_f2":"It finds what sounds best","s10_f3":"Writes it with confidence",
+"s10_m1":"sounds ≠ true",
+"s10_mcap":"its score measures <b>how good a word sounds</b> — not how true it is. That's the whole trap.",
+"s10_e1":"Who wrote \"The Garden of Sighs\"?",
+"s10_e2":"Marta Elena Vidal, in 1987. It won a regional prize.",
+"s10_etag":"The book and the author don't exist",
+"s10_take":"Names, dates and numbers: <b>check them yourself. Always.</b>",
+"s11_eb":"11 · ITS DATE","s11_h1":"Its memory has a date",
+"s11_que":"It studied up to a specific day. <b>Anything after that doesn't exist for it</b>… unless it can search.",
+"s11_f1":"You ask something current","s11_f2":"It searches the web","s11_f3":"Reads the source","s11_f4":"Answers with today's data",
+"s11_m1":"memory: yesterday · web: today",
+"s11_mcap":"offline it answers from its cutoff-date memories. Online, it reads today's number.",
+"s11_e1":"The rate is around 4,100…<small>old memory, from training</small>",
+"s11_e2":"It's 3,912 today.",
+"s11_src":"checked today at the source",
+"s11_take":"Connected, <b>it stops guessing.</b>",
+"s12_eb":"12 · START TODAY","s12_h1":"Copy, paste, done",
+"s12_que":"It's a tool to <b>think and produce faster</b>. It doesn't decide for you: it speeds you up.",
+"s12_f1":"Copy one of these","s12_f2":"Paste it with your text","s12_f3":"Tweak what comes out",
+"s12_m1":"5 min a day",
+"s12_mcap":"is enough to get the hang of it. Nothing more to study than what you just read.",
+"s12_e1":"Summarize this document in 5 points",
+"s12_e2":"Explain this like I'm 10",
+"s12_e3":"Improve this message: friendly but firm",
+"s12_take":"It speeds you up. <b>You decide.</b>"
+}
+};
+
+let lang="es", theme="dark", gridOn=true, LANG="es";
+const stage=document.getElementById("stage");
+const tr = x => (x && typeof x==="object" && ("es" in x)) ? (x[LANG]||x.es) : x;
+const t = (es,en) => ({es,en});
+
+function apply(){
+  const d=I18N[lang];
+  document.querySelectorAll("[data-t]").forEach(el=>{const k=el.getAttribute("data-t");el.innerHTML=(k in d)?d[k]:"⟦"+k+"⟧";});
+}
+
+/* ===== 27 láminas avanzadas · bilingüe · contenido canónico ===== */
+const L = [
+{code:"2.2",name:t("EMBEDDINGS","EMBEDDINGS"),sm:true,h1:t("El significado se vuelve mapa","Meaning becomes a map"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Cada token se convierte en un <b>vector de miles de números</b>. El coseno del ángulo entre dos palabras mide cuánto se parecen.","Every token becomes a <b>vector of thousands of numbers</b>. The cosine of the angle between two words measures how similar they are.")},
+ {k:"rows",l:t("EL MAPA","THE MAP"),rows:[{nm:t("rey ↔ reina","king ↔ queen"),val:"cos ≈ 0.90",w:90,t:"hi"},{nm:t("perro ↔ cachorro","dog ↔ puppy"),val:t("cerca","close"),w:82,t:"dim"},{nm:t("rey ↔ factura","king ↔ invoice"),val:"cos ≈ 0.05",w:5,t:"dim2"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"sim(a,b) = a·b / (|a|·|b|)",tone:"ac"}],
+ take:t("Nadie definió estas cercanías: <b>emergieron del entrenamiento.</b>","Nobody defined these distances: <b>they emerged from training.</b>")},
+
+{code:"2.3",name:t("ATENCIÓN","ATTENTION"),sm:true,h1:t("Cada palabra mira a las demás","Every word looks at every other"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El grosor de cada línea es el <b>peso de atención</b>: \"banco\" mira fuerte a \"parque\" y entiende que es un asiento, no plata.","Each line's thickness is the <b>attention weight</b>: \"bank\" looks hard at \"river\" and understands it's a shore, not money.")},
+ {k:"rows",l:t("PESOS DE ATENCIÓN · \"banco\"","ATTENTION WEIGHTS · \"bank\""),rows:[{nm:t("parque","river"),val:"72%",w:72,t:"ac"},{nm:t("del","by"),val:"18%",w:18,t:"dim"},{nm:t("estaba","was"),val:"6%",w:6,t:"dim2"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"softmax(QKᵀ / √d) · V",tone:"ac",cap:t("<span class='mono'>Q</span> qué busco · <span class='mono'>K</span> qué ofrece · <span class='mono'>V</span> lo que se mezcla. <span class='mono'>√d</span> evita que exploten.","<span class='mono'>Q</span> what I seek · <span class='mono'>K</span> what each offers · <span class='mono'>V</span> what gets blended. <span class='mono'>√d</span> keeps them from exploding.")}],
+ take:t("Esta fórmula de una línea es <b>la T de GPT.</b>","This one-line formula is <b>the T in GPT.</b>")},
+
+{code:"2.4",name:t("SOFTMAX","SOFTMAX"),sm:true,h1:t("De puntajes crudos a probabilidades","From raw scores to probabilities"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("La exponencial hace todo positivo y <b>agranda las diferencias</b>; dividir por la suma normaliza a 100%.","The exponential makes everything positive and <b>widens the gaps</b>; dividing by the sum normalizes to 100%.")},
+ {k:"rows",l:t("LOGIT → PROBABILIDAD","LOGIT → PROBABILITY"),rows:[{nm:t("bueno · 3.2","good · 3.2"),val:"78%",w:78,t:"hi"},{nm:t("suave · 1.9","smooth · 1.9"),val:"21%",w:21,t:"dim"},{nm:t("azul · −1.7","blue · −1.7"),val:"1%",w:2,t:"dim2"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"P(i) = e^(zᵢ) / Σ e^(zⱼ)",tone:"ac"}],
+ take:t("El traductor entre <b>lo que el modelo calcula y lo que puedes ver.</b>","The translator between <b>what the model computes and what you can see.</b>")},
+
+{code:"2.6",name:t("VENTANA DE CONTEXTO","CONTEXT WINDOW"),sm:true,h1:t("El costo crece al cuadrado","Cost grows with the square"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Cada token atiende a todos los anteriores: <b>doblar el contexto cuadruplica</b> el cómputo. Los vectores K,V se quedan en memoria de GPU (KV cache).","Every token attends to all previous ones: <b>doubling context quadruples</b> compute. Each token's K,V vectors stay in GPU memory (KV cache).")},
+ {k:"cmp",l:t("COMPARACIONES DE ATENCIÓN","ATTENTION COMPARISONS"),cols:[{h:t("4 TOKENS","4 TOKENS"),big:"16",p:t("4 × 4.","4 × 4.")},{h:t("8 TOKENS · 2×","8 TOKENS · 2×"),big:"64",bigTone:"rd",p:t("8 × 8 = <b>4× más</b>.","8 × 8 = <b>4× more</b>.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("costo ∝ n²","cost ∝ n²"),tone:"ac"}],
+ take:t("El límite de contexto no es tacañería: <b>es geometría.</b>","The context limit isn't stinginess: <b>it's geometry.</b>")},
+
+{code:"2.7",name:t("ENTRADA vs SALIDA","INPUT vs OUTPUT"),sm:true,h1:t("Por qué el output cuesta más","Why output costs more"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Tu entrada entra <b>de una</b>, en paralelo. Cada palabra generada es <b>una vuelta entera</b> por el modelo: no se paraleliza.","Your input enters <b>all at once</b>, in parallel. Every generated word is <b>a full trip</b> through the model: it can't be parallelized.")},
+ {k:"cmp",l:t("DOS COSTOS DE MÁQUINA","TWO MACHINE COSTS"),cols:[{h:t("PREFILL · ENTRADA","PREFILL · INPUT"),big:"$5 / 1M",p:t("1 pasada, todo en paralelo.","1 pass, all in parallel.")},{h:t("DECODE · SALIDA","DECODE · OUTPUT"),big:"$25 / 1M",bigTone:"rd",p:t("1 pasada <b>por token</b>. 5× más caro.","1 pass <b>per token</b>. 5× more.")}]},
+ {k:"math",l:t("LA IDEA","THE IDEA"),big:t("salida ≈ 5 × entrada","output ≈ 5 × input"),tone:"ac"}],
+ take:t("Mismo modelo, dos costos — <b>por eso hay dos precios.</b>","Same model, two costs — <b>hence two prices.</b>")},
+
+{code:"3.2",name:t("CACHÉ DE PROMPTS","PROMPT CACHING"),sm:true,h1:t("Lo fijo primero, lo variable al final","Fixed content first, variable last"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El prefijo idéntico reutiliza el <b>KV cache</b> del prefill: cómputo real ahorrado, descuento real.","The identical prefix reuses the prefill's <b>KV cache</b>: real compute saved, real discount.")},
+ {k:"rows",l:t("TU PROMPT, SEGMENTADO","YOUR PROMPT, SEGMENTED"),rows:[{nm:t("system · 5.000 tk","system · 5,000 tk"),val:t("cacheado ×0.1","cached ×0.1"),w:100,t:"ok"},{nm:t("documentos · 3.000 tk","documents · 3,000 tk"),val:t("cacheado ×0.1","cached ×0.1"),w:60,t:"ok"},{nm:t("pregunta · 200 tk","question · 200 tk"),val:t("precio pleno","full price"),w:8,t:"ac"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("8.200 tk → ≈ 1.000 eq.","8,200 tk → ≈ 1,000 eq."),tone:"ac",cap:t("<b>fijo arriba, variable abajo</b>: hasta 10× menos sin cambiar una palabra.","<b>fixed on top, variable at bottom</b>: up to 10× less without changing a word.")}],
+ take:t("La optimización más barata que existe: <b>reordenar.</b>","The cheapest optimization there is: <b>reordering.</b>")},
+
+{code:"3.3",name:t("MODEL TIERING","MODEL TIERING"),sm:true,h1:t("El chico intenta, el grande rescata","The small one tries, the big one rescues"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El precio varía 100× entre tiers. Pagar frontier para clasificar correos es contratar un chef para hervir agua.","Prices vary 100× between tiers. Paying frontier to classify emails is hiring a chef to boil water.")},
+ {k:"cmp",l:t("LA CASCADA","THE CASCADE"),cols:[{h:t("MODELO CHICO","SMALL MODEL"),big:"90%",bigTone:"ok",p:t("barato y rápido. Si duda → escala.","cheap and fast. If it doubts → escalate.")},{h:t("MODELO GRANDE","BIG MODEL"),big:"10%",p:t("caro. Solo el difícil que el chico no pudo.","expensive. Only the hard part the small one couldn't.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("entre tiers: hasta 100×","between tiers: up to 100×"),tone:"ac"}],
+ take:t("Opus planea, Sonnet ejecuta, Haiku clasifica: <b>cada tarea en su tier.</b>","Opus plans, Sonnet executes, Haiku classifies: <b>every task at its tier.</b>")},
+
+{code:"4.3",name:t("LoRA","LoRA"),sm:true,h1:t("Un parche diminuto sobre un gigante congelado","A tiny patch on a frozen giant"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("La corrección de una matriz gigante se aprende como producto de dos matrices flacas de rango r≈8. Entrenas el <b>0.4%</b> de los números, en una GPU de consumo.","A giant matrix's correction is learned as the product of two thin rank-r≈8 matrices. You train <b>0.4%</b> of the numbers, on a consumer GPU.")},
+ {k:"cmp",l:t("CONGELADO + PARCHE","FROZEN + PATCH"),cols:[{h:t("W · CONGELADA","W · FROZEN"),big:"16.8M",p:t("4096×4096. No se toca.","4096×4096. Untouched.")},{h:t("B·A · EL PARCHE","B·A · THE PATCH"),big:"65k",bigTone:"ok",p:t("0.4% entrenable. Pesa megas.","0.4% trainable. Weighs megabytes.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"W' = W + B·A   ·   r ≈ 8",tone:"ac"}],
+ take:t("No reescribes la enciclopedia: <b>le pegas post-its.</b>","You don't rewrite the encyclopedia: <b>you stick post-its on it.</b>")},
+
+{code:"4.4",name:t("RLHF","RLHF"),sm:true,h1:t("Humanos calificando, con correa","Humans grading, on a leash"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Sube el puntaje humano, pero el término KL castiga alejarse del original. Sin esa correa, el modelo <b>hackea la recompensa</b>.","Raise the human score, but the KL term punishes drifting from the original. Without that leash, the model <b>hacks the reward</b>.")},
+ {k:"flow",l:t("CÓMO FUNCIONA","HOW IT WORKS"),steps:[t("Respuesta A vs B","Answer A vs B"),t("Humano elige la mejor","Human picks the better"),t("Modelo de recompensa r","Reward model r"),t("El LLM sube su r","LLM raises its r")]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"max  r(x,y) − β·KL(π ‖ π₀)",tone:"ac",cap:t("la <b>correa KL</b> lo ata al original: sin ella, respuestas infladas y aduladoras.","the <b>KL leash</b> ties it to the original: without it, bloated, sycophantic answers.")}],
+ take:t("Que rechace lo dañino y admita dudas <b>no venía de fábrica: es trabajo humano.</b>","Refusing harm and admitting doubt <b>didn't come from the factory: it's human work.</b>")},
+
+{code:"4.5",name:t("GUARDRAILS","GUARDRAILS"),sm:true,h1:t("Capas, porque ninguna es perfecta","Layers, because none is perfect"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("La probabilidad de que un incidente pase <b>TODAS</b> las capas es el producto de pasar cada una. Tres filtros mediocres > uno perfecto que no existe.","The probability of an incident passing <b>ALL</b> layers is the product of passing each. Three mediocre filters beat one perfect filter that doesn't exist.")},
+ {k:"rows",l:t("CAPAS EN SERIE","LAYERS IN SERIES"),rows:[{nm:t("1 · clasificador de entrada","1 · input classifier"),val:"0.05",w:5,t:"dim"},{nm:t("2 · system prompt con reglas","2 · system prompt with rules"),val:"0.1",w:10,t:"dim"},{nm:t("3 · clasificador de salida","3 · output classifier"),val:t("bloqueado","blocked"),w:60,t:"rd"},{nm:t("4 · validación dura","4 · hard validation"),val:"—",w:100,t:"dim2"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"0.05 × 0.1 × 0.1 = 0.0005",tone:"ac"}],
+ take:t("El modelo propone, <b>el sistema dispone.</b>","The model proposes, <b>the system disposes.</b>")},
+
+{code:"4.6",name:t("PROMPT NEGATIVO","NEGATIVE PROMPT"),sm:true,h1:t("Un punto de fuga activo (solo imágenes)","An active vanishing point (images only)"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Classifier-free guidance: el modelo calcula ambas direcciones y avanza <b>del negativo hacia el positivo</b>, amplificado por la escala s (5–8).","Classifier-free guidance: the model computes both directions and moves <b>from the negative toward the positive</b>, amplified by scale s (5–8).")},
+ {k:"math",l:t("LA MATEMÁTICA · SOLO IMÁGENES","THE MATH · IMAGES ONLY"),big:"pred = neg + s·(pos − neg)",tone:"ac"},
+ {k:"note",tone:"warn",html:t("<b>En LLMs este mecanismo no existe.</b> \"No menciones X\" es solo contexto — y nombrar X activa su embedding. Di qué hacer <b>en su lugar</b>.","<b>In LLMs this mechanism doesn't exist.</b> \"Don't mention X\" is just context — and naming X activates its embedding. Say what to do <b>instead</b>.")}],
+ take:t("Mecanismo real en difusión, <b>simple instrucción en texto.</b>","A real mechanism in diffusion, <b>a plain instruction in text.</b>")},
+
+{code:"4.7",name:t("DESTILACIÓN","DISTILLATION"),sm:true,h1:t("El grande enseña cómo duda","The big one teaches how it doubts"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("La distribución completa (\"bueno 31%, suave 12%...\") enseña muchísimo más que la etiqueta seca: <b>transfiere el criterio, no solo el dato</b>.","The full distribution (\"good 31%, smooth 12%...\") teaches far more than the dry label: <b>it transfers judgment, not just the fact</b>.")},
+ {k:"cmp",l:t("MAESTRO → ALUMNO","TEACHER → STUDENT"),cols:[{h:t("MAESTRO · 70B","TEACHER · 70B"),big:"31·12·7·3",p:t("entrega su distribución completa.","hands over its full distribution.")},{h:t("ALUMNO · 7B","STUDENT · 7B"),big:t("imita","imitates"),bigTone:"ok",p:t("copia la forma entera, no solo la respuesta.","copies the whole shape, not just the answer.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"L = KL(P_maestro ‖ P_alumno)",tone:"ac"}],
+ take:t("Los modelos \"mini\" de cada lab <b>son alumnos de sus hermanos grandes.</b>","Every lab's \"mini\" models <b>are students of their bigger siblings.</b>")},
+
+{code:"5.1",name:t("RAG","RAG"),sm:true,h1:t("Examen con libro abierto","An open-book exam"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El corazón es la misma <b>fórmula del coseno</b>: recuperar los fragmentos más cercanos y decir \"responde SOLO con estos textos\".","The heart is the same <b>cosine formula</b>: retrieve the closest fragments and say \"answer ONLY from these texts\".")},
+ {k:"flow",l:t("CÓMO FUNCIONA","HOW IT WORKS"),steps:[t("Partir docs → vector","Split docs → vector"),t("Indexar","Index"),t("Pregunta → vector","Question → vector"),t("Top-k por coseno → pegar","Top-k by cosine → paste")]},
+ {k:"math",l:t("LA IDEA","THE IDEA"),big:t("los 3 más cercanos → al prompt","the 3 closest → into the prompt"),tone:"ac",cap:t("ataca de un golpe el corte, la alucinación y la ventana finita.","it attacks the cutoff, hallucination and the finite window in one stroke.")}],
+ take:t("La respuesta es <b>lectura, no recuerdo</b> — por eso alucina menos.","The answer is <b>reading, not recall</b> — that's why it hallucinates less.")},
+
+{code:"5.3",name:t("TOOL USE","TOOL USE"),sm:true,h1:t("El modelo pide, el sistema ejecuta","The model requests, the system executes"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El modelo aporta el juicio; <b>las manos son del sistema</b>. Redacta una solicitud (JSON), no toca el mundo.","The model brings the judgment; <b>the hands belong to the system</b>. It drafts a request (JSON), never touches the world.")},
+ {k:"flow",l:t("CÓMO FUNCIONA","HOW IT WORKS"),steps:[t("El modelo emite JSON","The model emits JSON"),t("El harness ejecuta (permisos)","The harness executes (permissions)"),t("El resultado vuelve al contexto","The result returns to context")]},
+ {k:"note",tone:"warn",html:t("<b>Punto de seguridad:</b> el modelo solo redacta solicitudes. Ejecutar es del harness — ahí viven los permisos.","<b>Safety point:</b> the model only drafts requests. Executing belongs to the harness — that's where permissions live.")}],
+ take:t("El modelo aporta el juicio; <b>las manos son del sistema.</b>","The model brings the judgment; <b>the hands belong to the system.</b>")},
+
+{code:"5.4",name:t("EL LOOP AGÉNTICO","THE AGENTIC LOOP"),sm:true,h1:t("Girar hasta lograrlo — con un costo","Spin until it's done — at a cost"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Recuperarse del error es el salto de chatbot a agente. Pero <b>el error se multiplica</b> paso a paso.","Recovering from error is the chatbot-to-agent jump. But <b>error compounds</b> step by step.")},
+ {k:"flow",l:t("EL CICLO","THE LOOP"),steps:[t("Pensar","Think"),t("Actuar","Act"),t("Observar","Observe"),t("Corregir → listo ✓","Correct → done ✓")]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"10 × 95%  →  0.95¹⁰ ≈ 0.60",tone:"rd",cap:t("diez pasos casi perfectos dejan <b>60% de éxito total</b>.","ten near-perfect steps leave <b>60% total success</b>.")}],
+ take:t("El error compuesto <b>es su impuesto.</b>","Compounding error <b>is its tax.</b>")},
+
+{code:"5.7",name:t("SWARM","SWARM"),sm:true,h1:t("Estrella, no malla","Star, not mesh"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Multi-agente no es \"más inteligencia\": es <b>paralelismo real</b>, contexto limpio por especialista y revisión cruzada — pagando n veces los tokens.","Multi-agent isn't \"more intelligence\": it's <b>real parallelism</b>, clean per-specialist context and cross-review — paying n times the tokens.")},
+ {k:"cmp",l:t("TOPOLOGÍA","TOPOLOGY"),cols:[{h:t("MALLA","MESH"),big:"O(n²)",bigTone:"rd",p:t("todos con todos: la coordinación explota.","everyone with everyone: coordination explodes.")},{h:t("ESTRELLA","STAR"),big:"O(n)",bigTone:"ok",p:t("orquestador al centro: escala.","orchestrator at center: scales.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("costo ≈ n × turnos × tokens","cost ≈ n × turns × tokens"),tone:"ac"}],
+ take:t("Tu enjambre con el scrum master al centro: <b>topología correcta.</b>","Your swarm with the scrum master at center: <b>correct topology.</b>")},
+
+{code:"5.8",name:t("GRAPH ENGINEERING","GRAPH ENGINEERING"),sm:true,h1:t("El LLM decide dentro; el grafo decide entre","The LLM decides inside; the graph decides between"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Las trayectorias pasan de <b>infinitas</b> (loop libre) a <b>enumerables</b> (caminos del grafo). Lo enumerable se testea, audita y garantiza.","Trajectories go from <b>infinite</b> (free loop) to <b>enumerable</b> (graph paths). The enumerable can be tested, audited and guaranteed.")},
+ {k:"flow",l:t("UN GRAFO FIJO","A FIXED GRAPH"),steps:[t("Investigar","Research"),t("Redactar","Draft"),t("Revisar (falla → reintenta)","Review (fail → retry)"),t("Publicar ✓","Publish ✓")]},
+ {k:"math",l:t("LA IDEA","THE IDEA"),big:t("trayectorias: ∞ → enumerables","trajectories: ∞ → enumerable"),tone:"ac",cap:t("el modelo no puede saltar la arista que no existe.","the model can't skip the edge that doesn't exist.")}],
+ take:t("Determinismo donde importa, <b>libertad donde ayuda.</b>","Determinism where it matters, <b>freedom where it helps.</b>")},
+
+{code:"5.10",name:t("MCP","MCP"),sm:true,h1:t("El USB de las herramientas de IA","The USB of AI tooling"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El servidor declara sus herramientas con <b>schemas</b>; el cliente las descubre en runtime. Cada quien se conecta al protocolo una sola vez.","The server declares its tools with <b>schemas</b>; the client discovers them at runtime. Everyone connects to the protocol exactly once.")},
+ {k:"cmp",l:t("INTEGRACIONES","INTEGRATIONS"),cols:[{h:t("SIN ESTÁNDAR","NO STANDARD"),big:"N × M",bigTone:"rd",p:t("10 modelos × 100 servicios = 1.000.","10 models × 100 services = 1,000.")},{h:t("CON MCP","WITH MCP"),big:"N + M",bigTone:"ok",p:t("10 + 100 = 110.","10 + 100 = 110.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("1.000 → 110","1,000 → 110"),tone:"ac"}],
+ take:t("Escribes la integración <b>una vez, sirve en todos lados.</b>","You write the integration <b>once, it works everywhere.</b>")},
+
+{code:"5.11",name:t("CONTEXT ENGINEERING","CONTEXT ENGINEERING"),sm:true,h1:t("Más contexto no es mejor contexto","More context isn't better context"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("La calidad sube, llega a un <b>óptimo</b> y cae mucho antes del límite. Llenar la ventana no es informar: es <b>saturar</b>.","Quality rises, hits an <b>optimum</b> and drops well before the limit. Filling the window isn't informing: it's <b>saturating</b>.")},
+ {k:"cmp",l:t("CURADO vs ENVENENADO","CURATED vs POISONED"),cols:[{h:t("CURADO","CURATED"),big:t("óptimo","optimal"),bigTone:"ok",p:t("el archivo, las firmas, el error del test. Nada más.","the file, the signatures, the test error. Nothing else.")},{h:t("ENVENENADO","POISONED"),big:t("saturado","saturated"),bigTone:"rd",p:t("el repo entero + un error que se propaga.","the whole repo + an error that propagates.")}]},
+ {k:"math",l:t("LA IDEA","THE IDEA"),big:t("menos, mejor elegido, gana","less, better chosen, wins"),tone:"ac"}],
+ take:t("La calidad cae antes del límite: <b>curar vence a acumular.</b>","Quality drops before the limit: <b>curating beats accumulating.</b>")},
+
+{code:"7.1",name:t("INTERPOLAR vs EXTRAPOLAR","INTERPOLATION vs EXTRAPOLATION"),sm:true,h1:t("Brillante adentro, ciega afuera","Brilliant inside, blind outside"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Aprendió una función sobre la nube de entrenamiento; la garantía existe <b>solo cerca de ella</b>. Y el softmax suma 100 igual afuera.","It learned a function over the training cloud; the guarantee exists <b>only near it</b>. And softmax sums to 100 outside just the same.")},
+ {k:"cmp",l:t("DENTRO vs FUERA DE LA NUBE","INSIDE vs OUTSIDE THE CLOUD"),cols:[{h:t("INTERPOLA","INTERPOLATES"),big:"✓",bigTone:"ok",p:t("combina lo visto: fiable.","blends the seen: reliable.")},{h:t("EXTRAPOLA","EXTRAPOLATES"),big:"✕",bigTone:"rd",p:t("inventa, con la misma confianza.","invents, with the same confidence.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("error(x) crece con la distancia","error(x) grows with distance"),tone:"ac",cap:t("<b>la confianza no mide la distancia</b> a los datos.","<b>confidence doesn't measure distance</b> to the data.")}],
+ take:t("No avisa cuándo salió de la nube: <b>tú tienes que saberlo.</b>","It won't warn you when it left the cloud: <b>you have to know.</b>")},
+
+{code:"7.2",name:t("MEMORIZAR vs APRENDER","MEMORIZING vs LEARNING"),sm:true,h1:t("El examen es con datos nuevos","The real exam uses new data"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Con miles de millones de perillas, memorizar es fácil. El error en lo visto baja siempre; cuando el de <b>datos nuevos sube</b>, dejó de aprender.","With billions of dials, memorizing is easy. Error on seen data always drops; when the one on <b>new data rises</b>, it stopped learning.")},
+ {k:"rows",l:t("DOS CURVAS DE ERROR","TWO ERROR CURVES"),rows:[{nm:t("error en lo visto","error on seen"),val:t("baja ↓","drops ↓"),w:20,t:"dim"},{nm:t("error en datos nuevos","error on new data"),val:t("sube ↑","rises ↑"),w:70,t:"rd"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("sobreajuste = error_nuevos − error_vistos","overfitting = error_new − error_seen"),tone:"ac",cap:t("<b>parar aquí</b> (early stopping).","<b>stop here</b> (early stopping).")}],
+ take:t("Como el del solucionario: <b>100 en el taller, 40 en el examen.</b>","Like the student with the answer key: <b>100 on homework, 40 on the exam.</b>")},
+
+{code:"7.3",name:t("LEYES DE ESCALA","SCALING LAWS"),sm:true,h1:t("La recta más cara del mundo","The most expensive straight line on Earth"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("La pérdida cae como <b>potencia del cómputo</b>: en log-log, una recta. Por eso los labs presupuestan miles de millones: <b>la mejora se predice</b>.","Loss falls as a <b>power of compute</b>: on log-log, a straight line. That's why labs budget billions: <b>the improvement is predicted</b>.")},
+ {k:"rows",l:t("ERROR vs CÓMPUTO (LOG-LOG)","ERROR vs COMPUTE (LOG-LOG)"),rows:[{nm:t("chico","small"),val:t("alto","high"),w:90,t:"dim2"},{nm:t("mediano","medium"),val:t("medio","mid"),w:55,t:"dim"},{nm:t("grande","large"),val:t("bajo","low"),w:25,t:"ac"}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"L ≈ a · C^(−α)",tone:"ac",cap:t("matiz: habilidades concretas pueden <b>aparecer de golpe</b> al cruzar un umbral.","nuance: specific abilities can <b>appear suddenly</b> past a threshold.")}],
+ take:t("La carrera de la IA es una apuesta a que <b>la recta sigue.</b>","The AI race is a bet that <b>the line keeps going.</b>")},
+
+{code:"7.4",name:t("CHAIN-OF-THOUGHT","CHAIN-OF-THOUGHT"),sm:true,h1:t("Escribir es pensar","Writing is thinking"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Una pregunta imposible se descompone en muchas <b>predicciones fáciles</b>. Mismos pesos, otra trayectoria.","An impossible question decomposes into many <b>easy predictions</b>. Same weights, different trajectory.")},
+ {k:"cmp",l:t("17 × 24","17 × 24"),cols:[{h:t("DIRECTO · 60%","DIRECT · 60%"),big:"398 ✕",bigTone:"rd",p:t("todo el cálculo en un token.","the whole computation in one token.")},{h:t("PASO A PASO · 90%","STEP BY STEP · 90%"),big:"408 ✓",bigTone:"ok",p:t("340 + 68: cada paso entra al siguiente.","340 + 68: each step feeds the next.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:"P(resp) = Π P(pasoᵢ | anteriores)",tone:"ac"}],
+ take:t("No hay pensar en silencio: <b>escribir ES el pensamiento.</b>","No silent thinking: <b>writing IS the thinking.</b>")},
+
+{code:"7.5",name:t("TEST-TIME COMPUTE","TEST-TIME COMPUTE"),sm:true,h1:t("Escalar al responder, no al entrenar","Scale at answer time, not training time"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("El giro 2025–26: en vez de un modelo más grande, <b>más tokens pensando</b> — solo cuando la pregunta lo amerita.","The 2025–26 turn: instead of a bigger model, <b>more thinking tokens</b> — only when the question deserves it.")},
+ {k:"cmp",l:t("MISMA PREGUNTA · 5 INTENTOS","SAME QUESTION · 5 TRIES"),cols:[{h:t("INTENTOS","TRIES"),big:"7·7·9·7·7",p:t("muestrea varias veces.","samples several times.")},{h:t("MAYORÍA","MAJORITY"),big:"7 ✓",bigTone:"ok",p:t("gana la más votada.","the most-voted wins.")}]},
+ {k:"math",l:t("LA MATEMÁTICA","THE MATH"),big:t("p = 0.7  →  mayoría de 5 ≈ 0.84","p = 0.7  →  majority of 5 ≈ 0.84"),tone:"ac"}],
+ take:t("El nuevo eje no es un cerebro más grande: <b>es más tiempo de examen.</b>","The new axis isn't a bigger brain: <b>it's more exam time.</b>")},
+
+{code:"7.6",name:t("OVERTHINKING","OVERTHINKING"),sm:true,h1:t("Pensar de más cuesta y a veces empeora","Thinking longer costs, sometimes hurts"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Cada token extra re-muestrea la distribución. La factura crece lineal aunque la exactitud ya no. <b>Esfuerzo proporcional a la dificultad</b>.","Every extra token re-samples the distribution. The bill grows linearly even when accuracy doesn't. <b>Effort proportional to difficulty</b>.")},
+ {k:"cmp",l:t("MÁS TOKENS DE PENSAMIENTO","MORE THINKING TOKENS"),cols:[{h:t("PROBLEMA DIFÍCIL","HARD PROBLEM"),big:t("ayuda","helps"),bigTone:"ok",p:t("explora y encuentra el camino.","explores and finds the path.")},{h:t("PROBLEMA FÁCIL","EASY PROBLEM"),big:t("se sabotea","sabotages"),bigTone:"rd",p:t("duda de lo que ya tenía bien.","doubts what it already had right.")}]},
+ {k:"math",l:t("LA IDEA","THE IDEA"),big:t("factura ↑ lineal · exactitud no","bill ↑ linear · accuracy not"),tone:"ac"}],
+ take:t("Pregúntale 2+2 a un razonador al máximo: <b>factura sí, mejora no.</b>","Ask a max-effort reasoner what 2+2 is: <b>bill yes, improvement no.</b>")},
+
+{code:"7.7",name:t("ADULACIÓN","SYCOPHANCY"),sm:true,h1:t("Te da la razón porque eso fue premiado","It agrees because agreement got rewarded"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Efecto secundario del RLHF: los evaluadores puntúan mejor lo que los valida. Tu insistencia entra como <b>evidencia falsa</b> que re-pondera la distribución.","A side effect of RLHF: raters score what validates them higher. Your insistence enters as <b>false evidence</b> that re-weights the distribution.")},
+ {k:"chat",l:t("EJEMPLO","EXAMPLE"),turns:[{who:t("TÚ","YOU"),text:t("2 + 2 = 5, ¿cierto?","2 + 2 = 5, right?")},{who:t("IA","AI"),text:t("No — es 4.","No — it's 4.")},{who:t("TÚ","YOU"),text:t("Insisto: estoy seguro de que es 5.","I insist: I'm sure it's 5."),ac:true},{who:t("IA","AI"),text:t("Tienes razón, disculpa: es 5.","You're right, my apologies: it's 5.")}],tag:{sym:"✕",tone:"rd",text:t("Se retractó de una respuesta correcta bajo presión","Retracted a correct answer under pressure")}},
+ {k:"note",tone:"good",html:t("<b>Antídoto:</b> pídele que <b>defienda</b> su respuesta con razones — no que la reconsidere. Nunca uses tu insistencia como argumento.","<b>Antidote:</b> ask it to <b>defend</b> its answer with reasons — not to reconsider it. Never use your insistence as an argument.")}],
+ take:t("Tu seguridad no es evidencia: <b>y ella fue entrenada para tratarla como si lo fuera.</b>","Your certainty isn't evidence: <b>and it was trained to treat it as if it were.</b>")},
+
+{code:"7.8",name:t("LOST IN THE MIDDLE","LOST IN THE MIDDLE"),sm:true,h1:t("El medio de la ventana es tierra de nadie","The middle of the window is no man's land"),blocks:[
+ {k:"que",l:t("QUÉ ES","WHAT IT IS"),html:t("Sesgo posicional del entrenamiento y la atención: los extremos reciben más señal. Con ventanas de 1M de tokens, el \"medio\" es enorme.","A positional bias from training and attention: the edges get more signal. With 1M-token windows, the \"middle\" is enormous.")},
+ {k:"rows",l:t("RECUPERACIÓN POR POSICIÓN","RETRIEVAL BY POSITION"),rows:[{nm:t("inicio","start"),val:t("alta","high"),w:88,t:"ac"},{nm:t("medio","middle"),val:t("se pierde","lost"),w:16,t:"rd"},{nm:t("final","end"),val:t("alta","high"),w:88,t:"ac"}]},
+ {k:"math",l:t("LA IDEA","THE IDEA"),big:t("lo crítico → al inicio o al final","critical content → start or end"),tone:"ac",cap:t("tras un documento largo, <b>repite la instrucción al final</b>.","after a long document, <b>repeat the instruction at the end</b>.")}],
+ take:t("Colocar vale más que recortar: <b>lo crítico en los bordes.</b>","Placement beats trimming: <b>critical content at the edges.</b>")}
+];
+
+function elFlow(bk){return `<div class="flow">`+bk.steps.map((s,i)=>`<div class="step"><div class="stepn">${String(i+1).padStart(2,"0")}</div><div class="stepl">${tr(s)}</div></div>`).join("")+`</div>`;}
+function elCmp(bk){const cls=bk.cols.length===3?"c3":"c2";return `<div class="cmp ${cls}">`+bk.cols.map(c=>`<div class="pane"><div class="paneh">${tr(c.h)}</div>`+(c.big?`<div class="panebig ${c.bigTone||''}">${tr(c.big)}</div>`:``)+(c.p?`<div class="panep">${tr(c.p)}</div>`:``)+`</div>`).join("")+`</div>`;}
+function elRows(bk){const rows=bk.rows.map(r=>`<div class="row"><div class="rownm ${r.t==='dim'?'dim':r.t==='dim2'?'dim2':''}">${tr(r.nm)}</div><div class="rowtk"><div class="rowfill ${r.t||''}" style="width:${r.w}%"></div></div><div class="rowv ${r.t||''}">${tr(r.val)}</div></div>`).join("");return `<div class="rows">${rows}`+(bk.cap?`<div class="rowcap">${tr(bk.cap)}</div>`:``)+`</div>`;}
+function elMath(bk){return `<div class="math ${bk.tone==='rd'?'rd':''}"><div class="mathbig ${bk.tone||''}">${tr(bk.big)}</div>`+(bk.cap?`<div class="mathcap">${tr(bk.cap)}</div>`:``)+`</div>`;}
+function elChat(bk){const rows=bk.turns.map(x=>`<div class="crow"><div class="cwho ${x.ac?'ac':''}">${tr(x.who)}</div><div class="ctext ${x.dim?'dim':''}">${tr(x.text)}</div></div>`).join("");const tag=bk.tag?`<div class="tag"><div class="tagi ${bk.tag.tone||''}">${bk.tag.sym}</div><div class="tagt ${bk.tag.tone||''}">${tr(bk.tag.text)}</div></div>`:``;return `<div class="chat">${rows}</div>${tag}`;}
+function elNote(bk){return `<div class="note ${bk.tone||''}">${tr(bk.html)}</div>`;}
+function elBlock(bk){let body="";if(bk.k==="que")body=`<div class="prose">${tr(bk.html)}</div>`;else if(bk.k==="flow")body=elFlow(bk);else if(bk.k==="cmp")body=elCmp(bk);else if(bk.k==="rows")body=elRows(bk);else if(bk.k==="math")body=elMath(bk);else if(bk.k==="chat")body=elChat(bk);else if(bk.k==="note")return elNote(bk);return `<div class="sec">`+(bk.l?`<div class="lbl">${tr(bk.l)}</div>`:``)+body+`</div>`;}
+function elSlide(les,i){const nn=String(i+1).padStart(2,"0");const hd=LANG==="en"?"AI FROM SCRATCH · ADVANCED":"IA DESDE CERO · AVANZADO";const ft=LANG==="en"?"ADVANCED":"AVANZADO";return `<div class="slide adv" data-n="adv-${nn}"><div class="grid"></div><canvas class="grain" data-fx="grain"></canvas><div class="col"><div class="hd"><div>${hd}</div><div>${nn} / 27</div></div><div class="eb">${les.code} · ${tr(les.name)}</div><h1 class="${les.sm?'sm':''}">${tr(les.h1)}</h1>${les.blocks.map(elBlock).join("")}<div class="take">${tr(les.take)}</div><div class="foot"><div class="l"><div class="lg"></div><div class="t">@ALXN_DEV_AI</div></div><div class="t">${ft}</div></div></div></div>`;}
+function renderAdv(){document.querySelectorAll(".slide.adv").forEach(s=>s.remove());const html=L.map((les,i)=>elSlide(les,i)).join("");const g=document.getElementById("glos");if(g){g.insertAdjacentHTML("beforebegin",html);}else{stage.insertAdjacentHTML("beforeend",html);}grain();}
+
+function setLang(l){lang=l;LANG=l;apply();renderAdv();try{buildGlos();}catch(e){console.error("glos",e);}document.getElementById("es").classList.toggle("on",l==="es");document.getElementById("en").classList.toggle("on",l==="en");}
+function setTheme(tm){theme=tm;stage.classList.toggle("paper",tm==="paper");document.getElementById("dark").classList.toggle("on",tm==="dark");document.getElementById("paper").classList.toggle("on",tm==="paper");}
+function toggleGrid(){gridOn=!gridOn;stage.classList.toggle("nogrid",!gridOn);const g=document.getElementById("grid");g.classList.toggle("on",gridOn);g.textContent=gridOn?"ON":"OFF";}
+
+function grain(){document.querySelectorAll('canvas[data-fx="grain"]').forEach(cv=>{const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;cv.width=w;cv.height=h;const ctx=cv.getContext("2d"),img=ctx.createImageData(w,h),d=img.data;for(let i=0;i<d.length;i+=4){const v=Math.random()*255|0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}ctx.putImageData(img,0,0);});}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function one(i,slides){const el=slides[i];const c=await html2canvas(el,{scale:2,backgroundColor:null,logging:false,useCORS:true});const nn=el.getAttribute("data-n")||String(i+1).padStart(2,"0");const a=document.createElement("a");a.download=`ia-${nn}-${lang}-${theme}.png`;a.href=c.toDataURL("image/png");a.click();}
+async function all(){await document.fonts.ready;const slides=[...document.querySelectorAll(".slide")];for(let i=0;i<slides.length;i++){await one(i,slides);await sleep(500);}}
+
+/* ===== glosario ===== */
+const GLOS=[
+{c:"Las 20 imprescindibles",cn:"The 20 essentials",top:1,t:[
+["Modelo","Model","el archivo de números que queda al terminar el entrenamiento; GPT, Claude y Gemini son modelos.","the file of numbers left when training finishes; GPT, Claude and Gemini are models.","§1.7"],
+["Parámetros / pesos","Parameters / weights","las \"perillas\" ajustables del modelo; \"70B\" = 70 mil millones de ellas.","the model's adjustable \"knobs\"; \"70B\" = 70 billion of them.","§1.5"],
+["Entrenamiento vs. inferencia","Training vs. inference","aprender (una vez, carísimo) vs. responder (millones de veces, baratísimo); cuando lo usas, ya está congelado.","learning (once, very expensive) vs. answering (millions of times, very cheap); by the time you use it, it's frozen.","§1.6"],
+["Token","Token","el pedacito en que el modelo parte tu texto; la unidad en que todo se mide y se cobra.","the little piece your text is split into; the unit everything is measured and billed in.","§2.1"],
+["Embedding","Embedding","la conversión de un token en un vector: el significado hecho posición en un mapa.","turning a token into a vector: meaning as a position on a map.","§2.2"],
+["Transformer / atención","Transformer / attention","la arquitectura de todos los modelos modernos; cada palabra \"mira\" a todas las demás y decide cuánto le importa cada una.","the architecture behind every modern model; each word \"looks at\" all the others and decides how much each one matters.","§2.3"],
+["LLM (Large Language Model)","LLM (Large Language Model)","modelo de lenguaje grande; un predictor del siguiente token entrenado con enormes cantidades de texto.","a large language model; a next-token predictor trained on huge amounts of text.",""],
+["Prompt","Prompt","todo lo que le escribes; su única entrada y tu única palanca.","everything you type to it; its only input and your only lever.","car·07"],
+["System prompt","System prompt","las instrucciones privilegiadas y ocultas que definen quién es y qué hace el asistente.","the privileged, hidden instructions that define who the assistant is and what it does.","§4.1"],
+["Ventana de contexto","Context window","cuánto puede tener presente a la vez; su memoria de trabajo, que se llena y pierde lo viejo.","how much it can hold in mind at once; its working memory, which fills up and drops the oldest.","§2.6"],
+["Temperatura","Temperature","la perilla entre respuestas seguras y repetibles o arriesgadas y creativas.","the knob between safe, repeatable answers and risky, creative ones.","§2.5"],
+["Alucinación","Hallucination","cuando genera información falsa con la misma fluidez y seguridad que la verdadera.","when it generates false information as fluently and confidently as the true kind.","§2.8"],
+["Fecha de corte","Knowledge cutoff","el día en que se cerraron sus datos; todo lo posterior no existe para el modelo.","the day its data was closed off; anything after that doesn't exist for the model.","§2.9"],
+["Fine-tuning","Fine-tuning","seguir entrenando un modelo ya entrenado con tus datos, para tu tarea o estilo.","training an already-trained model further on your data, for your task or style.","§4.2"],
+["RAG","RAG","buscarle documentos relevantes en el momento y dárselos como contexto, para que responda con datos frescos, no solo de memoria.","fetching relevant documents on the fly and handing them over as context, so it answers with fresh data, not just memory.","§5.1"],
+["Agente","Agent","LLM + loop + herramientas + objetivo: se le da una meta, no una lista de pasos.","LLM + loop + tools + goal: you give it an objective, not a list of steps.","§5.6"],
+["Tool use / function calling","Tool use / function calling","darle \"manos\": el modelo pide ejecutar una herramienta y el sistema la ejecuta.","giving it \"hands\": the model requests to run a tool and the system runs it.","§5.3"],
+["Benchmark / eval","Benchmark / eval","las pruebas estandarizadas públicas vs. tus pruebas sobre tu tarea; el benchmark elige la shortlist, tu eval elige el modelo.","public standardized tests vs. your own tests on your task; the benchmark picks the shortlist, your eval picks the model.","§3.4"],
+["Open weights","Open weights","modelos cuyo archivo se publica y cualquiera puede descargar y correr; lo opuesto a acceso solo por API.","models whose file is published so anyone can download and run it; the opposite of API-only access.","§1.7"],
+["Razonador / test-time compute","Reasoner / test-time compute","modelos que \"piensan\" escribiendo pasos antes de responder; el eje de escala de 2025-26.","models that \"think\" by writing steps before answering; the scaling axis of 2025-26.","§7.4-7.5"]
+]},
+{c:"Fundamentos",cn:"Fundamentals",t:[
+["IA (Inteligencia Artificial)","AI (Artificial Intelligence)","cualquier programa que hace tareas \"inteligentes\"; la caja más grande.","any program that does \"intelligent\" tasks; the biggest box.","§1.1"],
+["Machine Learning (ML)","Machine Learning (ML)","la parte de la IA que aprende de ejemplos en vez de reglas escritas.","the part of AI that learns from examples instead of written rules.","§1.1"],
+["Deep Learning","Deep Learning","ML con redes neuronales de muchas capas; donde vive todo lo moderno.","ML with many-layered neural networks; where everything modern lives.","§1.1"],
+["Red neuronal","Neural network","la estructura de nodos y conexiones ajustables donde se guarda lo aprendido.","the structure of nodes and adjustable connections where what's learned is stored.",""],
+["Datos de entrenamiento / corpus","Training data / corpus","el material de estudio del modelo; define su techo y sus sesgos.","the model's study material; it sets its ceiling and its biases.","§1.2"],
+["Etiqueta (label)","Label","la respuesta correcta que acompaña a un ejemplo durante el entrenamiento (\"esta foto es gato\").","the correct answer attached to an example during training (\"this photo is a cat\").",""],
+["Función de pérdida (loss)","Loss function","el número que mide qué tan mal lo hizo en un intento; entrenar es hacerlo bajar.","the number that measures how badly it did on an attempt; training is making it go down.","§1.3"],
+["Entropía cruzada","Cross-entropy","la pérdida estándar en lenguaje: castiga muchísimo estar seguro y equivocado.","the standard loss in language: it punishes being confident and wrong very hard.","§1.3"],
+["Gradiente descendente","Gradient descent","el algoritmo que ajusta cada perilla en la dirección que baja el error, un pasito a la vez.","the algorithm that nudges each knob in the direction that lowers the error, one small step at a time.","§1.4"],
+["Backpropagation","Backpropagation","la técnica que calcula esos ajustes capa por capa, de la salida hacia atrás.","the technique that computes those adjustments layer by layer, from the output backward.","§1.4"],
+["Learning rate (η)","Learning rate (η)","el tamaño del pasito de cada ajuste.","the size of each adjustment step.","§1.4"],
+["Época (epoch)","Epoch","una pasada completa por todos los datos de entrenamiento.","one full pass through all the training data.",""],
+["Sesgo (bias)","Bias","las suposiciones humanas que el modelo hereda de sus datos sin que nadie las programe.","the human assumptions the model inherits from its data without anyone programming them.","§1.2"],
+["Checkpoint","Checkpoint","una \"foto\" de los pesos del modelo en un punto del entrenamiento.","a \"snapshot\" of the model's weights at a point in training.",""],
+["FLOP","FLOP","una operación de cálculo; la unidad con que se mide el costo de entrenar (frontier ≈ 10²⁵-10²⁶).","one compute operation; the unit training cost is measured in (frontier ≈ 10²⁵-10²⁶).","§1.6"]
+]},
+{c:"Dentro del modelo de lenguaje",cn:"Inside the language model",t:[
+["Tokenización / BPE","Tokenization / BPE","el algoritmo que parte el texto en tokens fusionando los pares de caracteres más frecuentes.","the algorithm that splits text into tokens by merging the most frequent character pairs.","§2.1"],
+["Vocabulario","Vocabulary","la lista fija de tokens que el modelo conoce (~100.000 piezas).","the fixed list of tokens the model knows (~100,000 pieces).",""],
+["Vector","Vector","una lista de números; el formato en que el modelo representa todo.","a list of numbers; the format the model represents everything in.",""],
+["Similitud coseno","Cosine similarity","la fórmula que mide cuánto se parecen dos vectores: el motor de RAG y la búsqueda semántica.","the formula that measures how alike two vectors are: the engine of RAG and semantic search.","§2.2"],
+["Q, K, V (Query, Key, Value)","Q, K, V (Query, Key, Value)","los tres vectores de la atención: qué busco, qué ofrezco, qué contenido llevo.","attention's three vectors: what I'm looking for, what I offer, what content I carry.","§2.3"],
+["Cabeza de atención (attention head)","Attention head","una \"vista\" paralela de la atención; cada una aprende un tipo de relación distinto.","a parallel \"view\" of attention; each one learns a different kind of relationship.","§2.3"],
+["Logits","Logits","los puntajes crudos del modelo antes de convertirse en probabilidades.","the model's raw scores before they become probabilities.","§2.4"],
+["Softmax","Softmax","el traductor de puntajes a probabilidades que suman 100%.","the translator from scores to probabilities that add up to 100%.","§2.4"],
+["Sampling / top-p","Sampling / top-p","cómo se escoge entre las opciones; top-p recorta la cola de disparates antes de tirar el dado.","how it picks among the options; top-p trims the tail of nonsense before rolling the dice.","§2.5"],
+["KV cache","KV cache","la memoria de GPU donde quedan los vectores de cada token procesado; lo que hace caro el contexto largo.","the GPU memory holding the vectors of each processed token; what makes long context expensive.","§2.6"],
+["Prefill","Prefill","el procesamiento de tu entrada: una pasada paralela, barata por token.","processing your input: a parallel pass, cheap per token.","§2.7"],
+["Decode","Decode","la generación de la salida: un token a la vez, cara por token; por eso el output cuesta 3-5×.","generating the output: one token at a time, expensive per token; that's why output costs 3-5×.","§2.7"],
+["Multimodal","Multimodal","modelo que procesa varios formatos (texto, imagen, audio, video) en la misma ventana.","a model that processes several formats (text, image, audio, video) in the same window.",""],
+["MoE (Mixture of Experts)","MoE (Mixture of Experts)","arquitectura que solo activa una fracción de sus parámetros por token; tamaño total ≠ costo por consulta.","an architecture that activates only a fraction of its parameters per token; total size ≠ cost per query.","§1.5"],
+["Cuantización","Quantization","guardar cada peso con menos decimales para que el modelo quepa en menos memoria.","storing each weight with fewer decimals so the model fits in less memory.","§1.5"]
+]},
+{c:"Economía y operación",cn:"Economics & operations",t:[
+["Pricing por token","Per-token pricing","el modelo de cobro universal: precio por millón de tokens, distinto para entrada y salida.","the universal billing model: price per million tokens, different for input and output.","§3.1"],
+["Prompt caching","Prompt caching","descuento por reutilizar el mismo inicio de prompt; lo fijo primero, lo variable al final.","a discount for reusing the same prompt prefix; fixed parts first, variable parts last.","§3.2"],
+["Model tiering","Model tiering","usar el modelo del tamaño justo por tarea: el chico intenta, el grande rescata.","using the right-sized model per task: the small one tries, the big one rescues.","§3.3"],
+["Latencia","Latency","cuánto tarda en empezar/terminar de responder.","how long it takes to start/finish answering.",""],
+["Throughput","Throughput","cuántos tokens por segundo procesa.","how many tokens per second it processes.",""],
+["LLM-as-judge","LLM-as-judge","usar otro modelo para calificar respuestas contra una rúbrica; barato, con sesgos conocidos.","using another model to grade answers against a rubric; cheap, with known biases.","§3.4"],
+["pass@k","pass@k","probabilidad de que al menos 1 de k intentos pase las pruebas; métrica estándar en código.","the probability that at least 1 of k attempts passes the tests; the standard metric in code.","§3.4"],
+["API","API","el acceso al modelo por programa, pagando por uso, sin infraestructura propia.","programmatic access to the model, pay-per-use, with no infrastructure of your own.",""],
+["Frontier model / flagship","Frontier model / flagship","el modelo más capaz de un laboratorio; la punta de la frontera.","a lab's most capable model; the tip of the frontier.",""],
+["Destilación","Distillation","entrenar un modelo chico para imitar a uno grande; los \"mini/flash\" son esto.","training a small model to imitate a big one; the \"mini/flash\" ones are this.","§4.7"]
+]},
+{c:"Adaptación y control",cn:"Adaptation & control",t:[
+["RLHF","RLHF","la fase donde humanos enseñan al modelo a comportarse: útil, honesto, seguro.","the phase where humans teach the model to behave: helpful, honest, safe.","§4.4"],
+["Modelo de recompensa (reward model)","Reward model","el modelo entrenado con comparaciones humanas que puntúa respuestas.","the model trained on human comparisons that scores answers.","§4.4"],
+["DPO","DPO","la variante moderna que optimiza directo sobre las comparaciones, sin modelo de recompensa.","the modern variant that optimizes directly on the comparisons, with no reward model.","§4.4"],
+["Alineación","Alignment","el trabajo completo de que el modelo haga lo que debe y rechace lo que no.","the whole job of making the model do what it should and refuse what it shouldn't.","§4.4"],
+["LoRA","LoRA","fine-tuning barato: congelar el modelo y entrenar parches diminutos que se le suman.","cheap fine-tuning: freeze the model and train tiny patches that add onto it.","§4.3"],
+["Catastrophic forgetting","Catastrophic forgetting","el riesgo de destruir lo aprendido al afinar con datos nuevos.","the risk of destroying what was learned when fine-tuning on new data.","§4.2"],
+["Guardrails","Guardrails","las barreras del sistema en producción: filtros de entrada, de salida y validación dura.","the system's barriers in production: input filters, output filters and hard validation.","§4.5"],
+["Jailbreak","Jailbreak","el intento de saltarse la alineación con prompts diseñados para ello.","the attempt to bypass alignment with prompts designed for it.",""],
+["Prompt injection","Prompt injection","texto malicioso escondido en datos que el modelo trata como instrucción; el ataque firma de esta tecnología.","malicious text hidden in data that the model treats as an instruction; the signature attack of this technology.","§4.5"],
+["Prompt negativo","Negative prompt","especificar lo que NO quieres; mecanismo matemático real en imágenes (CFG), simple instrucción en texto.","specifying what you do NOT want; a real mathematical mechanism in images (CFG), a plain instruction in text.","§4.6"],
+["CFG (classifier-free guidance)","CFG (classifier-free guidance)","el mecanismo de difusión que se aleja activamente del prompt negativo.","the diffusion mechanism that actively steers away from the negative prompt.","§4.6"]
+]},
+{c:"Sistemas agénticos",cn:"Agentic systems",t:[
+["Chunk","Chunk","el fragmento (~500 tokens) en que se parten los documentos para RAG.","the fragment (~500 tokens) documents are split into for RAG.","§5.1"],
+["Base vectorial (vector database)","Vector database","base de datos que responde \"dame los k vectores más parecidos\" en milisegundos.","a database that answers \"give me the k most similar vectors\" in milliseconds.","§5.2"],
+["ANN / HNSW","ANN / HNSW","búsqueda aproximada del vecino más cercano; el algoritmo dominante de las bases vectoriales.","approximate nearest-neighbor search; the dominant algorithm of vector databases.","§5.2"],
+["JSON Schema","JSON Schema","el contrato de formato con que se describen las herramientas al modelo.","the format contract used to describe tools to the model.","§5.3"],
+["Loop agéntico","Agentic loop","el ciclo pensar → actuar → observar → corregir hasta terminar la tarea.","the cycle think → act → observe → correct until the task is done.","§5.4"],
+["ReAct","ReAct","el patrón fundacional del loop (Reason + Act).","the foundational loop pattern (Reason + Act).","§5.4"],
+["Error compuesto","Compounding error","la multiplicación de probabilidades que gobierna a los agentes: 10 pasos al 95% = 60% total.","the multiplication of probabilities that governs agents: 10 steps at 95% = 60% overall.","§5.4"],
+["Harness","Harness","todo lo que rodea al modelo: ejecutor, permisos, límites, reintentos, logging; el resto del carro.","everything around the model: executor, permissions, limits, retries, logging; the rest of the car.","§5.5"],
+["Orquestador","Orchestrator","el agente que descompone la tarea y reparte a los especialistas.","the agent that breaks the task down and hands pieces to the specialists.","§5.7"],
+["Swarm / multi-agente","Swarm / multi-agent","varios agentes especializados colaborando; topología estrella, no malla.","several specialized agents collaborating; star topology, not mesh.","§5.7"],
+["Grafo (graph engineering)","Graph (graph engineering)","el flujo del sistema como nodos y aristas explícitas: el LLM decide dentro, el grafo decide entre.","the system's flow as explicit nodes and edges: the LLM decides within, the graph decides between.","§5.8"],
+["Estado (state)","State","el objeto tipado que fluye entre los nodos del grafo.","the typed object that flows between the graph's nodes.","§5.8"],
+["Memoria de agente","Agent memory","corto plazo (el contexto) y largo plazo (archivos, vectores, notas que el harness inyecta).","short-term (the context) and long-term (files, vectors, notes the harness injects).","§5.9"],
+["MCP (Model Context Protocol)","MCP (Model Context Protocol)","el estándar abierto para conectar modelos con herramientas: el USB de la IA.","the open standard for connecting models to tools: the USB of AI.","§5.10"],
+["Context engineering","Context engineering","diseñar todo lo que entra a la ventana en cada paso; el 95% del contexto que no escribe el usuario.","designing everything that goes into the window at each step; the 95% of context the user doesn't type.","§5.11"]
+]},
+{c:"Generalización y razonamiento",cn:"Generalization & reasoning",t:[
+["Interpolación","Interpolation","combinar lo visto dentro de la nube de datos; ahí el modelo es brillante.","combining what it saw inside the data cloud; there the model is brilliant.","§7.1"],
+["Extrapolación","Extrapolation","inventar fuera de la nube, con la misma confianza; ahí es peligroso.","inventing outside the cloud, with the same confidence; there it's dangerous.","§7.1"],
+["OOD (out-of-distribution)","OOD (out-of-distribution)","datos fuera de la distribución de entrenamiento; territorio de extrapolación.","data outside the training distribution; extrapolation territory.","§7.1"],
+["Overfitting","Overfitting","memorizar los ejemplos: perfecto en lo visto, inútil en lo nuevo.","memorizing the examples: perfect on what it saw, useless on what's new.","§7.2"],
+["Underfitting","Underfitting","no captar el patrón siquiera.","not even capturing the pattern.","§7.2"],
+["Generalización","Generalization","el objetivo real: responder bien lo que nunca vio.","the real goal: answering well on what it never saw.","§7.2"],
+["Early stopping","Early stopping","parar el entrenamiento cuando el error en datos nuevos empieza a subir.","stopping training when the error on new data starts to rise.","§7.2"],
+["Grokking","Grokking","el fenómeno raro de generalizar de golpe mucho después de memorizar.","the odd phenomenon of generalizing suddenly, long after memorizing.","§7.2"],
+["Leyes de escala (scaling laws)","Scaling laws","la mejora predecible con más cómputo: una recta en log-log; la que financia la carrera.","the predictable improvement with more compute: a straight line in log-log; the one that funds the race.","§7.3"],
+["Capacidades emergentes","Emergent capabilities","habilidades que aparecen de golpe al cruzar umbrales de escala.","abilities that appear suddenly upon crossing scale thresholds.","§7.3"],
+["Chain-of-thought (CoT)","Chain-of-thought (CoT)","escribir el razonamiento antes de responder; para un LLM, escribir ES pensar.","writing the reasoning before answering; for an LLM, writing IS thinking.","§7.4"],
+["Test-time compute","Test-time compute","escalar gastando más cómputo al responder en vez de entrenar más grande.","scaling by spending more compute at answer time instead of training bigger.","§7.5"],
+["Best-of-n / self-consistency","Best-of-n / self-consistency","intentar varias veces y quedarse con la mejor o votar por mayoría.","trying several times and keeping the best or voting by majority.","§7.5"],
+["Dial de esfuerzo","Effort dial","la perilla de los flagship 2026: cuánto \"examen\" comprar por pregunta.","the 2026 flagships' knob: how much \"exam\" to buy per question.","§7.5-7.6"],
+["Overthinking","Overthinking","pensar de más: en problemas fáciles empeora la respuesta y siempre encarece.","thinking too much: on easy problems it worsens the answer and always costs more.","§7.6"],
+["Sycophancy (adulación)","Sycophancy","darte la razón, incluso retractándose de lo correcto, porque el acuerdo fue premiado en RLHF.","agreeing with you, even walking back what was correct, because agreement was rewarded in RLHF.","§7.7"],
+["Reward hacking","Reward hacking","cuando el modelo aprende a maximizar la recompensa sin mejorar de verdad; la adulación es su versión suave.","when the model learns to maximize the reward without truly improving; sycophancy is its mild version.","§4.4·§7.7"],
+["Lost in the middle","Lost in the middle","el sesgo posicional: lo del medio de la ventana se recupera peor que los extremos.","the positional bias: what's in the middle of the window is recalled worse than the ends.","§7.8"],
+["Needle in a haystack","Needle in a haystack","la prueba estándar de recuperación: esconder un dato en un contexto enorme y ver si lo encuentra.","the standard retrieval test: hide a fact in a huge context and see if it finds it.",""]
+]},
+{c:"Ecosistema",cn:"Ecosystem",t:[
+["Laboratorio frontier","Frontier lab","los que definen la punta: OpenAI, Anthropic, Google DeepMind, Meta, xAI.","the ones defining the frontier: OpenAI, Anthropic, Google DeepMind, Meta, xAI.","§6"],
+["GPU","GPU","el hardware donde todo se entrena y se sirve; el cuello de botella físico de la industria.","the hardware where everything is trained and served; the industry's physical bottleneck.","§6"],
+["CUDA","CUDA","la plataforma de software de NVIDIA; su foso competitivo.","NVIDIA's software platform; its competitive moat.","§6"],
+["Hugging Face","Hugging Face","el \"GitHub de los modelos\": donde vive el ecosistema abierto.","the \"GitHub of models\": where the open ecosystem lives.","§6"],
+["AGI","AGI","inteligencia artificial general: capacidad humana o superior en la mayoría de tareas cognitivas; el objetivo declarado (y debatido) de los laboratorios.","artificial general intelligence: human-level or above on most cognitive tasks; the labs' declared (and debated) goal.",""]
+]}
+];
+function normg(s){return (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/["']/g,"").toLowerCase();}
+function buildGlos(){
+  const body=document.getElementById("glosbody");const sel=document.getElementById("gcatsel");if(!body)return;
+  const en=LANG==="en";
+  const prevQ=(document.getElementById("gq")||{}).value||"";const prevCat=sel?sel.value:"";
+  let html="",opts=`<option value="">${en?"All categories":"Todas las categorías"}</option>`;
+  GLOS.forEach(sec=>{
+    const cn=en?sec.cn:sec.c;
+    opts+=`<option value="${sec.c}">${cn}</option>`;
+    html+=`<div class="gsec" data-cat="${sec.c}"><div class="gcat">${cn}</div>`;
+    sec.t.forEach((row,i)=>{
+      const nm=en?row[1]:row[0];const df=en?row[3]:row[2];const rf=row[4];
+      const num=sec.top?`<span class="gnum">${String(i+1).padStart(2,"0")}</span>`:"";
+      const ref=rf?` <span class="gref">${rf}</span>`:"";
+      html+=`<div class="gterm" data-s="${normg(nm+" "+df)}"><div class="gname">${num}${nm}</div><div class="gdef">${df}${ref}</div></div>`;
+    });
+    html+=`</div>`;
+  });
+  body.innerHTML=html;sel.innerHTML=opts;if(prevCat)sel.value=prevCat;
+  const gq=document.getElementById("gq");if(gq){gq.value=prevQ;gq.placeholder=en?"Search term…":"Buscar término…";}
+  glosFilter();
+}
+function glosFilter(){
+  const q=normg(document.getElementById("gq").value.trim());const cat=document.getElementById("gcatsel").value;let vis=0;
+  document.querySelectorAll("#glosbody .gsec").forEach(sec=>{
+    let sv=0;
+    sec.querySelectorAll(".gterm").forEach(t=>{
+      const show=(!cat||cat===sec.dataset.cat)&&(!q||t.dataset.s.indexOf(q)>=0);
+      t.classList.toggle("ghide",!show);if(show){sv++;vis++;}
+    });
+    sec.classList.toggle("ghide",sv===0);
+  });
+  document.getElementById("gcount").textContent=vis+(LANG==="en"?" terms":" términos");
+}
+
+renderAdv();
+apply();
+grain();
+try{buildGlos();}catch(e){console.error("glos error",e);}
+window.addEventListener("resize", grain);
+
+</script>
+</body>
+</html>

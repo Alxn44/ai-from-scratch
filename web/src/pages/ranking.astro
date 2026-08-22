@@ -1,0 +1,105 @@
+---
+export const prerender = false;
+import App from '../layouts/App.astro';
+import { gate, apiFetch } from '../lib/session';
+import { icon } from '../lib/icons';
+import { t, resolveLang } from '../lib/i18n';
+
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+
+type Fila = { alias: string; lecciones: number; labs: number };
+const data = await apiFetch<{ tabla: Fila[]; yo: { alias: string | null; apuntado: boolean; puesto: number | null } }>('/api/ranking', Astro.request);
+const lang = resolveLang(user!.lang, Astro.request);
+const L = t(lang);
+const R = L.rank;
+const G = L.logros;
+const tabla = data?.tabla ?? [];
+const yo = data?.yo ?? { alias: null, apuntado: false, puesto: null };
+const rango = (lecciones: number) => (lecciones ? G.rangos[Math.min(lecciones, 12) - 1] : G.sinRango);
+---
+<App user={user!} title={R.titulo} crumb={R.crumb} active={L.nav.ranking}>
+  <a slot="topbar" class="btn ghost" style="height:36px;font-size:10px;text-decoration:none" href="/logros">{G.titulo}</a>
+
+  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1080px">
+
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <h1 class="h1">{R.titulo}</h1>
+        <p class="p" style="max-width:600px">{R.pitch}</p>
+      </div>
+      <div class="card" style="width:360px;border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:10px">
+        <p class="lbl">{yo.apuntado ? R.aliasLbl : R.fuera}</p>
+        {yo.apuntado
+          ? <div class="h1" style="font-size:24px">{yo.alias}<span class="s" style="margin-left:10px">#{yo.puesto}</span></div>
+          : <p class="s" style="color:var(--l2)">{R.fueraB}</p>}
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px">
+          <input class="input" id="alias" placeholder={R.aliasPh} value={yo.alias ?? ''} autocomplete="off" maxlength="18">
+          <p class="s">{R.aliasNota}</p>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button class="btn" id="entrar" style="flex:1">{yo.apuntado ? R.cambiarAlias : R.apuntarme}</button>
+          {yo.apuntado && <button class="btn danger" id="salir">{R.salirme}</button>}
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px;padding:0 6px 10px;border-bottom:1px solid var(--hair)">
+        <div class="tblhead">{R.puesto}</div><div class="tblhead">{R.alias}</div>
+        <div class="tblhead">{G.rangoActual}</div><div class="tblhead">{R.lecciones}</div><div class="tblhead">{R.labs}</div>
+      </div>
+      {tabla.map((f, i) => (
+        <div style={`display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px;align-items:center;height:50px;padding:0 6px;border-bottom:1px solid var(--hair2);${f.alias === yo.alias ? 'background:var(--fill)' : ''}`}>
+          <span class="num" style={`font:700 15px/1 var(--m);color:${i < 3 ? 'var(--ac)' : 'var(--l3)'}`}>{i + 1}</span>
+          <span style="display:flex;align-items:center;gap:9px;min-width:0">
+            <span class="num" style="font:600 14px/1 var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{f.alias}</span>
+            {f.alias === yo.alias && <span class="lbl" style="color:var(--ac)">{R.tu}</span>}
+          </span>
+          <span class="s" style="color:var(--l2)">{rango(f.lecciones)}</span>
+          <span class="num" style="font:500 13px/1 var(--m)">{f.lecciones} / 12</span>
+          <span class="num" style="font:500 13px/1 var(--m);color:var(--l2)">{f.labs}</span>
+        </div>
+      ))}
+      {tabla.length === 0 && (
+        <div class="card" style="border-style:dashed;display:flex;flex-direction:column;gap:6px;margin-top:14px">
+          <div class="h3">{R.vacio}</div>
+          <p class="s" style="color:var(--l2)">{R.vacioB}</p>
+        </div>
+      )}
+    </div>
+
+    <div class="card" style="display:flex;gap:13px;align-items:flex-start;border-color:var(--hair2)">
+      <Fragment set:html={icon('shield', 18, 'var(--ac)')} />
+      <div>
+        <div class="h3">{R.privacidad}</div>
+        <p class="s" style="color:var(--l2);margin-top:4px">{R.privacidadB}</p>
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{ R }}>
+    const alias = document.getElementById('alias');
+    document.getElementById('entrar').addEventListener('click', async () => {
+      const res = await fetch('/api/ranking/optin', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ alias: alias.value.trim().toLowerCase() }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        window.toast('ok', R.tOk, R.tOkB.replace('{a}', d.alias));
+        setTimeout(() => location.reload(), 700);
+        return;
+      }
+      if (res.status === 409) window.toast('bad', R.tTomado, R.tTomadoB);
+      else window.toast('bad', R.tMalo, R.tMaloB);
+    });
+    document.getElementById('salir')?.addEventListener('click', async () => {
+      const res = await fetch('/api/ranking/optin', { method: 'DELETE' });
+      if (res.ok) {
+        window.toast('info', R.tFuera, R.tFueraB);
+        setTimeout(() => location.reload(), 700);
+      }
+    });
+  </script>
+</App>

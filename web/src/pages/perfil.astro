@@ -1,0 +1,80 @@
+---
+export const prerender = false;
+import App from '../layouts/App.astro';
+import { gate, apiFetch, initials } from '../lib/session';
+import { icon } from '../lib/icons';
+import { t, resolveLang } from '../lib/i18n';
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+const prog = await apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number; perLesson: { n: number; total: number; solved: number }[] }>('/api/progress', Astro.request);
+const L = t(resolveLang(user!.lang, Astro.request));
+const pct = prog ? Math.round((prog.lessonsDone / prog.totalLessons) * 100) : 0;
+const labPct = prog ? Math.round((prog.solvedLabs / prog.totalLabs) * 100) : 0;
+---
+<App user={user!} title="Perfil" crumb="PERFIL" active="Perfil">
+  <a slot="topbar" class="btn ghost" style="height:36px;font-size:10px;text-decoration:none" href="/ajustes">{L.nav.ajustes}</a>
+  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1180px">
+
+    <div style="display:flex;align-items:flex-start;gap:24px;border-bottom:1px solid var(--hair);padding-bottom:26px">
+      <div style="width:92px;height:92px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:600 28px/1 var(--m)">{initials(user!.name)}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+        <p class="eb">{L.perfil.titulo} · {user!.role === 'student' ? L.nav.perfil : user!.role}</p>
+        <h1 class="h1">{user!.name}</h1>
+        <p class="s" style="color:var(--l2)">{user!.email}{user!.cohort ? ` · cohorte de ${user!.cohort}` : ''} · {user!.paid ? L.perfil.comprado : L.perfil.sinCompra}</p>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px">
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.leccionesCap}</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{prog?.lessonsDone} / {prog?.totalLessons}</div><div class="bar"><div class="barfill" style={`width:${pct}%`}></div></div></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.labsCap}</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{prog?.solvedLabs} / {prog?.totalLabs}</div><div class="bar"><div class="barfill" style={`width:${labPct}%`}></div></div></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.idiomaCap}</p><div style="font:700 20px/1.2 var(--f)">{resolveLang(user!.lang, Astro.request) === 'es' ? 'Español' : 'English'}{user!.lang === 'auto' ? ' · auto' : ''}</div><p class="s">{L.perfil.cambiaAqui}</p></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.certificado}</p><div class="num" style="font:700 20px/1.2 var(--f);color:var(--l3)">{L.perfil.alCien}</div><p class="s">{L.perfil.seEmite}</p></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:24px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <p class="lbl">{L.perfil.avance}</p>
+        <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+          {prog?.perLesson.map((l) => {
+            const done = l.solved === l.total, some = l.solved > 0;
+            const col = done ? 'var(--ok)' : some ? 'var(--ac)' : 'var(--hair)';
+            // --hair es color de borde: como texto da 1.4:1. El número usa --l3 (4.6:1 medido).
+            const txtCol = done || some ? col : 'var(--l3)';
+            const bg = done ? 'rgba(48,209,88,.14)' : some ? 'rgba(10,132,255,.14)' : 'transparent';
+            return (
+              <a href={`/leccion/${l.n}`} style={`border:1px solid ${col};background:${bg};padding:12px;display:flex;flex-direction:column;gap:7px;color:var(--l1)`}>
+                <span class="num" style={`font:600 13px/1 var(--m);color:${txtCol}`}>{String(l.n).padStart(2, '0')}</span>
+                <span class="num s">{l.solved}/{l.total} {L.perfil.labsAbrev}</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:12px">
+        <p class="lbl">{L.perfil.tuMaterial}</p>
+        <button class="btn ghost" id="pdf-es" style="justify-content:flex-start"><Fragment set:html={icon('pdf', 16)} /><span>{L.perfil.cursoEs}</span></button>
+        <button class="btn ghost" id="pdf-en" style="justify-content:flex-start"><Fragment set:html={icon('pdf', 16)} /><span>{L.perfil.cursoEn}</span></button>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="ui-txt" is:inline set:html={JSON.stringify(L.ui)}></script>
+
+  <script>
+    const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);
+    for (const lang of ['es', 'en']) {
+      document.getElementById(`pdf-${lang}`)!.addEventListener('click', async () => {
+        const res = await fetch(`/api/pdf/${lang}`);
+        if (res.ok) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(await res.blob());
+          a.download = `ia-desde-cero-${lang}.pdf`; a.click();
+          window.toast('info', U.pdfListo, U.pdfListoB);
+        } else {
+          const d = await res.json().catch(() => ({}));
+          window.toast(res.status === 402 ? 'warn' : 'bad', res.status === 402 ? U.pdfSinCompra : U.pdfNoGenerado, d.msg ?? (res.status === 402 ? U.pdfSinCompraB : U.pdfNoGeneradoB));
+        }
+      });
+    }
+  </script>
+</App>

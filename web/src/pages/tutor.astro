@@ -1,0 +1,75 @@
+---
+export const prerender = false;
+import App from '../layouts/App.astro';
+import { gate, apiFetch } from '../lib/session';
+import { t, resolveLang } from '../lib/i18n';
+const { user, redirect } = await gate(Astro.request, ['tutor', 'admin']);
+if (redirect) return Astro.redirect(redirect);
+type Student = { id: number; name: string; email: string; solved: number; last_seen: string | null };
+const data = await apiFetch<{ cohort: string | null; students: Student[]; stuck: { lab_id: string; tries: number; wins: number }[] }>('/api/tutor/cohort', Astro.request);
+const L = t(resolveLang(user!.lang, Astro.request));
+const students = data?.students ?? [];
+const stuck = data?.stuck ?? [];
+const days = (iso: string | null) => iso ? Math.floor((Date.now() - Date.parse(iso + 'Z')) / 86400000) : null;
+const state = (s: Student) => {
+  const d = days(s.last_seen);
+  if (s.solved >= 36) return ['Terminó', 'var(--ac)', 'rgba(10,132,255,.16)'];
+  if (d === null) return ['Sin empezar', 'var(--l3)', 'transparent'];
+  if (d >= 7) return ['Frío', 'var(--rd)', 'rgba(255,69,58,.12)'];
+  if (d >= 2) return ['Atascado', 'var(--or)', 'rgba(255,159,10,.14)'];
+  return ['Al día', 'var(--ok)', 'rgba(48,209,88,.14)'];
+};
+const avg = students.length ? Math.round(students.reduce((a, s) => a + s.solved, 0) / students.length) : 0;
+---
+<App user={user!} title="Cohorte" crumb={`TUTOR / COHORTE ${(data?.cohort ?? '—').toUpperCase()}`} active="Cohorte">
+  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1180px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <p class="eb">Panel · Tutor</p>
+      <h1 class="h1">Cohorte de {data?.cohort ?? 'sin asignar'} · {students.length} estudiantes</h1>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px">
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Labs resueltos · media</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{avg}</div><p class="s">de 36 por estudiante</p></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Sin actividad · 7 días</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em;color:var(--or)">{students.filter((s) => (days(s.last_seen) ?? 99) >= 7).length}</div><p class="s">a los que escribir hoy</p></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Terminaron el Vol. 1</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em;color:var(--ok)">{students.filter((s) => s.solved >= 36).length}</div><p class="s">de {students.length}</p></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <p class="lbl">Estudiantes · ordenados por inactividad</p>
+        <div style="display:grid;grid-template-columns:1.4fr 1.4fr 90px 110px 110px;gap:16px;padding-bottom:10px;border-bottom:1px solid var(--hair)">
+          <div class="tblhead">Nombre</div><div class="tblhead">Correo</div><div class="tblhead">Labs</div><div class="tblhead">Visto</div><div class="tblhead">Estado</div>
+        </div>
+        {students.map((s) => {
+          const [txt, col, bg] = state(s);
+          const d = days(s.last_seen);
+          return (
+            <div style="display:grid;grid-template-columns:1.4fr 1.4fr 90px 110px 110px;gap:16px;align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
+              <span style="font:600 14px/1.2 var(--f)">{s.name}</span>
+              <span class="s" style="color:var(--l2)">{s.email}</span>
+              <span class="num" style="font:500 13px/1 var(--m);color:var(--l2)">{s.solved} / 36</span>
+              <span class="num s">{d === null ? '—' : d === 0 ? 'hoy' : `${d} d`}</span>
+              <span style={`justify-self:start;display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid ${col};background:${bg};font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;color:${col}`}>{txt}</span>
+            </div>
+          );
+        })}
+        {!students.length && <p class="s">Sin estudiantes en esta cohorte todavía.</p>}
+      </div>
+
+      <div class="card" style="display:flex;flex-direction:column;gap:14px">
+        <p class="lbl">Dónde se atascan</p>
+        {stuck.map((x) => (
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between">
+              <a href={`/leccion/${x.lab_id.split('.')[0]}`} style="font:600 13px/1 var(--f)">Lab {x.lab_id}</a>
+              <span class="num s" style="color:var(--or)">{x.tries} intentos · {x.wins} aciertos</span>
+            </div>
+            <div class="bar"><div class="barfill" style={`width:${Math.min(100, x.tries * 12)}%;background:var(--or)`}></div></div>
+          </div>
+        ))}
+        {!stuck.length && <p class="s">Nadie ha repetido un lab dos veces todavía.</p>}
+        <p class="s" style="border-top:1px solid var(--hair2);padding-top:12px">Un lab con muchos intentos suele ser un problema del enunciado, no del estudiante.</p>
+      </div>
+    </div>
+  </div>
+</App>

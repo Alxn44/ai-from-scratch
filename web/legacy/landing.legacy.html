@@ -1,0 +1,643 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IA desde cero — Fundamentos Vol. 1</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#000;-webkit-font-smoothing:antialiased}
+a{color:#fff;text-decoration:none}
+@keyframes caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes slide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:rgba(235,235,245,.34)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:26px;margin-top:-13px;border-radius:0;background:#fff;cursor:ew-resize}
+input[type=range]::-moz-range-track{height:1px;background:rgba(235,235,245,.34)}
+input[type=range]::-moz-range-thumb{width:14px;height:26px;border:0;border-radius:0;background:#fff;cursor:ew-resize}
+input[type=text]::placeholder{color:rgba(235,235,245,.26)}
+.buy{background:#fff;color:#000;transition:background .2s,color .2s}
+.buy:hover{background:var(--ac);color:#fff}
+.buyblk{background:#000;color:#fff;transition:background .2s}
+.buyblk:hover{background:var(--ac)}
+.card-h{transition:background .2s}
+.card-h:hover{background:rgba(255,255,255,.03)}
+.row-h{transition:background .15s}
+.row-h:hover{background:rgba(255,255,255,.04)}
+.skip{transition:color .2s;cursor:pointer}
+.skip:hover{color:#fff!important}
+.tokin:focus{border-color:#fff!important}
+.navlink:hover{color:#fff!important}
+</style>
+
+<div style="--f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;--m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;--l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.38);--hair:rgba(84,84,88,.42);--hair2:rgba(84,84,88,.22);--ac:#0A84FF;background:#000;font-family:var(--f);color:var(--l1);overflow-x:hidden;position:relative">
+
+<!-- ===== LOADER ===== -->
+<div data-el="intro" style="position:fixed;inset:0;z-index:200;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden">
+  <div data-el="introgrid" id="introgrid" style="position:absolute;inset:0;padding:22px;display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:1fr;gap:1px;will-change:transform"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,.10) 0%,rgba(0,0,0,.72) 62%,#000 100%);pointer-events:none"></div>
+  <div style="position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:26px">
+    <div data-el="intrologo" style="position:relative;isolation:isolate;width:186px;height:186px;opacity:0;will-change:transform,filter">
+      <div data-split="r" style="position:absolute;inset:0;mix-blend-mode:screen">
+        <img class="lg" alt="" style="width:100%;height:100%;object-fit:contain">
+        <div style="position:absolute;inset:0;background:#FF453A;mix-blend-mode:multiply"></div>
+      </div>
+      <div data-split="b" style="position:absolute;inset:0;mix-blend-mode:screen">
+        <img class="lg" alt="" style="width:100%;height:100%;object-fit:contain">
+        <div style="position:absolute;inset:0;background:#0A84FF;mix-blend-mode:multiply"></div>
+      </div>
+      <img class="lg" alt="IA desde cero" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen">
+    </div>
+    <div data-el="introword" style="display:flex;flex-direction:column;align-items:center;gap:10px;clip-path:inset(0 100% 0 0)">
+      <div style="font:700 44px/1 var(--f);letter-spacing:-.04em;color:#fff">IA desde cero</div>
+      <div style="font:600 11px/1 var(--m);letter-spacing:.34em;color:rgba(235,235,245,.45)">FUNDAMENTOS · VOL. 1</div>
+    </div>
+  </div>
+  <div id="skip" class="skip" style="position:absolute;right:26px;bottom:24px;z-index:4;display:flex;align-items:center;gap:9px;font:600 11px/1 var(--m);letter-spacing:.20em;color:rgba(235,235,245,.42)">
+    <span>SALTAR</span>
+    <svg width="16" height="16" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+  </div>
+</div>
+
+<canvas data-fx="grain" style="position:fixed;inset:0;width:100%;height:100%;z-index:90;pointer-events:none;opacity:.055"></canvas>
+
+<div style="position:fixed;left:0;right:0;top:0;bottom:0;z-index:1;pointer-events:none;display:flex;justify-content:center">
+  <div style="width:100%;max-width:1240px;height:100%;background-image:repeating-linear-gradient(to right,var(--hair2) 0 1px,transparent 1px calc(100% / 6))"></div>
+</div>
+
+<div style="position:fixed;left:0;right:0;top:0;z-index:70;height:1px;background:var(--hair)">
+  <div data-el="bar" style="height:100%;width:100%;background:#fff;transform-origin:left;transform:scaleX(0)"></div>
+</div>
+
+<!-- ===== NAV ===== -->
+<div style="position:fixed;left:0;right:0;top:1px;z-index:60;background:rgba(0,0,0,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--hair)">
+  <div style="max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:20px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <img class="lg" alt="IA desde cero" style="width:24px;height:24px;object-fit:cover">
+      <div style="font:700 15px/1 var(--f);letter-spacing:-.01em">IA desde cero</div>
+      <div style="width:1px;height:16px;background:var(--hair)"></div>
+      <div style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">FUNDAMENTOS · VOL. 1</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:22px">
+      <div data-el="pct" style="font:500 10px/1 var(--m);letter-spacing:.14em;color:var(--l3);font-variant-numeric:tabular-nums">000%</div>
+      <a href="#indice" class="navlink" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2)">ÍNDICE</a>
+      <a href="#especimenes" class="navlink" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2)">ESPECÍMENES</a>
+      <a href="#precio" class="buy" style="display:flex;align-items:center;gap:8px;font:600 10px/1 var(--m);letter-spacing:.16em;padding:11px 15px">
+        <span>COMPRAR · $9.99</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HERO ===== -->
+<section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:150px 24px 0">
+  <div style="display:grid;grid-template-columns:1fr 372px;gap:44px;align-items:end;border-bottom:1px solid var(--hair);padding-bottom:34px">
+    <div style="display:flex;flex-direction:column;gap:26px">
+      <div data-anim="1" style="display:flex;align-items:center;gap:14px">
+        <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">CURSO · 12 LECCIONES</div>
+        <div style="flex:1;height:1px;background:var(--hair)"></div>
+        <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l3)">ES · EN</div>
+      </div>
+      <h1 data-anim="1" style="margin:0;font:700 clamp(46px,6.4vw,96px)/.93 var(--f);letter-spacing:-.055em;text-wrap:balance">Entiende la IA<br>en una tarde.</h1>
+      <div data-anim="1" style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--hair)">
+        <div style="padding:20px 24px 20px 0;border-right:1px solid var(--hair)">
+          <p style="margin:0;font:400 19px/1.42 var(--f);letter-spacing:-.01em;color:var(--l2);text-wrap:pretty">Doce lecciones ilustradas que explican cómo piensa, por qué se inventa cosas y cómo pedirle bien. Sin código y sin fórmulas.</p>
+        </div>
+        <div style="padding:20px 0 20px 24px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">LECCIONES</span><span>12</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">LECTURA</span><span>40 MIN</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">FORMATO</span><span>CARRUSEL 4:5</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">PRECIO</span><span>$9.99 USD</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">ACTUALIZACIONES</span><span>VOL. 1</span></div>
+        </div>
+      </div>
+      <div data-anim="1" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <a href="#precio" class="buy" style="display:flex;align-items:center;gap:12px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:19px 26px">
+          <span>QUIERO EL CURSO</span>
+          <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </a>
+        <div style="font:500 11px/1.5 var(--m);letter-spacing:.1em;color:var(--l3)">ANTES $49 · HOY $9.99<br>PAGO ÚNICO · GARANTÍA 7 DÍAS</div>
+      </div>
+      <div data-anim="1" style="display:flex;align-items:flex-start;gap:14px;border-top:1px solid var(--hair);padding-top:18px">
+        <div style="flex:none;font:600 10px/1.5 var(--m);letter-spacing:.2em;color:var(--ac)">VIVO</div>
+        <div style="font:400 15px/1.5 var(--f);color:var(--l2);max-width:520px">El curso se sigue actualizando: cuando la IA cambia, reescribo las lecciones que quedaron viejas y la versión nueva te llega sin pagar de nuevo. Las actualizaciones cubren el Vol. 1. Aplican términos y condiciones.</div>
+      </div>
+    </div>
+
+    <div data-anim="1" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)">
+        <span>FIG. 01 — PORTADA</span><span>1080 × 1350</span>
+      </div>
+      <div data-el="herocard" style="position:relative;width:100%;height:465px;border:1px solid var(--hair);background:#000;overflow:hidden">
+        <canvas data-fx="cover" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>
+        <div style="position:relative;z-index:2;height:100%;padding:26px;display:flex;flex-direction:column">
+          <div style="font:600 9px/1 var(--m);letter-spacing:.24em;color:var(--l3)">EBOOK · VOL. 1</div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+            <div style="font:700 36px/.94 var(--f);letter-spacing:-.045em">IA desde cero</div>
+            <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">FUNDAMENTOS · VOL. 1</div>
+            <div style="font:400 13px/1.4 var(--f);color:var(--l2);max-width:230px">Cómo piensa, por qué se inventa cosas y cómo pedirle bien.</div>
+            <div style="display:flex;align-items:center;gap:9px;padding-top:6px;border-top:1px solid var(--hair2);margin-top:6px">
+              <img class="lg" alt="" style="width:18px;height:18px;object-fit:cover">
+              <div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI · ES / EN</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font:500 10px/1.5 var(--m);letter-spacing:.08em;color:var(--l3)">Monograma reconstruido en 1.600 partículas muestreadas del logotipo.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TICKER ===== -->
+<div style="position:relative;z-index:2;margin-top:0;border-bottom:1px solid var(--hair);overflow:hidden;background:#000">
+  <div style="display:flex;width:200%;animation:slide 46s linear infinite;will-change:transform">
+    <div id="ticker1" style="display:flex;align-items:center;gap:34px;width:50%;padding:13px 0;font:500 10px/1 var(--m);letter-spacing:.2em;color:var(--l3);white-space:nowrap"></div>
+    <div id="ticker2" style="display:flex;align-items:center;gap:34px;width:50%;padding:13px 0;font:500 10px/1 var(--m);letter-spacing:.2em;color:var(--l3);white-space:nowrap"></div>
+  </div>
+</div>
+
+<!-- ===== §01 SÍNTOMAS ===== -->
+<section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
+  <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:30px">
+    <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 01</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Síntomas que ya conoces</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-left:1px solid var(--hair)">
+    <div data-anim="1" class="card-h" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px 26px;display:flex;flex-direction:column;gap:16px;min-height:290px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>SÍNTOMA 01</span><span style="color:var(--ac)">LEC. 10</span></div>
+      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">Te inventó datos y no lo notaste</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Nombres, fechas y cifras que suenan perfectas y no existen. Vas a ver por qué lo hace — y cómo cacharla.</div>
+      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">CAUSA: SUENA ≠ CIERTO</div>
+    </div>
+    <div data-anim="1" class="card-h" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px 26px;display:flex;flex-direction:column;gap:16px;min-height:290px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>SÍNTOMA 02</span><span style="color:var(--ac)">LEC. 07</span></div>
+      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">Le pides algo y sale genérico</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">"Hazme un correo" devuelve "Estimado usuario". Misma IA, mismo precio: lo único que cambia es cómo se lo explicas.</div>
+      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">CAUSA: FALTA QUÉ + QUIÉN + CÓMO</div>
+    </div>
+    <div data-anim="1" class="card-h" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px 26px;display:flex;flex-direction:column;gap:16px;min-height:290px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>SÍNTOMA 03</span><span style="color:var(--ac)">LEC. 08</span></div>
+      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">Se pone rara a mitad del chat</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Olvida tu nombre, se contradice, repite. No está fallando: se le llenó la mesa, y la solución cabe en una línea.</div>
+      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">CAUSA: ≈120.000 PALABRAS</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== §02 ÍNDICE ===== -->
+<section id="indice" style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
+  <div data-anim="1" style="display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding-bottom:30px;flex-wrap:wrap">
+    <div style="display:flex;align-items:baseline;gap:18px">
+      <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 02</div>
+      <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Índice completo</div>
+    </div>
+    <div style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">12 LECCIONES · UNA IDEA CADA UNA</div>
+  </div>
+  <div style="display:grid;grid-template-columns:52px 1.05fr 1.25fr 250px;gap:24px;padding:0 0 11px;border-bottom:1px solid var(--hair);font:600 9px/1 var(--m);letter-spacing:.2em;color:var(--l3)">
+    <div>NN</div><div>CONCEPTO</div><div>QUÉ APRENDES</div><div>DATO</div>
+  </div>
+  <div id="modules"></div>
+</section>
+
+<!-- ===== §03 ESPECÍMENES ===== -->
+<section id="especimenes" style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
+  <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:12px">
+    <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 03</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Dos especímenes, para tocar</div>
+  </div>
+  <div data-anim="1" style="font:400 17px/1.5 var(--f);color:var(--l2);max-width:620px;padding-bottom:30px">Así se explica todo el curso: no te lo cuento, lo mueves tú y lo entiendes solo.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--hair);border-left:1px solid var(--hair)">
+    <div data-anim="1" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>ESPÉCIMEN A · LEC. 05</span><span style="color:var(--ac)">INTERACTIVO</span></div>
+      <div style="font:700 27px/1.1 var(--f);letter-spacing:-.032em">Escribe algo. Mira cómo lo parte.</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">No ve palabras ni letras: ve trozos. Por eso no sabe contar letras — nunca las vio.</div>
+      <input id="tokin" class="tokin" type="text" placeholder="Cartagena es hermosa" maxlength="46" style="width:100%;background:#000;border:1px solid var(--hair);border-radius:0;padding:15px 16px;font:400 17px/1.2 var(--f);color:var(--l1);outline:none">
+      <div id="tokens" style="display:flex;gap:7px;flex-wrap:wrap;min-height:46px"></div>
+      <div style="margin-top:auto;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);padding-top:18px;gap:14px">
+        <div style="display:flex;flex-direction:column;gap:6px"><div id="tokenCount" style="font:700 26px/1 var(--m);color:var(--ac);font-variant-numeric:tabular-nums">5</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">TOKENS</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div id="wordCount" style="font:700 26px/1 var(--m);font-variant-numeric:tabular-nums">3</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">PALABRAS</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div id="charCount" style="font:700 26px/1 var(--m);font-variant-numeric:tabular-nums">18</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">LETRAS QUE NO VE</div></div>
+      </div>
+    </div>
+    <div data-anim="1" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>ESPÉCIMEN B · LEC. 09</span><span style="color:var(--ac)">INTERACTIVO</span></div>
+      <div style="font:700 27px/1.1 var(--f);letter-spacing:-.032em">Mueve la perilla. Cambia quién gana.</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Le pediste un nombre para tu perro. Abajo, seria. Arriba, se arriesga con las raras.</div>
+      <div id="cands" style="display:flex;flex-direction:column;gap:1px"></div>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--hair);padding-top:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font:600 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">TEMPERATURA</div>
+          <div id="tempLabel" style="font:600 15px/1 var(--m);color:var(--ac);font-variant-numeric:tabular-nums">0.30</div>
+        </div>
+        <input id="tempin" type="range" min="1" max="180" step="1" value="30" style="width:100%;height:26px">
+        <div style="display:flex;align-items:center;justify-content:space-between;font:500 9px/1 var(--m);letter-spacing:.14em;color:var(--l3)"><div>SEGURO</div><div id="tempVerdict" style="color:var(--l1)">PREDECIBLE</div><div>SE ARRIESGA</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== §04 QUÉ TE LLEVAS ===== -->
+<section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
+  <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:30px">
+    <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 04</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Qué te llevas</div>
+  </div>
+  <div style="border-top:1px solid var(--hair)">
+    <div data-anim="1" class="card-h" style="display:grid;grid-template-columns:52px 300px 1fr;gap:24px;padding:24px 0;border-bottom:1px solid var(--hair2)">
+      <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">01</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">12 lecciones ilustradas</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Formato carrusel 1080 × 1350: cada lección es una imagen que entiendes en 40 segundos y guardas en el teléfono.</div>
+    </div>
+    <div data-anim="1" class="card-h" style="display:grid;grid-template-columns:52px 300px 1fr;gap:24px;padding:24px 0;border-bottom:1px solid var(--hair2)">
+      <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">02</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Español e inglés</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Las mismas 12 lecciones en los dos idiomas, adaptadas — no traducidas a la fuerza.</div>
+    </div>
+    <div data-anim="1" class="card-h" style="display:grid;grid-template-columns:52px 300px 1fr;gap:24px;padding:24px 0;border-bottom:1px solid var(--hair2)">
+      <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">03</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Los 9 prompts que uso a diario</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Copiar, pegar, ajustar. Resumir, reescribir, explicar simple, responder difícil.</div>
+    </div>
+    <div data-anim="1" class="card-h" style="display:grid;grid-template-columns:52px 300px 1fr;gap:24px;padding:24px 0;border-bottom:1px solid var(--hair)">
+      <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">04</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Acceso de por vida + actualizaciones del Vol. 1</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Pago único, y el curso no se queda quieto: se actualiza cuando la IA cambia. Cada versión nueva de las 12 lecciones del Vol. 1 te llega gratis. Los volúmenes siguientes se venden aparte.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== §05 PRECIO ===== -->
+<section id="precio" style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
+  <div data-anim="1" style="background:#F2F2F2;color:#000;display:grid;grid-template-columns:1.2fr .8fr">
+    <div style="padding:46px 44px;display:flex;flex-direction:column;gap:22px;border-right:1px solid rgba(0,0,0,.14)">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="font:600 10px/1 var(--m);letter-spacing:.22em">§ 05 · PRECIO DE LANZAMIENTO</div>
+        <div style="flex:1;height:1px;background:rgba(0,0,0,.18)"></div>
+      </div>
+      <div style="font:700 clamp(30px,3.6vw,50px)/1.02 var(--f);letter-spacing:-.045em;text-wrap:balance">Deja de usar la IA a ciegas por menos de diez dólares</div>
+      <div style="font:400 17px/1.5 var(--f);color:rgba(0,0,0,.66);max-width:480px">Si en 7 días sientes que no aprendiste nada nuevo, escribes y te devuelvo el dinero. Sin preguntas y sin formularios.</div>
+      <div style="margin-top:auto;display:flex;flex-direction:column;border-top:1px solid rgba(0,0,0,.14)">
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">INCLUYE</span><span>12 LECCIONES ES + EN</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">INCLUYE</span><span>9 PROMPTS LISTOS</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">INCLUYE</span><span>ACTUALIZACIONES DEL VOL. 1</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">NO INCLUYE</span><span>VOL. 2 Y POSTERIORES</span></div>
+      </div>
+    </div>
+    <div style="padding:46px 40px;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:flex-end;gap:12px">
+        <div style="font:700 68px/.9 var(--f);letter-spacing:-.055em">$9.99</div>
+        <div style="font:500 15px/1 var(--m);color:rgba(0,0,0,.45);text-decoration:line-through;padding-bottom:8px">$49</div>
+      </div>
+      <div style="font:400 15px/1.45 var(--f);color:rgba(0,0,0,.66)">Pago único en USD. Acceso inmediato después de pagar, con las actualizaciones futuras del Vol. 1 incluidas.</div>
+      <a href="#precio" class="buyblk" style="display:flex;align-items:center;justify-content:center;gap:11px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:21px">
+        <span>COMPRAR EL CURSO</span>
+        <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px;font:500 10px/1.5 var(--m);letter-spacing:.12em;color:rgba(0,0,0,.55)">
+        <div>GARANTÍA 7 DÍAS · DEVOLUCIÓN TOTAL</div>
+        <div>ACTUALIZACIONES DEL VOL. 1 · APLICAN TÉRMINOS Y CONDICIONES</div>
+        <div>VOL. 1 · @ALXN_DEV_AI</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== §06 FAQ ===== -->
+<section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
+  <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:30px">
+    <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 06</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Preguntas frecuentes</div>
+  </div>
+  <div id="faqs" style="border-top:1px solid var(--hair)"></div>
+</section>
+
+<!-- ===== FINAL CTA ===== -->
+<section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:100px 24px 130px">
+  <div data-anim="1" style="display:flex;flex-direction:column;gap:30px;border-top:1px solid var(--hair);padding-top:40px">
+    <div style="font:700 clamp(34px,5.4vw,80px)/.96 var(--f);letter-spacing:-.05em;max-width:900px;text-wrap:balance">La IA no se va a ir. Entenderla cuesta $9.99.</div>
+    <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
+      <a href="#precio" class="buy" style="display:flex;align-items:center;gap:12px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:20px 28px">
+        <span>EMPEZAR POR $9.99</span>
+        <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+      <div style="font:400 17px/1.45 var(--f);color:var(--l2);max-width:340px">Una tarde de lectura y dejas de pedirle cosas a ciegas.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;border-top:1px solid var(--hair2);padding-top:26px;font:500 10px/1.6 var(--m);letter-spacing:.14em;color:var(--l3)">
+      <div style="display:flex;align-items:center;gap:11px"><img class="lg" alt="" style="width:22px;height:22px;object-fit:cover"><span>IA DESDE CERO · VOL. 1</span></div>
+      <div>@ALXN_DEV_AI</div>
+      <div>12 LECCIONES · ES / EN</div>
+      <div>PAGO ÚNICO · GARANTÍA 7 DÍAS</div>
+    </div>
+    <div style="font:500 10px/1.6 var(--m);letter-spacing:.14em;color:var(--l3);border-top:1px solid var(--hair2);padding-top:18px">CURSO VIVO · LAS ACTUALIZACIONES APLICAN SOLO AL VOL. 1 · APLICAN TÉRMINOS Y CONDICIONES</div>
+  </div>
+</section>
+
+<!-- ===== STICKY BUY BAR ===== -->
+<div data-el="sticky" style="position:fixed;left:0;right:0;bottom:0;z-index:65;transform:translateY(110%);background:rgba(0,0,0,.9);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--hair)">
+  <div style="max-width:1240px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:22px">
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="display:flex;align-items:baseline;gap:9px"><div style="font:700 21px/1 var(--f);letter-spacing:-.03em">$9.99</div><div style="font:500 12px/1 var(--m);color:var(--l3);text-decoration:line-through">$49</div></div>
+      <div style="width:1px;height:18px;background:var(--hair)"></div>
+      <div style="font:500 10px/1 var(--m);letter-spacing:.16em;color:var(--l2)">12 LECCIONES · ACCESO DE POR VIDA · GARANTÍA 7 DÍAS</div>
+    </div>
+    <a href="#precio" class="buy" style="display:flex;align-items:center;gap:10px;font:600 11px/1 var(--m);letter-spacing:.16em;padding:15px 22px">
+      <span>COMPRAR AHORA</span>
+      <svg width="16" height="16" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </a>
+  </div>
+</div>
+
+</div>
+
+<script>
+const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAAAXNSR0IArs4c6QAAAGRlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAABJAEAAIAAAAUAAAAUKABAAMAAAABAAEAAKACAAQAAAABAAABAKADAAQAAAABAAABAAAAAAAyMDI2OjAxOjI0IDE3OjUxOjMwAAzEBjAAAAFlaVRYdFhNTDpjb20uYWRvYmUueG1wAAAAAAA8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJYTVAgQ29yZSA2LjAuMCI+CiAgIDxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+CiAgICAgIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiCiAgICAgICAgICAgIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyI+CiAgICAgICAgIDx4bXA6Q3JlYXRlRGF0ZT4yMDI2LTAxLTI0VDE3OjUxOjMwPC94bXA6Q3JlYXRlRGF0ZT4KICAgICAgPC9yZGY6RGVzY3JpcHRpb24+CiAgIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cpat2SoAABXtSURBVHgB7Z1lsBzF2oCD+8XdCRCg0ECAwkKA4F4BghYOgeCuFYrCIbgFCYUkuLsWLsEtOMEtuOv3Pffuzdbese2eM+ecTc5zfiQ7PT0tT78z0/1KT7du/klAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAIVExiv4vK6fHFTTTXV7LPP/sYbbyRITDLJJIsuuuhkk032zz//JE610+Fvv/321Vdfff3113/99ReV/t9//jqs9nbqVOXFTlh5iV22wPHGGw8ZO+CAA9ZZZ511110XyUugWG+99Q455BCyJdLb6ZDGIO5I/++///7ZZ599+umnn3zyyahRo956660333zzu+++++mnn77//ntviXbi3xWLXXPNNX/88Uck74gjjphwwuTDZc4553z++ef/8yDu/H+4E+66665jjjlmk002WXLJJaeZZpquOGD2uUICSyyxBDOf2nP3hx9+2HjjjdOFr7zyyjyMO1/8/7cFX3zxxeOPP37eeedtttlm3gnpUTOlOQEm9zfccEOjXL322mtzzDFH+sp99933zz//bMzZOr+//fbbF198cfDgwQsuuOD444+fbrwpEsgmsMsuu9QXmnWBvvzyyyeeeOLEBayGr7nmmnqeFvzx999/szYYPnx4nz59/vWvfyXa76EEkgSWX375jz/+OC3KrDJ32223ZO5u3bp37/7KK6+k87daCrf0tdde27t37wkmmCDdC1Mk8G8Cs846a8HSFt3LIosskiaFVI0ePbrVJD6zPdzG119//QorrJDuhSldnQAT5SFDhmTKTT3xyiuvTK8seaaedtppTDbq2Vr8x0cffXT00Uez1OnqQ27/GwnsueeeP//8c7HsIuUDBw7kqoQFgLvi/vvv59r04qG4wM46S0duvPHGhRdeuJGAv7sugR49erz77rsh4vjll18uvfTSaVI9e/ZkjhRSQuvkGTly5Nprr53uiyldi8B00013zz33hMvlE088Mcsss6QZoXr/5ZdfwstphZxYObD0jRt6Ulf3aZlsnsLYH3744TvssEPzrGNyYBPANsw9Mybhv//jlYD70IorrphIb+VDNLk0GF+jESNG6EnRyiPVXm3baKON0I3EPoxxv0Gznm4TeqRnnnkmtrROz4+XEU+BtMdHuoOmjFMEsJIyDy4nfw899FDmRGj99dfHea5cmZ141R9//MH6PrG4H7sG2ylQ3HihurnkkkuwfMVdNib3PPPMM+20095+++1I7Zi0f/+Phyav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";
+document.querySelectorAll("img.lg").forEach(i => i.src = LOGO);
+
+const MODULES = [
+  { n:"01", eb:"LA IA", h:"Aprende viendo ejemplos", d:"Nadie le escribe reglas: encuentra el parecido entre miles de ejemplos, sola.", k:"100.000", kc:"fotos de gato para aprender qué es un gato. A ti te bastan 3." },
+  { n:"02", eb:"CÓMO MEJORA", h:"Juega frío y caliente", d:"Mejorar, para ella, es una sola cosa: que el número de “qué tan lejos quedé” baje.", k:"94 → 23 → 4", kc:"así baja el error con la práctica. Entrenar = hacerlo bajar." },
+  { n:"03", eb:"DÓNDE LO GUARDA", h:"Todo queda en perillas", d:"Lo aprendido no son fotos ni frases: son millones de numeritos ajustados.", k:"70.000.000.000", kc:"perillas tiene un modelo grande. Cada una es solo un número." },
+  { n:"04", eb:"POR QUÉ NO CAMBIA", h:"Contigo no aprende", d:"Estudiar y responder son dos momentos separados. Cuando le hablas, el estudio ya terminó.", k:"1 vez", kc:"se entrena, y cuesta millones. Responder cuesta centavos." },
+  { n:"05", eb:"CÓMO LEE", h:"Lee pedacitos: tokens", d:"No ve palabras ni letras. Parte tu texto en trozos y trabaja con esos.", k:"3 palabras = 5 tokens", kc:"todo se mide y se cobra en tokens." },
+  { n:"06", eb:"CÓMO ESCRIBE", h:"Adivina la que sigue", d:"Le da un puntaje a cada palabra posible, escoge una y repite.", k:"31 de 100", kc:"los puntajes de todas las opciones suman 100." },
+  { n:"07", eb:"CÓMO PEDIRLE", h:"La fórmula del buen pedido", d:"No adivina lo que tienes en la cabeza. Tu explicación es todo lo que recibe.", k:"qué + para quién + cómo", kc:"esa es toda la fórmula. Lo que no digas, lo rellena genérico." },
+  { n:"08", eb:"SU MEMORIA", h:"La mesa se llena", d:"Solo tiene presente cierta cantidad de conversación a la vez.", k:"≈ 120.000", kc:"palabras le caben: un libro mediano. Lo viejo se cae." },
+  { n:"09", eb:"SU PERILLA", h:"Seria o creativa: tú eliges", d:"La temperatura decide si va a lo seguro o se arriesga con opciones raras.", k:"99 de 100", kc:"veces gana la opción top con la perilla abajo." },
+  { n:"10", eb:"SU PELIGRO", h:"Inventa con seguridad", d:"No tiene botón de “no sé”. Si le falta el dato, arma uno que suena perfecto.", k:"suena ≠ cierto", kc:"su puntaje mide qué tan bien suena, no qué tan cierto es." },
+  { n:"11", eb:"SU FECHA", h:"Su memoria tiene fecha", d:"Estudió hasta un día concreto. Lo de después no existe… salvo que busque.", k:"memoria: ayer", kc:"internet: hoy. Conectada deja de adivinar." },
+  { n:"12", eb:"EMPIEZA HOY", h:"Copia, pega y listo", d:"Es una herramienta para pensar y producir más rápido. No decide por ti.", k:"5 min al día", kc:"bastan para agarrarle la mano." }
+];
+const CANDS = [
+  { name:"Max", logit:5.2 }, { name:"Luna", logit:4.7 }, { name:"Rocky", logit:3.9 },
+  { name:"Coco", logit:3.4 }, { name:"Sr. Mostacho", logit:1.1 }, { name:"Nube", logit:0.7 }
+];
+const FAQS = [
+  { q:"¿Necesito saber programar?", a:"No. El curso no tiene una sola línea de código ni una fórmula. Todo se explica con cosas que ya usas: chats, perillas de sonido, una mesa que se llena." },
+  { q:"¿Qué recibo exactamente?", a:"12 lecciones ilustradas en formato carrusel (las mismas del índice), en español e inglés, más los 9 prompts que uso a diario para copiar y pegar." },
+  { q:"¿Cuánto tiempo me toma?", a:"Unos 40 minutos leerlo completo. Cada lección se entiende en menos de un minuto, así que puedes hacer una por día si prefieres." },
+  { q:"¿Sirve si ya uso ChatGPT todos los días?", a:"Sí, y suele ser el que más lo aprovecha. Usarla no es entenderla: acá vas a ver por qué se inventa datos, por qué se pone rara a mitad del chat y por qué el mismo pedido a veces sale genérico." },
+  { q:"¿Y si no me sirve?", a:"Tienes 7 días. Escribes, te devuelvo los $9.99 completos y te quedas con lo que ya leíste. Sin formularios ni preguntas." },
+  { q:"¿Es pago único o suscripción?", a:"Pago único de $9.99 USD. Acceso de por vida, y las actualizaciones futuras te llegan sin pagar otra vez." },
+  { q:"¿El curso se queda viejo?", a:"No: lo actualizo. Cuando la IA cambia lo suficiente para que una lección deje de ser cierta, la reescribo y te llega la versión nueva gratis. Las actualizaciones aplican solo al Vol. 1 — los volúmenes siguientes se venden aparte. Aplican términos y condiciones." }
+];
+const MICRO = ["01·LA IA","TOKENS","+","70.000.000.000","ES/EN","×","94→23→4","$9.99","//","T=0.30","12/12","≈120.000","suena ≠ cierto","·","100.000","FRÍO","CALIENTE","→","perillas","05·CÓMO LEE","31/100","IA","∞","1 vez","carta|gena","AD","09·PERILLA","memoria: ayer","•","internet: hoy","qué+quién+cómo","○","4:5","1080×1350","12 LECCIONES","−","error↓","no sé","□","5 min/día","06·ESCRIBE","suave 12","azul ~0","△","ES","EN","+","bueno 31","Max","Sr. Mostacho","／","3 palabras","5 tokens","·","10·PELIGRO","verifícalo","◇","08·MESA","se llena","lo viejo cae","×","07·PEDIRLE","genérico","≠","04·NO CAMBIA","libro impreso","·","02·MEJORA","frío/caliente","+","03·PERILLAS","70B","○","11·FECHA","corte","hoy","→","12·EMPIEZA","copia","pega","·","40 min","garantía 7d","+","pago único","de por vida","×","@alxn_dev_ai","IA fácil","·","2160×2700","PNG 2×","○","carrusel","·","VOL. 1","fundamentos","+","AD"];
+const TICKER = ["12 LECCIONES","·","ES / EN","·","40 MIN DE LECTURA","·","1080 × 1350","·","PAGO ÚNICO $9.99","·","GARANTÍA 7 DÍAS","·","9 PROMPTS INCLUIDOS","·","SIN CÓDIGO","·","SIN FÓRMULAS","·","ACCESO DE POR VIDA","·","ACTUALIZACIONES DEL VOL. 1","·","FUNDAMENTOS · VOL. 1","·","@ALXN_DEV_AI","·"];
+
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+/* ---- static lists ---- */
+document.getElementById("introgrid").innerHTML = MICRO.map(m =>
+  `<div class="mcell" style="display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;border:1px solid rgba(84,84,88,.30);font:500 8px/1.15 var(--m);letter-spacing:.10em;color:rgba(235,235,245,.70);overflow:hidden;opacity:0">${esc(m)}</div>`).join("");
+
+const tickerHTML = TICKER.map(t => `<span>${esc(t)}</span>`).join("");
+document.getElementById("ticker1").innerHTML = tickerHTML;
+document.getElementById("ticker2").innerHTML = tickerHTML;
+
+document.getElementById("modules").innerHTML = MODULES.map(m =>
+  `<div data-row class="row-h" style="display:grid;grid-template-columns:52px 1.05fr 1.25fr 250px;gap:24px;padding:22px 0;border-bottom:1px solid var(--hair2);align-items:start">
+    <div style="font:700 15px/1.2 var(--m);letter-spacing:.02em;color:var(--l3)">${m.n}</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="font:600 10px/1 var(--m);letter-spacing:.18em;color:var(--ac)">${esc(m.eb)}</div>
+      <div style="font:700 21px/1.16 var(--f);letter-spacing:-.028em">${esc(m.h)}</div>
+    </div>
+    <div style="font:400 16px/1.5 var(--f);color:var(--l2);padding-top:2px">${esc(m.d)}</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="font:600 17px/1.15 var(--m);letter-spacing:-.01em;font-variant-numeric:tabular-nums">${esc(m.k)}</div>
+      <div style="font:400 12px/1.45 var(--f);color:var(--l3)">${esc(m.kc)}</div>
+    </div>
+  </div>`).join("");
+
+/* ---- FAQ accordion ---- */
+let faqOpen = -1;
+const faqsEl = document.getElementById("faqs");
+function renderFaqs(){
+  faqsEl.innerHTML = FAQS.map((f,i) =>
+    `<div style="border-bottom:1px solid var(--hair2)">
+      <div class="row-h" data-faq="${i}" style="display:grid;grid-template-columns:52px 1fr 30px;gap:24px;align-items:center;padding:22px 0;cursor:pointer">
+        <div style="font:600 11px/1 var(--m);letter-spacing:.14em;color:var(--l3)">${String(i+1).padStart(2,"0")}</div>
+        <div style="font:600 19px/1.3 var(--f);letter-spacing:-.02em">${esc(f.q)}</div>
+        <div style="justify-self:end;font:500 15px/1 var(--m);color:var(--l3)">${faqOpen===i?"−":"+"}</div>
+      </div>
+      <div style="max-height:${faqOpen===i?"300px":"0px"};overflow:hidden;transition:max-height .3s ease">
+        <div style="display:grid;grid-template-columns:52px 1fr 30px;gap:24px;padding:0 0 24px">
+          <div></div><div style="font:400 16px/1.55 var(--f);color:var(--l2);max-width:680px">${esc(f.a)}</div><div></div>
+        </div>
+      </div>
+    </div>`).join("");
+}
+renderFaqs();
+faqsEl.addEventListener("click", e => {
+  const row = e.target.closest("[data-faq]");
+  if(!row) return;
+  const i = +row.getAttribute("data-faq");
+  faqOpen = (faqOpen === i) ? -1 : i;
+  renderFaqs();
+});
+
+/* ---- specimen A: tokenizer ---- */
+function tokenize(s){
+  const out = [];
+  (s || "").trim().split(/\s+/).filter(Boolean).forEach(w => {
+    if(w.length <= 4){ out.push(w); return; }
+    let i = 0;
+    while(i < w.length){ const take = i===0 ? 5 : 4; out.push(w.slice(i, i+take)); i += take; }
+  });
+  return out.slice(0, 26);
+}
+const tokinEl = document.getElementById("tokin");
+const tokensEl = document.getElementById("tokens");
+function renderTokens(){
+  const txt = tokinEl.value;
+  const toks = tokenize(txt);
+  tokensEl.innerHTML = toks.map(t =>
+    `<div style="border:1px solid var(--hair);color:var(--l1);font:500 15px/1 var(--m);padding:11px 12px">${esc(t)}</div>`).join("");
+  document.getElementById("tokenCount").textContent = toks.length;
+  document.getElementById("wordCount").textContent = txt.trim() ? txt.trim().split(/\s+/).length : 0;
+  document.getElementById("charCount").textContent = txt.replace(/\s/g,"").length;
+}
+tokinEl.value = "Cartagena es hermosa";
+tokinEl.addEventListener("input", renderTokens);
+renderTokens();
+
+/* ---- specimen B: temperature softmax ---- */
+const tempinEl = document.getElementById("tempin");
+const candsEl = document.getElementById("cands");
+function renderTemp(){
+  const T = (+tempinEl.value) / 100;
+  const ex = CANDS.map(c => Math.exp(c.logit / Math.max(.08, T)));
+  const sum = ex.reduce((a,b)=>a+b, 0);
+  candsEl.innerHTML = CANDS.map((c,i) => {
+    const p = ex[i]/sum, pct = p*100;
+    const pctTxt = pct >= 9.5 ? Math.round(pct)+"%" : (pct < .5 ? "~0%" : pct.toFixed(1)+"%");
+    const w = Math.max(1.2, pct)+"%";
+    const bar = i===0 ? "#0A84FF" : "rgba(235,235,245,.55)";
+    const color = i===0 ? "#fff" : (p > .08 ? "rgba(235,235,245,.62)" : "rgba(235,235,245,.38)");
+    return `<div style="display:grid;grid-template-columns:130px 1fr 62px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair2)">
+      <div style="font:500 15px/1.2 var(--f);color:${color}">${esc(c.name)}</div>
+      <div style="height:7px;background:rgba(120,120,128,.20)"><div style="width:${w};height:100%;background:${bar};transition:width .18s ease-out"></div></div>
+      <div style="text-align:right;font:500 13px/1 var(--m);color:${color};font-variant-numeric:tabular-nums">${pctTxt}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("tempLabel").textContent = T.toFixed(2);
+  document.getElementById("tempVerdict").textContent = T < .5 ? "PREDECIBLE" : (T < 1.05 ? "EQUILIBRADA" : "IMPREDECIBLE");
+}
+tempinEl.addEventListener("input", renderTemp);
+renderTemp();
+
+/* ---- effects: grain + particle cover ---- */
+function mountGrain(){
+  document.querySelectorAll('canvas[data-fx="grain"]').forEach(cv => {
+    const ctx = cv.getContext("2d"); if(!ctx) return;
+    const paint = () => {
+      const w = cv.clientWidth, h = cv.clientHeight; if(!w || !h) return;
+      cv.width = w; cv.height = h;
+      const img = ctx.createImageData(w, h), d = img.data;
+      for(let i=0;i<d.length;i+=4){ const v = Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+      ctx.putImageData(img, 0, 0);
+    };
+    paint();
+    let tm=null; window.addEventListener("resize", ()=>{ clearTimeout(tm); tm=setTimeout(paint,180); });
+  });
+}
+
+function mountCover(){
+  const cv = document.querySelector('canvas[data-fx="cover"]');
+  if(!cv) return;
+  const ctx = cv.getContext("2d"); if(!ctx) return;
+  const sizeCanvas = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.7);
+    const w = Math.max(1, Math.round(cv.clientWidth*dpr)), h = Math.max(1, Math.round(cv.clientHeight*dpr));
+    if(cv.width!==w || cv.height!==h){ cv.width=w; cv.height=h; }
+  };
+  const stars = [];
+  for(let i=0;i<190;i++) stars.push({x:Math.random(),y:Math.random(),r:Math.random(),s:.4+Math.random()});
+  const ring = () => { const out=[]; for(let i=0;i<900;i++){ const a=Math.random()*Math.PI*2, rr=.22+Math.random()*.06; out.push({tx:Math.cos(a)*rr,ty:Math.sin(a)*rr}); } return out; };
+  let targets = null, P = [];
+  const build = () => {
+    P = targets.map(tg => {
+      const a=Math.random()*Math.PI*2, rr=.55+Math.random()*.75;
+      return { tx:tg.tx, ty:tg.ty, vx:Math.cos(a)*rr, vy:Math.sin(a)*rr*1.25, r:Math.random(), sp:.55+Math.random()*.9 };
+    });
+  };
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const S=104, off=document.createElement("canvas"); off.width=S; off.height=S;
+      const oc=off.getContext("2d"); oc.drawImage(img,0,0,S,S);
+      const d=oc.getImageData(0,0,S,S).data, found=[];
+      let x0=S,x1=0,y0=S,y1=0;
+      for(let y=0;y<S;y++) for(let x=0;x<S;x++){
+        const i=(y*S+x)*4, lum=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)*(d[i+3]/255);
+        if(lum>112){ found.push({px:x,py:y}); if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+      }
+      const span=Math.max(1,x1-x0,y1-y0), k=.70/span, mx=(x0+x1)/2, my=(y0+y1)/2;
+      found.forEach(f => { f.tx=(f.px-mx)*k; f.ty=(f.py-my)*k; });
+      for(let i=found.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; const t=found[i]; found[i]=found[j]; found[j]=t; }
+      targets = found.length>240 ? found.slice(0,1600) : ring();
+    } catch(e){ targets = ring(); }
+    build();
+  };
+  img.onerror = () => { targets = ring(); build(); };
+  img.src = LOGO;
+  sizeCanvas();
+  window.addEventListener("resize", sizeCanvas);
+  const ease = u => u<.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
+  const t0 = performance.now();
+  function frame(){
+    const t = (performance.now()-t0)/1000, W=cv.width, H=cv.height;
+    ctx.globalCompositeOperation="source-over"; ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation="lighter";
+    for(let i=0;i<stars.length;i++){ const s=stars[i]; const a=.03+.11*Math.abs(Math.sin(t*.5*s.s+s.r*6.28)); ctx.fillStyle="rgba(255,255,255,"+a.toFixed(3)+")"; ctx.fillRect(s.x*W,s.y*H,1.3,1.3); }
+    if(P.length){
+      const cyc=9.6, u=(t%cyc)/cyc;
+      let form; if(u<.26) form=ease(u/.26); else if(u<.64) form=1; else if(u<.86) form=1-ease((u-.64)/.22); else form=0;
+      const cx=W*.5, cy=H*.40, sc=Math.min(W,H)*1.10;
+      for(let i=0;i<P.length;i++){ const p=P[i];
+        const jx=Math.sin(t*(.7+p.sp)+p.r*6.3)*.006, jy=Math.cos(t*(.6+p.sp)+p.r*4.1)*.006;
+        const dx=p.vx+Math.sin(t*.25*p.sp+p.r*6.3)*.16, dy=p.vy+t*.012*p.sp*.4;
+        const x=(p.tx+jx)*form+dx*(1-form), y=(p.ty+jy)*form+dy*(1-form);
+        const a=(.10+form*.68)*(.45+p.r*.7), sz=(.9+p.r*1.1)*(W/700)*1.5;
+        ctx.fillStyle="rgba(255,255,255,"+a.toFixed(3)+")"; ctx.fillRect(cx+x*sc, cy+y*sc, sz, sz);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---- loader ---- */
+function endIntroNow(){
+  window.__introDone = true;
+  const ov = document.querySelector('[data-el="intro"]');
+  if(ov){ ov.style.opacity="0"; ov.style.display="none"; }
+  document.documentElement.style.overflow = "";
+  if(window.ScrollTrigger) ScrollTrigger.refresh();
+}
+document.getElementById("skip").addEventListener("click", endIntroNow);
+
+function runIntro(){
+  const ov = document.querySelector('[data-el="intro"]');
+  if(!ov) return;
+  // No animation lib (offline / CDN blocked) → skip the loader, show the page.
+  if(!window.gsap){ endIntroNow(); return; }
+  document.documentElement.style.overflow = "hidden";
+  window.scrollTo(0,0);
+  const bail = setTimeout(endIntroNow, 6500);
+  const grid = document.querySelector('[data-el="introgrid"]');
+  const logo = document.querySelector('[data-el="intrologo"]');
+  const word = document.querySelector('[data-el="introword"]');
+  const cells = ov.querySelectorAll(".mcell");
+  const rs = ov.querySelector('[data-split="r"]'), bs = ov.querySelector('[data-split="b"]');
+  const tl = gsap.timeline({ onComplete: () => { clearTimeout(bail); endIntroNow(); } });
+  tl.to(cells, { opacity:1, duration:.45, ease:"none", stagger:{ amount:.75, from:"random" } }, 0)
+    .to(cells, { opacity:.16, duration:.5, ease:"none", stagger:{ amount:.45, from:"random" } }, 1.00)
+    .to(grid, { scale:1.28, opacity:0, duration:1.05, ease:"power2.in" }, 1.10)
+    .fromTo(logo, { scale:13, opacity:0, filter:"blur(26px)" }, { scale:1, opacity:1, filter:"blur(0px)", duration:1.25, ease:"expo.out" }, 1.00)
+    .fromTo(rs, { x:-30 }, { x:0, duration:1.15, ease:"expo.out" }, 1.00)
+    .fromTo(bs, { x:30 }, { x:0, duration:1.15, ease:"expo.out" }, 1.00)
+    .to(logo, { scale:.40, duration:.60, ease:"power3.inOut" }, 2.15)
+    .to(word, { clipPath:"inset(0 0% 0 0)", duration:.55, ease:"power3.out" }, 2.35)
+    .to(ov, { opacity:0, duration:.55, ease:"power2.inOut" }, 3.05);
+}
+
+/* ---- scroll ---- */
+function initScroll(){
+  if(!window.gsap || !window.ScrollTrigger) return;
+  gsap.registerPlugin(ScrollTrigger);
+  const bar = document.querySelector('[data-el="bar"]');
+  const pct = document.querySelector('[data-el="pct"]');
+  const sticky = document.querySelector('[data-el="sticky"]');
+  gsap.set(bar, { scaleX:0, transformOrigin:"left center" });
+  let stickyShown = null, primed = false;
+  const drive = self => {
+    gsap.set(bar, { scaleX: self.progress });
+    pct.textContent = String(Math.round(self.progress*100)).padStart(3,"0") + "%";
+    if(!primed){ primed = true; gsap.set(sticky, { y:0, yPercent:110 }); }
+    const show = self.scroll() > window.innerHeight * .9;
+    if(show === stickyShown) return;
+    stickyShown = show;
+    gsap.to(sticky, { yPercent: show?0:110, duration:.42, ease:"power3.out", overwrite:true });
+  };
+  const master = ScrollTrigger.create({ start:0, end:"max", onUpdate:drive, onRefresh:drive });
+  drive(master);
+
+  gsap.utils.toArray("[data-anim]").forEach(el => {
+    if(el.getBoundingClientRect().top < window.innerHeight * .94){ gsap.set(el, { y:0, opacity:1, clearProps:"transform" }); return; }
+    gsap.fromTo(el, { y:16, opacity:0 }, { y:0, opacity:1, duration:.7, ease:"power3.out", scrollTrigger:{ trigger:el, start:"top 94%", once:true } });
+  });
+  gsap.utils.toArray("[data-row]").forEach(el => {
+    if(el.getBoundingClientRect().top < window.innerHeight * .94){ gsap.set(el, { clipPath:"inset(0 0% 0 0)", opacity:1 }); return; }
+    gsap.fromTo(el, { clipPath:"inset(0 100% 0 0)", opacity:.2 }, { clipPath:"inset(0 0% 0 0)", opacity:1, duration:.75, ease:"power2.out", scrollTrigger:{ trigger:el, start:"top 92%", once:true } });
+  });
+  const cover = document.querySelector('[data-el="herocard"]');
+  if(cover) gsap.fromTo(cover, { y:40 }, { y:-40, ease:"none", scrollTrigger:{ trigger:cover, start:"top bottom", end:"bottom top", scrub:.6 } });
+  ScrollTrigger.refresh();
+}
+
+mountGrain();
+mountCover();
+initScroll();
+runIntro();
+// Absolute safety net: never let the loader trap the page, whatever happens above.
+setTimeout(() => { if(!window.__introDone) endIntroNow(); }, 7000);
+</script>

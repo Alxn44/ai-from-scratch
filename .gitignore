@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+.gstack/
+.playwright-mcp/
+pgdata/
+api/data/

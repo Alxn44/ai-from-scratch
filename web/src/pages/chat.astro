@@ -1,0 +1,204 @@
+---
+export const prerender = false;
+import App from '../layouts/App.astro';
+import { gate, apiFetch } from '../lib/session';
+import { icon } from '../lib/icons';
+import { t, resolveLang } from '../lib/i18n';
+
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+
+const lang = resolveLang(user!.lang, Astro.request);
+const L = t(lang);
+const C = L.chat;
+
+type Fila = { n: number; total: number; solved: number };
+type Lec = { n: number; title: string; solved: number; total: number; locked: boolean };
+const [prog, lecs, logros, rank, estado] = await Promise.all([
+  apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number; perLesson: Fila[] }>('/api/progress', Astro.request),
+  apiFetch<{ lessons: Lec[] }>('/api/lessons', Astro.request),
+  apiFetch<{ nivel: number; logros: unknown[] }>('/api/logros', Astro.request),
+  apiFetch<{ tabla: { alias: string }[]; yo: { alias: string | null; puesto: number | null } }>('/api/ranking', Astro.request),
+  apiFetch<{ disponible: boolean; proveedores: { id: string; modelo: string }[]; herramientas: string[] }>('/api/chat/estado', Astro.request),
+]);
+
+// Todo lo que el modo normal necesita para responder sin llamar a nadie.
+const datos = {
+  nombre: user!.name.split(' ')[0],
+  progreso: prog ?? { solvedLabs: 0, totalLabs: 36, lessonsDone: 0, totalLessons: 12, perLesson: [] },
+  lecciones: (lecs?.lessons ?? []).map((l) => ({ n: l.n, title: l.title, solved: l.solved, total: l.total, locked: l.locked })),
+  logros: { nivel: logros?.nivel ?? 0, total: logros?.logros?.length ?? 0 },
+  ranking: { alias: rank?.yo.alias ?? null, puesto: rank?.yo.puesto ?? null, cuantos: rank?.tabla.length ?? 0 },
+  txt: { ...C, rangos: L.logros.rangos, sinRango: L.logros.sinRango },
+};
+const hayIA = !!estado?.disponible;
+const provs = estado?.proveedores ?? [];
+const tools = estado?.herramientas ?? [];
+---
+<App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.chat}>
+  <div slot="topbar" class="seg" role="group" aria-label={C.modoAria}>
+    <button class="segb" id="m-normal" aria-pressed="true">{C.modoNormal}</button>
+    <button class="segb" id="m-ia" aria-pressed="false">{C.modoIA}</button>
+  </div>
+
+  <div id="lienzo-chat" style="position:relative;padding:26px 28px 30px;display:grid;grid-template-columns:1fr 300px;gap:24px;max-width:1180px;align-items:start">
+    <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px;min-height:calc(100vh - 190px)">
+      <div id="hilo" style="display:flex;flex-direction:column;gap:14px;flex:1">
+        <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:8px">
+          <p class="eb">{C.eb}</p>
+          <div class="h2">{C.hola.replace('{n}', datos.nombre)}</div>
+          <p class="p" style="font-size:14px">{C.holaB}</p>
+        </div>
+      </div>
+
+      <div style="position:sticky;bottom:0;background:linear-gradient(to top, var(--bg) 0, var(--bg) 58%, transparent 100%);padding-top:22px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:10px">
+          <input class="input" id="q" placeholder={C.ph} autocomplete="off" style="flex:1">
+          <button class="btn" id="go">{C.enviar}</button>
+        </div>
+        <p class="s" id="aviso" style="display:none">{C.privAviso}</p>
+      </div>
+    </div>
+
+    <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px">
+      <div class="card" style="display:flex;flex-direction:column;gap:9px">
+        <p class="lbl">{C.atajos}</p>
+        {[C.aProgreso, C.aSiguiente, C.aLogros, C.aRanking, C.aAyuda].map((a) => (
+          <button class="btn ghost" data-atajo={a} style="justify-content:flex-start;height:36px;font-size:10px">{a}</button>
+        ))}
+      </div>
+
+      <div class="card" style="display:flex;flex-direction:column;gap:10px;border-color:var(--hair2)">
+        <p class="lbl">{C.soloTuyo}</p>
+        <p class="s" style="color:var(--l2)">{C.soloTuyoB}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
+          {tools.map((h) => (
+            <span class="num" style="display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--hair2);font:500 10px/1 var(--m);color:var(--l3)">{h}</span>
+          ))}
+        </div>
+      </div>
+
+      <div class="card" style={`display:flex;flex-direction:column;gap:8px;border-left:2px solid ${hayIA ? 'var(--ok)' : 'var(--or)'}`}>
+        <p class="lbl">{C.modoIA}</p>
+        {hayIA
+          ? <Fragment>
+              {provs.map((p, i) => (
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style={`width:7px;height:7px;border-radius:4px;background:${i === 0 ? 'var(--ok)' : 'var(--l3)'}`}></span>
+                  <span class="num" style="font:600 12px/1 var(--m)">{p.id}</span>
+                  <span class="s" style="margin-left:auto">{p.modelo}</span>
+                </div>
+              ))}
+            </Fragment>
+          : <Fragment>
+              <div class="h3" style="color:var(--or)">{C.sinProveedor}</div>
+              <p class="s" style="color:var(--l2)">{C.sinProveedorB}</p>
+            </Fragment>}
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="chat-datos" is:inline set:html={JSON.stringify({ datos, hayIA, lang })}></script>
+
+  <script>
+    import { responderLocal, preguntarIA, type Traza } from '../lib/chat-client';
+    import { montarCampo } from '../lib/campo';
+
+    const cfg = JSON.parse(document.getElementById('chat-datos')!.textContent!);
+    const T = cfg.datos.txt;
+    const hilo = document.getElementById('hilo')!;
+    const q = document.getElementById('q') as HTMLInputElement;
+    const go = document.getElementById('go') as HTMLButtonElement;
+    const aviso = document.getElementById('aviso')!;
+    let modo: 'normal' | 'ia' = 'normal';
+    const historial: { role: 'user' | 'assistant'; content: string }[] = [];
+
+    // Campo de partículas de fondo. Protege el texto de toda tarjeta visible,
+    // incluidas las burbujas que se añaden después: el módulo remide solo.
+    const lienzo = document.getElementById('lienzo-chat')!;
+    montarCampo(lienzo, {
+      densidad: 900,
+      protegidos: () => [...lienzo.querySelectorAll('.card'), ...lienzo.querySelectorAll('.input')],
+    });
+
+    const burbuja = (quien: 'yo' | 'bot', html: string) => {
+      const d = document.createElement('div');
+      d.className = 'card';
+      d.setAttribute('style', quien === 'yo'
+        ? 'align-self:flex-end;max-width:76%;border-color:var(--ac);background:var(--fill)'
+        : 'align-self:flex-start;max-width:88%;border-color:var(--hair)');
+      d.innerHTML = html;
+      hilo.append(d);
+      d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return d;
+    };
+
+    const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
+
+    const pintaTraza = (traza: Traza[]) => {
+      const filas = traza.map((t) => {
+        if (t.paso === 'modelo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none">${T.trazaModelo}</span><span class="s">${t.proveedor} · ${t.modelo} · ${t.ms}ms${t.herramientas?.length ? ` → ${t.herramientas.join(', ')}` : ''}</span></div>`;
+        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${t.nombre} · ${t.ms}ms</span></div>`;
+        if (t.paso === 'fallo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:var(--rd)">${T.trazaFallo}</span><span class="s">${esc(String(t.error ?? ''))}</span></div>`;
+        return '';
+      }).join('');
+      return `<details style="margin-top:12px;border-top:1px solid var(--hair2);padding-top:10px">
+        <summary class="lbl" style="cursor:pointer">${T.traza}</summary>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:9px">${filas}</div></details>`;
+    };
+
+    const enviar = async (texto: string) => {
+      const t = texto.trim();
+      if (!t) return;
+      burbuja('yo', `<p class="p" style="font-size:14px">${esc(t)}</p>`);
+      q.value = '';
+
+      if (modo === 'normal') {
+        const r = responderLocal(t, cfg.datos);
+        const boton = r.ir ? `<a class="btn ghost" href="${r.ir}" style="height:34px;font-size:10px;text-decoration:none;margin-top:10px">${esc(r.irTxt ?? T.irA)}</a>` : '';
+        burbuja('bot', `<p class="p" style="font-size:14px">${esc(r.texto)}</p>${boton}`);
+        return;
+      }
+
+      historial.push({ role: 'user', content: t });
+      go.disabled = true; go.textContent = T.pensando;
+      const espera = burbuja('bot', `<p class="s">${T.pensando}</p>`);
+      try {
+        const d = await preguntarIA(historial, cfg.lang);
+        espera.remove();
+        if (!d.ok || !d.respuesta) {
+          window.toast('bad', d.status === 501 ? T.sinProveedor : T.falloIA, d.msg ?? T.falloIAB);
+          burbuja('bot', `<p class="p" style="font-size:14px;color:var(--rd)">${esc(d.msg ?? T.falloIAB)}</p>${d.traza ? pintaTraza(d.traza) : ''}`);
+          return;
+        }
+        historial.push({ role: 'assistant', content: d.respuesta });
+        const pie = `<p class="s" style="margin-top:10px">${T.proveedorPie.replace('{p}', d.proveedor ?? '').replace('{m}', d.modelo ?? '')}</p>`;
+        burbuja('bot', `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(d.respuesta)}</p>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+      } catch {
+        espera.remove();
+        window.toast('bad', T.falloIA, T.falloIAB);
+      } finally {
+        go.disabled = false; go.textContent = T.enviar;
+      }
+    };
+
+    go.addEventListener('click', () => enviar(q.value));
+    q.addEventListener('keydown', (e) => { if (e.key === 'Enter') enviar(q.value); });
+    document.querySelectorAll<HTMLElement>('[data-atajo]').forEach((b) =>
+      b.addEventListener('click', () => enviar(b.dataset.atajo!)));
+
+    const cambiar = (nuevo: 'normal' | 'ia') => {
+      if (nuevo === 'ia' && !cfg.hayIA) {
+        window.toast('warn', T.sinProveedor, T.sinProveedorB);
+        return;
+      }
+      modo = nuevo;
+      document.getElementById('m-normal')!.setAttribute('aria-pressed', String(nuevo === 'normal'));
+      document.getElementById('m-ia')!.setAttribute('aria-pressed', String(nuevo === 'ia'));
+      q.placeholder = nuevo === 'ia' ? T.phIA : T.ph;
+      aviso.style.display = nuevo === 'ia' ? 'block' : 'none';
+    };
+    document.getElementById('m-normal')!.addEventListener('click', () => cambiar('normal'));
+    document.getElementById('m-ia')!.addEventListener('click', () => cambiar('ia'));
+  </script>
+</App>

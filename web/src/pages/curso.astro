@@ -1,0 +1,159 @@
+---
+export const prerender = false;
+import App from '../layouts/App.astro';
+import { gate, apiFetch } from '../lib/session';
+import { icon } from '../lib/icons';
+import { t, resolveLang } from '../lib/i18n';
+
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+
+type Lab = { id: string; idx: number; level: string; kind: string; draft: boolean; solved: boolean };
+type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string; labs: Lab[]; solved: number; total: number; locked: boolean };
+const data = await apiFetch<{ lessons: Lesson[] }>('/api/lessons', Astro.request);
+const prog = await apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number }>('/api/progress', Astro.request);
+const lang = resolveLang(user!.lang, Astro.request);
+const L = t(lang);
+const C = L.curso;
+const lessons = data?.lessons ?? [];
+const bloqueadas = lessons.filter((l) => l.locked).length;
+
+// Estado por lección: cerrada > sin escribir > completada > en curso > pendiente.
+const estado = (l: Lesson) => {
+  if (l.locked) return { k: 'cerrada', txt: C.estCerrada, col: 'var(--l3)', bg: 'transparent' };
+  if (!l.labs.some((x) => !x.draft)) return { k: 'borrador', txt: C.estBorrador, col: 'var(--or)', bg: 'rgba(255,159,10,.12)' };
+  if (l.total > 0 && l.solved === l.total) return { k: 'hecha', txt: C.estHecha, col: 'var(--ok)', bg: 'rgba(48,209,88,.14)' };
+  if (l.solved > 0) return { k: 'curso', txt: C.estCurso, col: 'var(--ac)', bg: 'rgba(10,132,255,.16)' };
+  return { k: 'pend', txt: C.estPend, col: 'var(--l3)', bg: 'transparent' };
+};
+const NIVEL: Record<string, string> = { facil: C.nFacil, medio: C.nMedio, dificil: C.nDuro };
+const COLOR: Record<string, string> = { facil: 'var(--ok)', medio: 'var(--or)', dificil: 'var(--rd)' };
+// «Sigue aquí»: primera lección abierta con un lab escrito sin resolver.
+const next = lessons.find((l) => !l.locked && l.labs.some((x) => !x.draft && !x.solved)) ?? lessons.find((l) => !l.locked) ?? lessons[0];
+const resumen = C.resumen
+  .replace('{a}', String(prog?.lessonsDone ?? 0)).replace('{b}', String(prog?.totalLessons ?? 12))
+  .replace('{c}', String(prog?.solvedLabs ?? 0)).replace('{d}', String(prog?.totalLabs ?? 36));
+---
+<App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.curso}>
+  <a slot="topbar" class="btn" style="height:36px;font-size:10px;text-decoration:none" href={`/leccion/${next?.n ?? 1}`}>{C.siguiente}</a>
+
+  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1180px">
+
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <h1 class="h1">{C.titulo}</h1>
+        <p class="p" style="max-width:620px">{C.pitch}</p>
+        <p class="lbl num">{resumen}</p>
+      </div>
+      {bloqueadas > 0 && (
+        <div class="card" style="width:340px;border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:10px">
+          <p class="eb">{C.bloqEb}</p>
+          <div class="h3">{C.bloqH}</div>
+          <p class="s" style="color:var(--l2)">{C.bloqB}</p>
+          <a class="btn" href="/pago" style="text-decoration:none;margin-top:6px">{C.comprar}</a>
+        </div>
+      )}
+    </div>
+
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--hair);padding-bottom:18px">
+      <div class="seg" role="group">
+        <button class="segb" data-f="todas" aria-pressed="true">{C.fTodas}</button>
+        <button class="segb" data-f="pend" aria-pressed="false">{C.fPend}</button>
+        <button class="segb" data-f="curso" aria-pressed="false">{C.fCurso}</button>
+        <button class="segb" data-f="hecha" aria-pressed="false">{C.fHechas}</button>
+      </div>
+      <input class="input" id="q" style="width:320px;height:34px;font-size:13px" placeholder={C.buscarPh} autocomplete="off">
+    </div>
+
+    <div id="lista" style="display:flex;flex-direction:column;gap:14px">
+      {lessons.map((l) => {
+        const e = estado(l);
+        const busca = `${l.n} ${String(l.n).padStart(2, '0')} ${l.eyebrow} ${l.title} ${l.summary}`.toLowerCase();
+        return (
+          <article class="card" data-est={e.k} data-busca={busca}
+            style={`display:grid;grid-template-columns:60px 1fr 300px;gap:22px;align-items:start;${l.locked ? 'border-style:dashed' : ''}`}>
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+              <span class="num" style="font:700 26px/1 var(--f);letter-spacing:-.03em;color:var(--l3)">{String(l.n).padStart(2, '0')}</span>
+              {l.locked
+                ? <Fragment set:html={icon('lock', 15, 'var(--l3)')} />
+                : (l.n === 1 && !user!.paid && <span class="lbl" style="color:var(--ok)">{C.gratis}</span>)}
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+              <p class="eb">{l.eyebrow}</p>
+              <h2 class="h2">{l.title}</h2>
+              <p class="p" style="font-size:14px">{l.summary}</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+                {l.labs.map((x) => (
+                  <span style={`display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px;border:1px solid ${x.solved ? 'var(--ok)' : 'var(--hair2)'};font:500 10px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;color:${x.solved ? 'var(--ok)' : 'var(--l3)'}`}>
+                    {x.solved && <Fragment set:html={icon('check', 12, 'var(--ok)')} />}
+                    <span class="num">{x.id}</span>
+                    <span style={`color:${COLOR[x.level] ?? 'var(--l3)'}`}>{NIVEL[x.level] ?? x.level}</span>
+                    {x.draft && <span>· {C.estBorrador}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+              <div style="display:flex;align-items:center;gap:10px;align-self:stretch;justify-content:space-between">
+                <span style={`display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid ${e.col};background:${e.bg};font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;color:${e.col}`}>{e.txt}</span>
+                <span class="num s">{l.solved} / {l.total} {C.labs}</span>
+              </div>
+              <div style="align-self:stretch;height:4px;background:var(--fill)">
+                <div style={`height:4px;background:${l.locked ? 'var(--hair)' : 'var(--l1)'};width:${l.total ? Math.round((l.solved / l.total) * 100) : 0}%`}></div>
+              </div>
+              <div style="border-left:2px solid var(--ac);padding-left:12px;display:flex;flex-direction:column;gap:4px">
+                <p class="lbl">{C.laMate}</p>
+                <span class="num" style="font:700 17px/1.1 var(--f)">{l.math}</span>
+                <p class="s">{l.math_cap}</p>
+              </div>
+              {l.locked
+                ? <a class="btn ghost" href="/pago" style="text-decoration:none">{C.desbloquear}</a>
+                : <a class="btn" href={`/leccion/${l.n}`} style="text-decoration:none">
+                    {l.solved === 0 ? C.abrir : l.solved === l.total ? C.repasar : C.seguir}
+                  </a>}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+
+    <div id="vacio" class="card" style="display:none;flex-direction:column;gap:6px;border-style:dashed">
+      <div class="h3">{C.vacio}</div>
+      <p class="s" style="color:var(--l2)">{C.vacioB}</p>
+    </div>
+  </div>
+
+  <script>
+    const lista = document.getElementById('lista')!;
+    const vacio = document.getElementById('vacio')!;
+    const q = document.getElementById('q') as HTMLInputElement;
+    let filtro = 'todas';
+
+    const pinta = () => {
+      const txt = q.value.trim().toLowerCase();
+      let visibles = 0;
+      lista.querySelectorAll('article').forEach((el) => {
+        const est = (el as HTMLElement).dataset.est!;
+        const okF = filtro === 'todas'
+          || (filtro === 'pend' && (est === 'pend' || est === 'borrador' || est === 'cerrada'))
+          || (filtro === 'curso' && est === 'curso')
+          || (filtro === 'hecha' && est === 'hecha');
+        const okQ = !txt || (el as HTMLElement).dataset.busca!.includes(txt);
+        const ver = okF && okQ;
+        (el as HTMLElement).style.display = ver ? '' : 'none';
+        if (ver) visibles++;
+      });
+      vacio.style.display = visibles ? 'none' : 'flex';
+    };
+
+    document.querySelectorAll('.segb[data-f]').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('.segb[data-f]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      filtro = (b as HTMLElement).dataset.f!;
+      pinta();
+    }));
+    q.addEventListener('input', pinta);
+  </script>
+</App>

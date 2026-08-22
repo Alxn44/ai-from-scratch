@@ -1,0 +1,55 @@
+---
+// Vitrina de una lección detrás del muro de pago: ficha, matemática y qué labs
+// trae, sin enunciados ni soluciones. La URL de la lección sigue funcionando.
+import App from '../layouts/App.astro';
+import { icon } from '../lib/icons';
+import { t, type Lang } from '../lib/i18n';
+import type { User } from '../lib/session';
+
+interface Ficha { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string }
+interface Props { user: User; lang: Lang; lesson: Ficha; labs: { id: string; level: string }[] }
+const { user, lang, lesson, labs } = Astro.props;
+const L = t(lang);
+const C = L.curso;
+const NIVEL: Record<string, string> = { facil: C.nFacil, medio: C.nMedio, dificil: C.nDuro };
+const COLOR: Record<string, string> = { facil: 'var(--ok)', medio: 'var(--or)', dificil: 'var(--rd)' };
+---
+<App user={user} title={lesson.title} crumb={`${C.crumb} / ${String(lesson.n).padStart(2, '0')}`} active={L.nav.curso}>
+  <span slot="topbar" class="lbl" style="display:flex;align-items:center;gap:8px">
+    <Fragment set:html={icon('lock', 14, 'var(--l3)')} />{C.estCerrada}
+  </span>
+
+  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:900px">
+    <div style="display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--hair);padding-bottom:24px">
+      <p class="eb">{String(lesson.n).padStart(2, '0')} · {lesson.eyebrow}</p>
+      <h1 class="h1" style="font-size:38px">{lesson.title}</h1>
+      <p class="p" style="max-width:620px">{lesson.summary}</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <p class="lbl">{C.labs}</p>
+        {labs.map((x) => (
+          <div class="card" style="border-style:dashed;display:flex;align-items:center;gap:14px;padding:14px 18px">
+            <Fragment set:html={icon('lock', 16, 'var(--l3)')} />
+            <span class="num" style="font:600 14px/1 var(--m)">{x.id}</span>
+            <span class="lbl" style={`color:${COLOR[x.level] ?? 'var(--l3)'}`}>{NIVEL[x.level] ?? x.level}</span>
+          </div>
+        ))}
+        <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:6px">
+          <p class="lbl">{C.laMate}</p>
+          <span class="num" style="font:700 24px/1.1 var(--f)">{lesson.math}</span>
+          <p class="s">{lesson.math_cap}</p>
+        </div>
+      </div>
+
+      <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:12px">
+        <p class="eb">{C.bloqEb}</p>
+        <div class="h2">{C.bloqH}</div>
+        <p class="s" style="color:var(--l2)">{C.bloqB}</p>
+        <a class="btn" href="/pago" style="text-decoration:none;margin-top:6px">{C.comprar}</a>
+        <a class="btn ghost" href="/curso" style="text-decoration:none">{L.nav.curso}</a>
+      </div>
+    </div>
+  </div>
+</App>

@@ -1,0 +1,207 @@
+---
+export const prerender = false;
+import { getUser } from '../lib/session';
+import { publicPrefs } from '../lib/prefs';
+import { t } from '../lib/i18n';
+import { TOKENS, PUBLIC_BASE } from '../lib/theme-css';
+import { icon } from '../lib/icons';
+import PrefToggles from '../components/PrefToggles.astro';
+
+const user = await getUser(Astro.request);
+if (user) return Astro.redirect('/panel');
+
+const { lang, langPref, theme } = publicPrefs(Astro.request);
+const L = t(lang);
+const P = L.pub.rec;
+// Con ?t=… la página arranca en el paso de contraseña nueva; sin él, pide el correo.
+const token = new URL(Astro.request.url).searchParams.get('t') ?? '';
+---
+<!doctype html>
+<html lang={lang} data-theme={theme}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{P.eb} · IA desde cero</title>
+  <style is:global set:html={TOKENS + PUBLIC_BASE}></style>
+  <style is:global>
+    .paso{display:flex;align-items:center;gap:9px}
+    .bolita{width:22px;height:22px;flex:none;border-radius:11px;border:1px solid var(--hair);display:grid;place-items:center;font:500 10px/1 var(--m);color:var(--l3)}
+    .bolita[data-on]{border-color:var(--ac);background:var(--fill);color:var(--l1)}
+    .hidden{display:none!important}
+  </style>
+</head>
+<body>
+  <div style="display:flex;min-height:100vh">
+    <section style="width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px">
+      <a href="/" style="display:flex;align-items:center;gap:11px;color:var(--l1)">
+        <span class="mark">IA</span>
+        <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
+        <span class="lbl" style="margin-left:6px">{L.pub.marca}</span>
+      </a>
+      <div style="margin-top:26px;display:flex;flex-direction:column;gap:20px">
+        <h1 class="h1">{P.h1a}<br>{P.h1b}</h1>
+        <p class="p" style="max-width:430px">{P.pitch}</p>
+      </div>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--hair2);padding-top:22px">
+        <p class="lbl">{P.seguridad}</p>
+        <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('shield', 18, 'var(--ok)')} /><p class="s" style="color:var(--l2)">{P.b1}</p></div>
+        <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('clock', 18, 'var(--ok)')} /><p class="s" style="color:var(--l2)">{P.b2}</p></div>
+        <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('logout', 18, 'var(--ok)')} /><p class="s" style="color:var(--l2)">{P.b3}</p></div>
+      </div>
+    </section>
+
+    <section style="flex:1;display:flex;flex-direction:column;padding:26px 40px 40px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:20px">
+        <div style="display:flex;align-items:center;gap:22px">
+          <div class="paso"><div class="bolita" id="b1">1</div><span class="lbl">{P.pasoCorreo}</span></div>
+          <div class="paso"><div class="bolita" id="b2">2</div><span class="lbl">{P.pasoEnlace}</span></div>
+          <div class="paso"><div class="bolita" id="b3">3</div><span class="lbl">{P.pasoClave}</span></div>
+        </div>
+        <PrefToggles lang={langPref} theme={theme} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
+      </div>
+
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div style="width:420px">
+
+          <form id="fPedir" class="hidden" style="display:flex;flex-direction:column;gap:20px" novalidate>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p class="eb">{P.eb}</p>
+              <h2 class="h1" style="font-size:28px">{P.h2}</h2>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <label class="lbl" for="email">{P.correo}</label>
+              <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required>
+            </div>
+            <button class="btn block" id="goPedir" type="submit">{P.enviar}</button>
+            <p class="s" style="text-align:center">{P.yaMeAcorde} <a href="/login">{P.entrar}</a></p>
+          </form>
+
+          <div id="vEnviado" class="hidden" style="display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p class="eb">{P.enviadoEb}</p>
+              <h2 class="h1" style="font-size:28px">{P.enviadoH2}</h2>
+            </div>
+            <div class="card" style="border-left:2px solid var(--ac);display:flex;gap:12px;align-items:flex-start">
+              <Fragment set:html={icon('info', 18, 'var(--ac)')} />
+              <p class="s" style="color:var(--l2)">{P.enviadoNota}</p>
+            </div>
+            <div id="devCaja" class="card hidden" style="border-left:2px solid var(--or);display:flex;flex-direction:column;gap:10px">
+              <span class="lbl" style="color:var(--or)">DEV</span>
+              <p class="s" style="color:var(--l2)">{P.devAviso}</p>
+              <a class="btn block" id="devLink" href="#">{P.devAbrir}</a>
+            </div>
+            <button class="btn ghost block" id="otro" type="button">{P.otroCorreo}</button>
+          </div>
+
+          <form id="fNueva" class="hidden" style="display:flex;flex-direction:column;gap:20px" novalidate>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <p class="eb">{P.nuevaEb}</p>
+              <h2 class="h1" style="font-size:28px">{P.nuevaH2}</h2>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <label class="lbl" for="pass">{P.clave}</label>
+              <input class="input" id="pass" name="password" type="password" autocomplete="new-password" placeholder={P.clavePh} required>
+              <div class="meter"><div id="meter" style="height:4px;width:0;background:var(--rd);transition:width .2s,background .2s"></div></div>
+              <p class="s" id="hint">{P.fMin}</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <label class="lbl" for="pass2">{P.repetir}</label>
+              <input class="input" id="pass2" type="password" autocomplete="new-password" placeholder={P.repetirPh} required>
+            </div>
+            <button class="btn block" id="goNueva" type="submit">{P.guardar}</button>
+          </form>
+
+        </div>
+      </div>
+    </section>
+  </div>
+  <div id="toasts"></div>
+
+  <script define:vars={{ P, token }}>
+    const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
+    const box = document.getElementById('toasts');
+    const toast = (k, tt, b) => {
+      box.innerHTML = `<div class="toast" style="border-color:${COLOR[k]}"><div style="flex:1">
+        <div class="h3" style="color:${COLOR[k]}">${tt}</div><p class="s" style="color:var(--l2);margin-top:4px">${b}</p></div></div>`;
+      if (k === 'ok') setTimeout(() => (box.innerHTML = ''), 4000);
+    };
+    const ver = (id) => {
+      for (const x of ['fPedir', 'vEnviado', 'fNueva']) document.getElementById(x).classList.toggle('hidden', x !== id);
+      const n = id === 'fPedir' ? 1 : id === 'vEnviado' ? 2 : 3;
+      for (const i of [1, 2, 3]) {
+        const el = document.getElementById('b' + i);
+        i === n ? el.setAttribute('data-on', '') : el.removeAttribute('data-on');
+      }
+    };
+    ver(token ? 'fNueva' : 'fPedir');
+
+    const fPedir = document.getElementById('fPedir');
+    const goPedir = document.getElementById('goPedir');
+    fPedir.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = fPedir.email.value.trim();
+      if (!/^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(email)) return toast('bad', P.eCorreo, P.eCorreoB);
+      goPedir.disabled = true; goPedir.textContent = P.enviando;
+      try {
+        const res = await fetch('/api/auth/recover', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { toast('bad', P.eCorreo, d.msg ?? P.eCorreoB); return; }
+        ver('vEnviado');
+        toast('ok', P.tEnviado, P.tEnviadoB);
+        // Sin proveedor de correo el servidor devuelve el enlace fuera de producción.
+        if (d.dev_enlace) {
+          document.getElementById('devCaja').classList.remove('hidden');
+          document.getElementById('devLink').href = d.dev_enlace;
+        }
+      } catch { toast('bad', P.tRed, P.tRedB); }
+      finally { goPedir.disabled = false; goPedir.textContent = P.enviar; }
+    });
+    document.getElementById('otro').addEventListener('click', () => ver('fPedir'));
+
+    const fNueva = document.getElementById('fNueva');
+    const goNueva = document.getElementById('goNueva');
+    const meter = document.getElementById('meter');
+    const hint = document.getElementById('hint');
+    const fuerza = (v) => {
+      let s = 0;
+      if (v.length >= 8) s++; if (v.length >= 12) s++;
+      if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
+      if (/\d/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
+      return Math.min(s, 4);
+    };
+    fNueva.password.addEventListener('input', () => {
+      const s = fuerza(fNueva.password.value);
+      meter.style.width = [0, 25, 50, 75, 100][s] + '%';
+      meter.style.background = s <= 1 ? 'var(--rd)' : s === 2 ? 'var(--or)' : 'var(--ok)';
+      hint.textContent = fNueva.password.value.length < 8 ? P.fCorta : s <= 2 ? P.fFlojo : P.fBien;
+    });
+    fNueva.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = fNueva.password.value;
+      if (password.length < 8) return toast('bad', P.eClave, P.eClaveB);
+      if (password !== document.getElementById('pass2').value) return toast('bad', P.eDist, P.eDistB);
+      goNueva.disabled = true; goNueva.textContent = P.guardando;
+      try {
+        const res = await fetch('/api/auth/reset', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token, password }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) {
+          toast('ok', P.tOk, P.tOkB);
+          setTimeout(() => location.assign('/panel'), 600);
+          return;
+        }
+        const titulo = res.status === 409 ? P.tUsado : res.status === 410 ? P.tVencido : P.tInvalido;
+        toast('warn', titulo, P.tPideOtro);
+        ver('fPedir');
+      } catch { toast('bad', P.tRed, P.tRedB); }
+      finally { goNueva.disabled = false; goNueva.textContent = P.guardar; }
+    });
+  </script>
+</body>
+</html>

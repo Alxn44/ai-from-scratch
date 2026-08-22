@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+import Public from '../layouts/Public.astro';
+import { t } from '../lib/i18n';
+import { publicPrefs } from '../lib/prefs';
+import { grafo, org } from '../lib/seo';
+
+const { lang } = publicPrefs(Astro.request);
+const L = t(lang);
+const jsonld = grafo(org());
+const P = L.pub.priv;
+---
+<Public title={P.eb} desc={P.intro} jsonld={jsonld} ancho={900}>
+  <div style="display:flex;flex-direction:column;gap:14px;padding-bottom:34px">
+    <p class="eb">{P.eb}</p>
+    <h1 class="h1" style="font-size:40px">{P.h1a} <span style="color:var(--l3)">{P.h1b}</span></h1>
+    <p class="lbl">{P.act}</p>
+    <p class="p" style="max-width:640px;margin-top:8px">{P.intro}</p>
+  </div>
+
+  {P.secs.map((s, i) => (
+    <section class="sec">
+      <div style="display:flex;gap:12px;align-items:baseline">
+        <span class="num lbl" style="color:var(--l3)">{String(i + 1).padStart(2, '0')}</span>
+        <h2 class="h3">{s.t}</h2>
+      </div>
+      <p class="p" style="font-size:15px">{s.p}</p>
+    </section>
+  ))}
+
+  <div class="card" style="margin-top:34px;border-left:2px solid var(--ac);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px">
+    <div>
+      <div class="h3">{P.contacto}</div>
+      <p class="s" style="color:var(--l2);margin-top:4px">{P.contactoB}</p>
+    </div>
+    <a class="btn ghost" href={`mailto:${L.pub.footer.correo}`} style="text-decoration:none">{L.pub.footer.correo}</a>
+  </div>
+</Public>

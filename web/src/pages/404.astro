@@ -1,0 +1,29 @@
+---
+export const prerender = false;
+import Public from '../layouts/Public.astro';
+import { t } from '../lib/i18n';
+import { publicPrefs } from '../lib/prefs';
+import { getUser } from '../lib/session';
+
+const { lang } = publicPrefs(Astro.request);
+const L = t(lang);
+const P = L.pub.e404;
+// Con sesión el atajo útil es el panel; sin ella, entrar.
+const user = await getUser(Astro.request);
+const LINKS = user
+  ? [[L.nav.panel, '/panel'], [L.nav.curso, '/curso'], [P.sop, '/soporte'], [P.inicio, '/']]
+  : [[P.inicio, '/'], [P.login, '/login'], [P.curso, '/pago'], [P.sop, '/soporte']];
+---
+<Public title="404" noindex ancho={760}>
+  <div style="display:flex;flex-direction:column;gap:16px;padding-top:26px">
+    <p class="eb">{P.eb}</p>
+    <h1 class="h1" style="font-size:44px">{P.h1a} <span style="color:var(--l3)">{P.h1b}</span></h1>
+    <p class="p" style="max-width:520px">{P.pitch}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      {LINKS.map(([txt, href], i) => (
+        <a class={i === 0 ? 'btn' : 'btn ghost'} href={href} style="text-decoration:none">{txt}</a>
+      ))}
+    </div>
+    <p class="s" style="margin-top:22px;border-top:1px solid var(--hair2);padding-top:18px">{P.pista}</p>
+  </div>
+</Public>

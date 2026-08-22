@@ -1,0 +1,125 @@
+---
+export const prerender = false;
+import { getUser } from '../lib/session';
+import { publicPrefs } from '../lib/prefs';
+import { t } from '../lib/i18n';
+import { grafo, org, curso } from '../lib/seo';
+import { SITE, MARCA } from '../lib/site';
+import { TOKENS, PUBLIC_BASE } from '../lib/theme-css';
+import { icon } from '../lib/icons';
+import PrefToggles from '../components/PrefToggles.astro';
+
+const user = await getUser(Astro.request);
+if (user) return Astro.redirect('/panel');
+
+const { lang, langPref, theme } = publicPrefs(Astro.request);
+const L = t(lang);
+const P = L.pub.login;
+// Si la cuenta todavía está en 'auto', adopta lo que el visitante eligió aquí.
+const prefs = { lang: langPref, theme };
+const canonical = new URL(Astro.url.pathname, SITE).href;
+const jsonld = grafo(org());
+---
+<!doctype html>
+<html lang={lang} data-theme={theme}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{P.entrar} · IA desde cero</title>
+  <link rel="canonical" href={canonical}>
+  <meta property="og:site_name" content={MARCA}>
+  <meta property="og:type" content="website">
+  <meta property="og:url" content={canonical}>
+  <script type="application/ld+json" is:inline set:html={jsonld}></script>
+  <style is:global set:html={TOKENS + PUBLIC_BASE}></style>
+</head>
+<body>
+  <div style="display:flex;min-height:100vh">
+    <section style="width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <span class="mark">IA</span>
+        <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
+        <span class="lbl" style="margin-left:6px">{L.pub.marca}</span>
+      </div>
+      <div style="margin-top:26px;display:flex;flex-direction:column;gap:20px">
+        <h1 class="h1">{P.h1a}<br>{P.h1b}</h1>
+        <p class="p" style="max-width:430px">{P.pitch}</p>
+      </div>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--hair2);padding-top:22px">
+        <p class="lbl">{P.qRoles}</p>
+        <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('user', 20, 'var(--ac)')} /><div><div class="h3">{P.rEst}</div><p class="s">{P.rEstD}</p></div></div>
+        <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('users', 20, 'var(--ac)')} /><div><div class="h3">{P.rTut}</div><p class="s">{P.rTutD}</p></div></div>
+        <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('shield', 20, 'var(--ac)')} /><div><div class="h3">{P.rAdm}</div><p class="s">{P.rAdmD}</p></div></div>
+      </div>
+    </section>
+
+    <section style="flex:1;display:flex;flex-direction:column;padding:26px 40px 40px">
+      <div style="display:flex;justify-content:flex-end">
+        <PrefToggles lang={langPref} theme={theme} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <form id="f" style="width:420px;display:flex;flex-direction:column;gap:22px" novalidate>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <p class="eb">{P.eb}</p>
+            <h2 class="h1" style="font-size:28px">{P.h2}</h2>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <label class="lbl" for="email">{P.correo}</label>
+            <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <label class="lbl" for="pass">{P.clave}</label>
+              <a href="/recuperar" style="font:500 11px/1 var(--m)">{P.olvidaste}</a>
+            </div>
+            <input class="input" id="pass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+          </div>
+          <button class="btn block" id="go" type="submit">{P.entrar}</button>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="flex:1;height:1px;background:var(--hair2)"></div><span class="lbl">{P.o}</span><div style="flex:1;height:1px;background:var(--hair2)"></div>
+          </div>
+          <button class="btn ghost block" type="button">{P.enlace}</button>
+          <p class="s" style="text-align:center">{P.noTienes} <a href="/pago">{P.verCurso}</a></p>
+        </form>
+      </div>
+    </section>
+  </div>
+  <div id="toasts"></div>
+
+  <script define:vars={{ P, prefs }}>
+    const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
+    const box = document.getElementById('toasts');
+    const toast = (k, tt, b) => {
+      box.innerHTML = `<div class="toast" style="border-color:${COLOR[k]}"><div style="flex:1">
+        <div class="h3" style="color:${COLOR[k]}">${tt}</div><p class="s" style="color:var(--l2);margin-top:4px">${b}</p></div></div>`;
+      if (k === 'ok') setTimeout(() => (box.innerHTML = ''), 4000);
+    };
+    const fill = (str, n) => String(str).replace('{n}', n);
+    const form = document.getElementById('f');
+    const go = document.getElementById('go');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = form.email.value.trim(), password = form.password.value;
+      if (!email || !password) { toast('bad', P.tFaltan, P.tFaltanB); return; }
+      go.disabled = true; go.textContent = P.verificando;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email, password, lang: prefs.lang, theme: prefs.theme }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) {
+          toast('ok', fill(P.tOk, d.user.name.split(' ')[0]), P.tOkB);
+          setTimeout(() => location.assign('/panel'), 400);
+          return;
+        }
+        if (res.status === 423) toast('warn', P.tBloq, P.tBloqB);
+        else if (d.left != null) toast('bad', P.tMal, fill(P.tMalB, d.left));
+        else toast('bad', P.tMal, P.tMalC);
+      } catch {
+        toast('bad', P.tRed, P.tRedB);
+      } finally { go.disabled = false; go.textContent = P.entrar; }
+    });
+  </script>
+</body>
+</html>

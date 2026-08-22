@@ -1,0 +1,44 @@
+---
+// Toggles de idioma y tema para páginas SIN sesión: escriben cookie y el SSR ya
+// sale correcto en la siguiente carga. El tema además se aplica al instante.
+import { IDIOMAS, NOMBRE_IDIOMA } from '../lib/i18n';
+
+interface Props { lang: string; theme: 'dark' | 'paper' | 'auto'; sync?: boolean; labels: { auto: string; dark: string; paper: string; langAria: string; themeAria: string }; }
+const { lang, theme, labels, sync = false } = Astro.props;
+---
+<div style="display:flex;align-items:center;gap:14px" data-sync={sync ? '1' : undefined}>
+  <div class="seg" role="group" aria-label={labels.langAria}>
+    <button class="segb" data-pref="lang" data-val="auto" aria-pressed={lang === 'auto'}>{labels.auto}</button>
+    {IDIOMAS.map((c) => (
+      <button class="segb" data-pref="lang" data-val={c} aria-pressed={lang === c}>{NOMBRE_IDIOMA[c] ?? c.toUpperCase()}</button>
+    ))}
+  </div>
+  <div class="seg" role="group" aria-label={labels.themeAria}>
+    <button class="segb" data-pref="theme" data-val="auto" aria-pressed={theme === 'auto'}>{labels.auto}</button>
+    <button class="segb" data-pref="theme" data-val="dark" aria-pressed={theme === 'dark'}>{labels.dark}</button>
+    <button class="segb" data-pref="theme" data-val="paper" aria-pressed={theme === 'paper'}>{labels.paper}</button>
+  </div>
+</div>
+
+<script>
+  import { animarIdioma } from '../lib/lang-anim';
+
+  const YEAR = 60 * 60 * 24 * 365;
+  document.querySelectorAll('.segb[data-pref]').forEach((b) => b.addEventListener('click', () => {
+    const el = b as HTMLElement;
+    const pref = el.dataset.pref!, val = el.dataset.val!;
+    if (el.getAttribute('aria-pressed') === 'true') return;
+    el.parentElement!.querySelectorAll('.segb').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+    el.setAttribute('aria-pressed', 'true');
+    document.cookie = `pref_${pref}=${val}; path=/; max-age=${YEAR}; samesite=lax`;
+    // Con sesión abierta la preferencia también viaja a la cuenta, si no el panel la revertiría.
+    if (el.closest('[data-sync]')) {
+      fetch('/api/settings', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ [pref]: val }),
+      }).catch(() => {});
+    }
+    if (pref === 'theme') { document.documentElement.setAttribute('data-theme', val); return; }
+    animarIdioma(el, val).then(() => location.reload());
+  }));
+</script>
