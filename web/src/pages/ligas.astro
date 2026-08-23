@@ -17,7 +17,8 @@ type Resp = {
   activa: boolean; faltan?: number; minimo: number; zona: string;
   semana: { lunes: string; cierra: string };
   tabla: Fila[];
-  yo: { alias: string; metal: MetalLiga; puesto: number; caudal: number; estado: string } | null;
+  yo: { alias: string; metal: MetalLiga; puesto: number; caudal: number; estado: string;
+        subida: { de: MetalLiga; a: MetalLiga; semana: string } | null } | null;
 };
 const d = await apiFetch<Resp>('/api/ligas', Astro.request);
 
@@ -96,10 +97,44 @@ const fecha = (iso?: string) =>
           ))}
         </div>}
 
+    {d?.yo?.subida && (
+      <div class="card" id="subida" style="border-left:2px solid var(--ok);display:flex;align-items:center;gap:18px"
+        data-de={d.yo.subida.de} data-a={d.yo.subida.a} data-sem={d?.semana?.lunes}>
+        <div style="flex:none;display:flex;align-items:center;gap:10px">
+          <div style="opacity:.4"><Fragment set:html={medalla(d.yo.subida.de, 'sub-de', 46)} /></div>
+          <span class="num" style="color:var(--l3);font:600 16px/1 var(--m)">→</span>
+          <Fragment set:html={medalla(d.yo.subida.a, 'sub-a', 62)} />
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <p class="lbl" style="color:var(--ok)">{G.subiste}</p>
+          <div class="h3">{G.subisteB.replace('{de}', G[d.yo.subida.de]).replace('{a}', G[d.yo.subida.a])}</div>
+        </div>
+      </div>
+    )}
+
     <div class="card" style="border-color:var(--hair2);display:flex;flex-direction:column;gap:8px;max-width:760px">
       <p class="lbl">{G.comoLbl}</p>
       <p class="s" style="color:var(--l2)">{G.comoB}</p>
       <p class="s" style="color:var(--l2)">{G.salonB}</p>
     </div>
   </div>
+
+  <script>
+    // El sonido de ascenso suena UNA vez por semana, no en cada recarga: la marca
+    // va por semana en el equipo. Sin eso, cada F5 te felicita otra vez y la
+    // recompensa deja de significar nada.
+    import { sonar, prepararSonido } from '../lib/sonido';
+    prepararSonido();
+    const s = document.getElementById('subida');
+    if (s) {
+      const clave = `curso.liga.sub.${s.dataset.sem}`;
+      if (!localStorage.getItem(clave)) {
+        localStorage.setItem(clave, s.dataset.a ?? '1');
+        // hace falta un gesto previo para que el navegador deje sonar; si no lo
+        // hubo, el primer clic en la pagina lo desbloquea y ya no suena tarde:
+        // se pierde este, no se encola un sonido a destiempo.
+        sonar('liga', 6);
+      }
+    }
+  </script>
 </App>

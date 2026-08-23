@@ -75,8 +75,12 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
     .segb:hover{color:var(--l1);background:var(--fill)}
     .segb[aria-pressed="true"]{background:var(--ac-solid);color:#fff}
     .tblhead{font:500 10px/1 var(--m);letter-spacing:.16em;text-transform:uppercase;color:var(--l3)}
-    #toasts{position:fixed;right:24px;bottom:24px;display:flex;flex-direction:column;gap:10px;width:372px;z-index:99}
-    .toast{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--hair);background:var(--panel);animation:tin .18s ease-out}
+    /* Carril compartido por los toasts y por los avisos de desbloqueo. El ancho es
+       automatico porque la tarjeta de rango mide 436px; con width fijo a 372 se
+       recortaba. Dos carriles fijos abajo-derecha se solapan, y el que perderia
+       seria el aviso de error. */
+    #toasts{position:fixed;right:24px;bottom:24px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;width:auto;max-width:calc(100vw - 48px);z-index:99}
+    .toast{width:372px;box-sizing:border-box;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--hair);background:var(--panel);animation:tin .18s ease-out}
     @keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
     input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:30px;width:100%}
     input[type=range]::-webkit-slider-runnable-track{height:1px;background:rgba(235,235,245,.34)}

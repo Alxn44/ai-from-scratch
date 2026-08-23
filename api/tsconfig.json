@@ -1,0 +1,26 @@
+{
+  "//": "strict apagado a proposito: encenderlo de golpe sobre 2200 lineas de JS sin anotar da cientos de avisos de estilo y se ignora el informe entero. Lo que SI se enciende son las comprobaciones que atrapan errores reales sin pedir anotaciones. La API es JavaScript y no se compila: esto es SOLO chequeo. checkJs le da a los .js el analisis de TypeScript sin escribir una linea de TS ni cambiar el arranque (node corre los .js tal cual). Se mide con tsgo, que es el compilador de TS 7 escrito en Go.",
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2023"],
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.js", "scripts/**/*.mjs", "test/**/*.mjs"],
+  "exclude": ["node_modules"]
+}

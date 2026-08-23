@@ -9,3 +9,28 @@ dist/
 .playwright-mcp/
 pgdata/
 api/data/
+
+# --- Python (servicio de IA, v3) ---
+ai/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# --- Secretos: claves.sh los escribe, nunca se suben ---
+ai/.env
+scripts/claves/
+.env.bak.*
+
+# --- Material que no es codigo fuente ---
+# Estaba en el arbol sin ignorar: `git add -A` intentaba subir 824 MB
+# (music/ 133M, iot/ 636M, ai/.venv 55M, un mp3 de 3.4M). GitHub rechaza >100MB.
+*.mp3
+*.pdf
+music/
+iot/
+design_handoff_ai_carousel_hig/
+landing-full.png
+registro-en-oscuro.png
+cotizacion-*.html
+cotizacion-*.pdf

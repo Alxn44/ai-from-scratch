@@ -12,6 +12,13 @@ type Lab = { id: string; idx: number; level: string; kind: string; draft: boolea
 type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string; labs: Lab[]; solved: number; total: number };
 const data = await apiFetch<{ lessons: Lesson[] }>('/api/lessons', Astro.request);
 const prog = await apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number }>('/api/progress', Astro.request);
+// El ascenso de liga se pide AQUI, no solo en /ligas: si solo se anuncia en la
+// pagina de ligas, quien no entra nunca no se entera de que subio. La llamada va
+// con `?? null` porque un fallo de ligas no puede tumbar el panel.
+type Subida = { de: string; a: string; semana: string };
+const liga = await apiFetch<{ yo: { subida: Subida | null } | null; semana: { lunes: string } | null }>(
+  '/api/ligas', Astro.request).catch(() => null);
+const subida = liga?.yo?.subida ?? null;
 const lang = resolveLang(user!.lang, Astro.request);
 const L = t(lang);
 const rolTxt = user!.role === 'tutor' ? L.ui.rolTutor : user!.role === 'admin' ? L.ui.rolAdmin : L.ui.rolStudent;
@@ -99,9 +106,39 @@ const STATE = (l: Lesson) => {
   </div>
 
   <script type="application/json" id="ui-txt" is:inline set:html={JSON.stringify({ ...L.ui, lang })}></script>
+  {subida && (
+    <script type="application/json" id="subida-txt" is:inline set:html={JSON.stringify({
+      de: subida.de, a: subida.a, semana: liga?.semana?.lunes ?? subida.semana,
+      eb: L.logros.db.liga, titulo: L.ligas.subiste,
+      cuerpo: L.ligas.subisteB.replace('{de}', L.ligas[subida.de as 'bronce']).replace('{a}', L.ligas[subida.a as 'bronce']),
+      puesto: L.ligas.puesto,
+    })}></script>
+  )}
 
   <script>
+    import { desbloquear } from '../lib/desbloqueo';
+    import { sonar, prepararSonido } from '../lib/sonido';
     const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);
+
+    // Una vez por semana y por navegador. La MISMA clave que usa /ligas, para
+    // que subir se anuncie una sola vez y no una por pagina.
+    const sb = document.getElementById('subida-txt');
+    if (sb) {
+      const d = JSON.parse(sb.textContent!);
+      const k = `curso.liga.sub.${d.semana}`;
+      if (!localStorage.getItem(k)) {
+        localStorage.setItem(k, '1');
+        prepararSonido();
+        desbloquear({
+          tipo: 'liga', metal: d.a, titulo: d.titulo, cuerpo: d.cuerpo,
+          accion: { txt: U.nav?.ligas ?? 'Ligas', fn: () => { location.href = '/ligas'; } },
+        }, d.eb);
+        // El sonido necesita un gesto previo del usuario en el documento. Si el
+        // navegador lo bloquea, el aviso visual ya cumplio: no se reintenta.
+        sonar('liga', 6);
+      }
+    }
+
     document.getElementById('pdf')?.addEventListener('click', async () => {
       const res = await fetch(`/api/pdf/${U.lang}`);
       if (res.ok) {

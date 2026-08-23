@@ -1,8 +1,52 @@
-# Plataforma del curso · cómo se corre
+# Plataforma del curso · v3
 
-Tres contenedores: **db** (Postgres 17), **api** (Fastify 5) y **web** (Astro SSR).
+> **Versionado: v3 es lo actual. v1 y v2 son legacy y están deprecadas**
+> (`Sunset: 2027-02-21`). Ver `MIGRACION.md` para el qué y el por qué de cada
+> decisión, con los números que la sostienen.
+
+## Arquitectura (v3)
+
+Cuatro servicios. `docker compose up --build`.
+
+| servicio | lenguaje | responsabilidad |
+|---|---|---|
+| `db` | Postgres 17 | datos y **la cola de trabajos** (`FOR UPDATE SKIP LOCKED`) |
+| `ia` | Python 3.13 + FastAPI | **toda la IA**: ontología, grafo de aislamiento, prompt, bucle del agente |
+| `api` | Node 22 + Fastify | HTTP, sesión, herramientas contra la base, obrero de la cola |
+| `web` | Astro SSR | frontend |
+
+**La regla que manda sobre las demás:** el servicio de IA no habla con Postgres.
+Las herramientas las ejecuta la API, que es la única que tiene la sesión. El
+aislamiento entre usuarios es que ninguna herramienta acepte un identificador de
+persona; implementarlo dos veces en dos lenguajes es garantizar que un día
+divergan.
+
+### Comandos
+
+```bash
+uv --directory ai run pytest -q               # 33 pruebas de IA
+uv --directory ai run ia-prueba-aislamiento   # P1, P2, P3
+uv --directory ai run ia-exporta              # regenera api/src/ontologia.json
+pnpm --dir api test                           # aislamiento, harness v2, cola, puente v3
+pnpm --dir api check                          # tipos con tsgo, contra baseline
+pnpm --dir web check                          # tsgo (.ts) + astro check (.astro)
+```
+
+`api/src/ontologia.json` es **generado**: lo emite Python. Si falta, la API no
+arranca — sin la lista de columnas prohibidas la guardia no protege nada.
+
+Marcados **v2 legacy deprecado**, sin importar desde `server.js`:
+`api/src/ontology.js` (salvo la guardia, que ahora lee el artefacto),
+`api/src/harness.js`, `api/src/proveedores.js`.
+
+---
+
+## Cómo se corre
+
 El navegador solo habla con Astro; Astro proxea `/api/*` al Fastify (mismo origen → la
-cookie de sesión `SameSite=Lax` funciona igual en local y en producción tras un dominio).
+cookie de sesión `SameSite=Lax` funciona igual en local y en producción tras un dominio),
+y el Fastify habla con el servicio de IA por la red interna. El servicio de IA **no
+publica puerto al host**: es interno, no una API pública.
 
 ## Un solo comando
 
@@ -47,14 +91,20 @@ docker compose down                # parar
 docker compose down -v             # parar y borrar la base
 ```
 
-## Sin Docker (dos procesos + una base)
+## Sin Docker (tres procesos + una base)
 
 ```bash
 docker compose up -d db            # o tu propio Postgres
 
-cd api
+scripts/claves.sh                  # JWT_SECRET, IA_SECRETO, clave de Postgres
+
+cd ai                              # el servicio de IA
+uv sync --extra dev
+uv run ia-exporta                  # genera ../api/src/ontologia.json
+uv run uvicorn ia.app:app --port 8799 --reload
+
+cd ../api
 pnpm install
-cp .env.example .env               # pon JWT_SECRET
 pnpm seed                          # 12 lecciones · 36 labs · 3 usuarios
 pnpm dev                           # http://127.0.0.1:8787
 
@@ -63,7 +113,14 @@ pnpm install
 API_URL=http://127.0.0.1:8787 pnpm dev
 ```
 
-El gestor de paquetes es **pnpm** (`packageManager` fijado en los dos `package.json`).
+`api/.env` lo lee `node --env-file-if-exists=.env`, que está en los scripts. (Antes
+no lo leía nadie: `claves.sh` escribía un archivo que en desarrollo no hacía nada.)
+
+Sin llave de modelo el chat responde **501 `sin_proveedor`** en vez de fingir. El
+resto de la plataforma funciona igual.
+
+El gestor de paquetes es **pnpm** para JS y **uv** para Python (`packageManager` y
+`uv.lock` fijados).
 
 ## Qué corre de verdad hoy
 
@@ -100,9 +157,22 @@ Públicas: `/` `/login` `/registro` `/recuperar` `/pago` `/pago/gracias` `/pago/
 Con sesión: `/panel` `/curso` `/leccion/{n}` `/chat` `/logros` `/ranking` `/perfil` `/ajustes`
 `/tutor` (tutor) `/admin` (admin).
 
-API: auth (login, logout, register, recover, reset), `me`, `settings`, `lessons`,
-`lessons/:n`, `labs/:id/attempt`, `progress`, `logros`, `ranking`, `ranking/optin`,
-`chat`, `chat/estado`, `pdf/:lang`, `tutor/cohort`, `admin/*`, `payments/mercadopago/*`, `health`.
+API, **prefijo `/api/v3/`**: auth (login, logout, register, recover, reset), `me`,
+`settings`, `lessons`, `lessons/:n`, `labs/:id/attempt`, `progress`, `logros`, `ranking`,
+`ranking/optin`, `ligas`, `chat`, `chat/estado`, `pdf/:lang`, `tutor/cohort`, `admin/*`,
+`payments/mercadopago/*`, `version`, `health`.
+
+`/api/v1/*`, `/api/v2/*` y `/api/*` sin versión siguen respondiendo, con
+`x-api-version: N-legacy`, `deprecation: true`, `sunset` y `link;
+rel="successor-version"`. `/api/version` cuenta los golpes por versión, que es cómo
+se sabrá cuándo es seguro borrarlas. El front habla v3 por un único sitio:
+`web/src/pages/api/[...path].ts`.
+
+Internas, solo para el servicio de IA (exigen `x-ia-secreto` **y** cookie válida):
+`interno/catalogo`, `interno/herramienta`.
+
+Servicio de IA (sin puerto al host): `/salud`, `/ontologia/prompt`, `/ontologia/grafo`,
+`/ontologia/prueba`, `/agente/turno`, `/docs`.
 
 ## Comprobaciones
 

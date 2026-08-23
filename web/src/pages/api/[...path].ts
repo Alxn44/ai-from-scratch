@@ -5,10 +5,18 @@ export const prerender = false;
 const API = import.meta.env.API_URL ?? process.env.API_URL ?? 'http://127.0.0.1:8787';
 const HOP = new Set(['host', 'connection', 'content-length', 'accept-encoding']);
 
+// UNICO punto donde el navegador entra a la API: aqui se pone la version, no en
+// las 32 llamadas fetch repartidas por el codigo. El cliente sigue pidiendo
+// /api/labs/1.1/attempt y el proxy lo manda a /api/v3/labs/1.1/attempt. Si algun
+// dia hay que quedarse en v2 para una ruta, es una excepcion en este archivo.
+const V = 'v3';
+// Ya versionado a mano: no se dobla el prefijo.
+const conV = (p: string) => (p.startsWith(`${V}/`) || p === V ? p : `${V}/${p}`);
+
 const proxy: APIRoute = async ({ request, params }) => {
   const path = params.path ?? '';
   const url = new URL(request.url);
-  const target = `${API}/api/${path}${url.search}`;
+  const target = `${API}/api/${conV(path)}${url.search}`;
 
   const headers = new Headers();
   request.headers.forEach((v, k) => { if (!HOP.has(k)) headers.set(k, v); });

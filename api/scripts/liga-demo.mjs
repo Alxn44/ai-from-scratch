@@ -59,7 +59,7 @@ for (const [alias, nombre, caudal, todo] of GENTE) {
     if (i === 0) await run(`INSERT INTO attempts (user_id, lab_id, answer, correct)
       VALUES (?,?,?,1)`, [u.id, labs[0], '"repetido"']);
   }
-  console.log(`${alias.padEnd(7)} caudal objetivo ${String(cuantos).padStart(2)}${todo ? '  (curso terminado)' : ''}`);
+  console.log(`${String(alias).padEnd(7)} caudal objetivo ${String(cuantos).padStart(2)}${todo ? '  (curso terminado)' : ''}`);
 }
 console.log('\nlisto. para quitarla: node api/scripts/liga-demo.mjs --borrar');
 await pool.end();

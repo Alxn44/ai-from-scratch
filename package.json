@@ -13,6 +13,7 @@
     "stop": "pnpm run stop:web; docker compose down",
     "reset": "docker compose down -v && docker compose up -d db && pnpm --dir api seed",
     "test:aislamiento": "cd api && DATABASE_URL=${DATABASE_URL:-postgres://curso:curso@localhost:5432/curso} node test/aislamiento.mjs",
-    "ontologia": "node scripts/gen-ontologia.mjs"
+    "ontologia": "node scripts/gen-ontologia.mjs",
+    "ligas:cerrar": "node api/scripts/cerrar-ligas.mjs"
   }
 }

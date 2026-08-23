@@ -226,6 +226,24 @@ export function medalla(metal: Metal, id: string, px = 72): string {
   </svg>`;
 }
 
+/**
+ * Tinta de TEXTO por metal, una por tema. No sale de METALES a proposito: el
+ * especular de plata y platino es blanco puro y el de oro es #FFE9A6, que sobre
+ * papel dan 1.1:1 y 1.3:1 — ilegibles. Y el medio (#A8B2BE, #D9A02A) da 3.0:1 y
+ * 3.2:1, que tampoco pasa AA para un texto de 10px.
+ *
+ * Los tonos de papel estan calculados contra #FFF: bronce 6.6:1, plata 7.1:1,
+ * oro 5.7:1, platino 6.7:1. Los de oscuro contra #000: el mas bajo es oro con
+ * 8.9:1. Solo se usan en texto y en bordes; el metal de la insignia sigue
+ * saliendo de METALES, que es fotografia de metal y no tiene que leerse.
+ */
+export const TINTA: Record<Metal, { osc: string; papel: string }> = {
+  bronce:  { osc: '#F0B274', papel: '#8A4E23' },
+  plata:   { osc: '#A8B2BE', papel: '#4E5866' },
+  oro:     { osc: '#D9A02A', papel: '#8A5E00' },
+  platino: { osc: '#B9CBDD', papel: '#4A5C72' },
+};
+
 /** Los doce rangos reparten los cuatro metales de tres en tres. */
 export const RANGO_METAL = (n: number): Metal =>
   n <= 3 ? 'bronce' : n <= 6 ? 'plata' : n <= 9 ? 'oro' : 'platino';

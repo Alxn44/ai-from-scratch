@@ -2,6 +2,7 @@
 import { exito, fallo } from './fx';
 import { sonar, prepararSonido } from './sonido';
 import { asomarGato } from './gato';
+import { desbloquear } from './desbloqueo';
 import { abrirRoadmap, type RoadmapTxt } from './roadmap';
 
 type Payload = Record<string, any>;
@@ -10,6 +11,11 @@ type Lab = { id: string; kind: string; payload: Payload; solved: boolean; draft:
 // El id de un lab es "N.M": la lección es la parte de delante. Se usa para
 // colocar el sonido en la escala, así que la 9 suena más arriba que la 2.
 const leccionDe = (id: string) => Math.min(12, Math.max(1, Number(id.split('.')[0]) || 1));
+
+// Racha de la sesion. No va al servidor a proposito: una racha es "ahora mismo
+// vas seguido", no una estadistica historica. Un fallo la corta. Suena a partir
+// de tres porque dos seguidos pasan por casualidad.
+let racha = 0;
 
 declare global { interface Window { toast: (k: string, t: string, b: string, key?: string) => void } }
 
@@ -22,6 +28,7 @@ type LabTxt = {
   logroEb: string; logroTitulo: string; logroSub: string; logroCerrar: string; logroSeguir: string;
   logroParada: string; rangos: string[]; grados: Record<string, string>;
   nuevoLogro: string; nuevoLogroB: string; tusIntentos: string; gatoMaestro?: string;
+  db: Record<string, string>;
 };
 const TXT: LabTxt = (() => {
   const el = document.getElementById('lab-txt');
@@ -37,12 +44,28 @@ function celebrar(nuevos: { code: string; kind: string; lesson_n: number | null 
   const deLeccion = nuevos.filter((n) => n.kind === 'leccion');
   if (deLeccion.length) {
     const ultimo = deLeccion[deLeccion.length - 1];
-    const grado = TXT.grados?.[ultimo.code.split('.')[1]] ?? ultimo.code;
-    window.toast('ok', TXT.nuevoLogro ?? 'Logro', fill(TXT.nuevoLogroB ?? '', { grado, n: ultimo.lesson_n ?? '' }), 'logro');
+    const clave = ultimo.code.split('.')[1];
+    const grado = TXT.grados?.[clave] ?? ultimo.code;
+    // Los tres grados de una leccion estan ORDENADOS: aprendiz, oficiante,
+    // maestro. La posicion es el progreso, asi que la barra sale del propio
+    // codigo del logro y no hace falta pedir el recuento al servidor.
+    const k = ['aprendiz', 'oficiante', 'maestro'].indexOf(clave) + 1;
+    desbloquear({
+      tipo: 'grado',
+      titulo: `${grado} · ${TXT.db.leccionAbrev ?? 'Lección'} ${String(ultimo.lesson_n ?? 1).padStart(2, '0')}`,
+      cuerpo: fill(TXT.nuevoLogroB ?? '', { grado, n: ultimo.lesson_n ?? '' }),
+      meta: k > 0 ? { lbl: TXT.db.gradosDe, num: `${k} / 3`, pct: (k / 3) * 100 } : undefined,
+    }, TXT.db.grado);
     // El grado suena distinto del lab: el lab pasa 36 veces, el grado 36 tambien
     // pero solo una por grado. El paso coloca la nota en la escala.
-    sonar('estrella', ultimo.lesson_n ?? 1);
-    if (ultimo.code.endsWith('.maestro')) asomarGato(TXT.gatoMaestro ?? '¡Lección cerrada!');
+    // Y cerrar la leccion (el grado 'maestro') suena distinto de los otros dos
+    // grados: es un cierre, no un avance, y el hito 'leccion' remata en quinta.
+    if (ultimo.code.endsWith('.maestro')) {
+      sonar('leccion', ultimo.lesson_n ?? 1);
+      asomarGato(TXT.gatoMaestro ?? '¡Lección cerrada!');
+    } else {
+      sonar('estrella', ultimo.lesson_n ?? 1);
+    }
   }
   if (rango) {
     const txt: RoadmapTxt = {
@@ -50,8 +73,19 @@ function celebrar(nuevos: { code: string; kind: string; lesson_n: number | null 
       cerrar: TXT.logroCerrar, seguir: TXT.logroSeguir,
       rangos: TXT.rangos ?? [], paradaN: TXT.logroParada,
     };
-    sonar('rango', rango);            // el cofre, el mas gordo del set
-    setTimeout(() => abrirRoadmap(rango, txt), 620);
+    if (rango >= 12) sonar('final');   // las doce cerradas: se gana una vez
+    else sonar('rango', rango);        // el cofre
+    // CAMBIO DE COMPORTAMIENTO: antes el roadmap se abria solo a los 620ms. Un
+    // modal que aparece encima mientras acabas de resolver un lab interrumpe, y
+    // el camino tambien esta en /logros: nada se pierde por no forzarlo. Ahora
+    // el aviso de desbloqueo entrega la insignia y el camino se abre si lo pides.
+    desbloquear({
+      tipo: 'rango', rango,
+      titulo: TXT.rangos?.[rango - 1] ?? `${TXT.db.rango} ${rango}`,
+      cuerpo: TXT.logroSub,
+      meta: { lbl: TXT.db.camino, num: `${String(rango).padStart(2, '0')} / 12`, pct: (rango / 12) * 100 },
+      accion: { txt: TXT.db.verCamino, fn: () => abrirRoadmap(rango, txt) },
+    }, TXT.db.rango);
   }
 }
 
@@ -109,13 +143,22 @@ export function mountLabs() {
         out.innerHTML = `<div style="border-top:1px solid var(--hair2);padding-top:16px;display:flex;flex-direction:column;gap:7px">
             <div class="h3" style="color:${color}">${d.correct ? TXT.correcto : TXT.todaviaNo}</div>
             <p class="p" style="font-size:15px">${d.explanation}${extra}</p></div>`;
-        window.toast(d.correct ? 'ok' : 'bad',
-          fill(d.correct ? TXT.resuelto : TXT.sinResolver, { id: lab.id }),
-          d.correct ? TXT.resueltoB : TXT.sinResolverB,
-          `lab-${lab.id}`);
+        // Resolver es un LOGRO (aviso de desbloqueo, con la insignia y el carril
+        // verde); no resolver es informacion (toast normal). No es el mismo
+        // objeto con otro color.
+        if (!d.correct) {
+          window.toast('bad', fill(TXT.sinResolver, { id: lab.id }), TXT.sinResolverB, `lab-${lab.id}`);
+        }
         // el botón es el punto de la acción: de ahí salen las chispas
-        if (d.correct) { sonar('lab', leccionDe(lab.id)); exito(root, btn); celebrar(d.nuevos); }
-        else { sonar('fallo'); fallo(root); }
+        if (d.correct) {
+          desbloquear({ tipo: 'lab', titulo: fill(TXT.resuelto, { id: lab.id }), cuerpo: TXT.db.labCuerpo },
+                       TXT.db.lab);
+          racha++;
+          if (racha >= 3) sonar('racha', Math.min(12, racha));
+          else sonar('lab', leccionDe(lab.id));
+          exito(root, btn);
+          celebrar(d.nuevos);
+        } else { racha = 0; sonar('fallo'); fallo(root); }
         render();
       } catch {
         window.toast('bad', TXT.sinRed, TXT.sinRedB, `lab-${lab.id}`);
@@ -294,11 +337,15 @@ export function mountLabs() {
             root.dataset.result = 'ok';
             out.innerHTML = `<div style="border-top:1px solid var(--hair2);padding-top:16px;display:flex;flex-direction:column;gap:7px">
               <div class="h3" style="color:var(--ok)">${TXT.correcto}</div><p class="p" style="font-size:15px">${d.explanation}</p></div>`;
-            window.toast('ok', fill(TXT.resuelto, { id: lab.id }), fill(TXT.enIntentos, { n: tries.length }), `lab-${lab.id}`);
-            sonar('lab', leccionDe(lab.id));
+            desbloquear({ tipo: 'lab', titulo: fill(TXT.resuelto, { id: lab.id }),
+                          cuerpo: fill(TXT.enIntentos, { n: tries.length }) }, TXT.db.lab);
+            racha++;
+            if (racha >= 3) sonar('racha', Math.min(12, racha));
+            else sonar('lab', leccionDe(lab.id));
             exito(root, btn);
             celebrar(d.nuevos);
           } else {
+            racha = 0;
             sonar('fallo');
             fallo(root);
           }

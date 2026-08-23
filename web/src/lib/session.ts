@@ -1,5 +1,15 @@
 const API = import.meta.env.API_URL ?? process.env.API_URL ?? 'http://127.0.0.1:8787';
 
+// Todas las rutas se piden por /api/v3/*. La superficie sin version sigue viva
+// como v2 legacy y responde igual, pero con cabeceras Deprecation y Sunset: si
+// este front vuelve a pedir /api/* directo, el contador de golpes legacy sube y
+// se ve en /api/version. Asi el numero dice la verdad sobre quien usa lo viejo.
+const V = 'v3';
+const conVersion = (path: string) =>
+  path.startsWith('/api/') && !path.startsWith(`/api/${V}/`)
+    ? `/api/${V}/` + path.slice('/api/'.length)
+    : path;
+
 export type Role = 'student' | 'tutor' | 'admin';
 export type LangPref = 'es' | 'en' | 'auto';
 export type ThemePref = 'dark' | 'paper' | 'auto';
@@ -8,7 +18,7 @@ export interface User { id: number; email: string; name: string; role: Role; lan
 /** Llama al API reenviando la cookie de la petición. Devuelve null si no hay sesión. */
 export async function apiFetch<T>(path: string, request: Request, init: RequestInit = {}): Promise<T | null> {
   const cookie = request.headers.get('cookie') ?? '';
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API}${conVersion(path)}`, {
     ...init,
     headers: { ...(init.headers ?? {}), cookie, 'content-type': 'application/json' },
   });
@@ -21,7 +31,7 @@ export async function apiFetch<T>(path: string, request: Request, init: RequestI
  *  (la lección existe pero está detrás del muro de pago) de un 404. */
 export async function apiTry<T>(path: string, request: Request, init: RequestInit = {}): Promise<{ status: number; data: T | null }> {
   const cookie = request.headers.get('cookie') ?? '';
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API}${conVersion(path)}`, {
     ...init,
     headers: { ...(init.headers ?? {}), cookie, 'content-type': 'application/json' },
   });

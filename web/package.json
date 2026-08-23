@@ -8,8 +8,10 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check",
-    "i18n": "node --experimental-strip-types scripts/i18n-check.mjs"
+    "check": "tsgo -p tsconfig.tsgo.json && astro check",
+    "i18n": "node --experimental-strip-types scripts/i18n-check.mjs",
+    "check:ts": "tsgo -p tsconfig.tsgo.json",
+    "check:astro": "astro check"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.4",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@types/node": "^26.2.0",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "typescript": "^6.0.3"
   }
 }

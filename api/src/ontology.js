@@ -1,3 +1,47 @@
+// ============================================================================
+// v2 LEGACY — DEPRECADO.  Retirada: 2027-02-21
+//
+// Sustituido por  ai/src/ia/ontologia/  (Python, v3).
+//
+// Que cambio y por que: en v2 la ontologia era PROSA. Describia el aislamiento
+// y el codigo lo implementaba aparte, asi que nada garantizaba que coincidieran:
+// una herramienta nueva podia devolver una columna prohibida y la ontologia
+// seguiria diciendo que no. En v3 la ontologia son DATOS y un grafo demuestra
+// sobre ellos que ninguna columna `jamas` es alcanzable (P1/P2/P3 en
+// ai/src/ia/ontologia/grafo.py). La garantia paso de comentario a teorema.
+//
+// Que queda vivo de este archivo:  columnasProhibidas() y assertSinProhibidas(),
+// que agent-tools.js llama en cada consulta. Ya NO llevan su propia copia de la
+// verdad: leen api/src/ontologia.json, que lo genera Python con `uv run
+// ia-exporta`. Una fuente, un artefacto, dos lectores.
+//
+// Que esta muerto:  ONTOLOGIA, ONTOLOGIA_PREVISTA y renderParaModelo(). Se
+// conservan como registro de v2 y no los importa nadie. El prompt lo emite ahora
+// el servicio de IA (/ontologia/prompt).
+// ============================================================================
+
+import { createRequire } from 'node:module';
+
+// El artefacto se lee UNA vez al arrancar. Si falta, el servidor no arranca a
+// medias: sin la lista de columnas prohibidas, la guardia no protege nada y
+// seguir seria peor que parar.
+const require = createRequire(import.meta.url);
+let GENERADO;
+try {
+  GENERADO = require('./ontologia.json');
+} catch (e) {
+  throw new Error(
+    'falta api/src/ontologia.json (lo genera `uv --directory ai run ia-exporta`). ' +
+    'Sin el, assertSinProhibidas no sabe que columnas bloquear. ' + String(e.message ?? e));
+}
+if (GENERADO.violaciones?.length) {
+  throw new Error(`ontologia.json declara ${GENERADO.violaciones.length} violacion(es) de aislamiento: no se arranca con una fuga documentada`);
+}
+
+/** Version del artefacto y su huella, para el log de arranque y /api/version. */
+export const ONTOLOGIA_META = { version: GENERADO.version, sha: GENERADO.sha,
+                                promptSha: GENERADO.prompt_sha, ordenBorrado: GENERADO.orden_borrado };
+
 // Ontología de la base para el agente de IA.
 //
 // Esto NO es documentación: es la fuente de verdad que (a) se renderiza al prompt
@@ -120,11 +164,12 @@ export const ONTOLOGIA_PREVISTA = {
   },
 };
 
-/** Columnas que no pueden salir del servidor por ningún camino. */
+/**
+ * Columnas que no pueden salir del servidor por ningún camino.
+ * Sale del artefacto generado, no de ONTOLOGIA (que es el registro de v2).
+ */
 export function columnasProhibidas(tabla) {
-  const t = ONTOLOGIA[tabla];
-  if (!t) return [];
-  return Object.entries(t.columnas).filter(([, c]) => c.clase === 'jamas').map(([k]) => k);
+  return GENERADO.prohibidas[tabla] ?? [];
 }
 
 /** Lanza si una fila lleva una columna prohibida. Se llama antes de devolver datos. */
@@ -137,7 +182,10 @@ export function assertSinProhibidas(tabla, fila) {
   return fila;
 }
 
-/** El texto que ve el modelo. Solo lo permitido; lo prohibido no se menciona. */
+/**
+ * @deprecated v2. El prompt lo emite el servicio de IA: GET /ontologia/prompt.
+ * Se conserva para poder comparar el texto viejo con el nuevo si hace falta.
+ */
 export function renderParaModelo() {
   const bloque = (nombre, t) => {
     const cols = Object.entries(t.columnas ?? {})

@@ -99,6 +99,12 @@ export const STR = {
       grados: { aprendiz: 'Aprendiz', oficiante: 'Oficiante', maestro: 'Maestro' },
       gradoAyuda: { aprendiz: 'primer lab resuelto', oficiante: 'dos labs resueltos', maestro: 'los tres labs' },
       verRoadmap: 'Ver mi camino', vacio: 'Todavía no tienes logros', vacioB: 'Resuelve un lab de cualquier lección y aparece el primero.',
+      // Sombreros del aviso de desbloqueo (desbloqueo.ts). Van aqui y no en el
+      // modulo porque el modulo no sabe el idioma de la cuenta.
+      db: { lab: 'Lab resuelto', grado: 'Grado ganado', rango: 'Rango nuevo', liga: 'Ascenso de liga',
+        gradosDe: 'Grados de esta lección', camino: 'Camino de los doce',
+        labCuerpo: 'Progreso guardado en tu cuenta.', verCamino: 'Ver mi camino',
+        leccionAbrev: 'Lección' },
       rangos: ['Iniciado', 'Lector de Señales', 'Contador de Trozos', 'Guardián de Perillas', 'Domador de Temperatura',
         'Cazador de Espejismos', 'Custodio del Contexto', 'Tejedor de Cadenas', 'Alquimista de Datos',
         'Oráculo de Probabilidades', 'Arquitecto de Agentes', 'Mano Firme'],
@@ -115,6 +121,7 @@ export const STR = {
       salon: 'Salón', salonB: 'Terminaste los 36 labs: ya no generas caudal, así que te quedas con tu metal en vez de bajar por haber acabado.',
       comoLbl: 'Cómo se calcula', comoB: 'Cuenta la primera vez que resolviste cada lab. Volver a resolver uno viejo no suma: la fecha que vale es la primera, así que no se puede inflar.',
       nadie: 'Nadie en esta liga esta semana',
+      subiste: 'Subiste de liga', subisteB: 'De {de} a {a}.',
     },
     rank: {
       crumb: 'RANKING / QUIENES ACEPTARON', titulo: 'Ranking', eb: 'Ranking',
@@ -131,7 +138,7 @@ export const STR = {
     },
     narra: {
       leer: 'Escuchar la lección', pausa: 'Pausa', seguir: 'Seguir', parar: 'Parar',
-      vel: 'Velocidad de lectura', deN: 'frase {i} de {n}',
+      vel: 'Velocidad de lectura', voz: 'Voz', preparando: 'Preparando…', deN: 'frase {i} de {n}',
       sinVoz: 'Sin voz en español',
       sinVozB: 'Tu navegador no trae ninguna voz en español instalada. La narración usa las voces del sistema operativo, así que se arregla instalando una voz en la configuración del equipo.',
       sinSoporte: 'Este navegador no puede narrar texto',
@@ -428,6 +435,10 @@ export const STR = {
       grados: { aprendiz: 'Apprentice', oficiante: 'Adept', maestro: 'Master' },
       gradoAyuda: { aprendiz: 'first lab solved', oficiante: 'two labs solved', maestro: 'all three labs' },
       verRoadmap: 'See my path', vacio: 'No achievements yet', vacioB: 'Solve a lab in any lesson and the first one appears.',
+      db: { lab: 'Lab solved', grado: 'Grade earned', rango: 'New rank', liga: 'League promotion',
+        gradosDe: 'Grades in this lesson', camino: 'The path of twelve',
+        labCuerpo: 'Progress saved to your account.', verCamino: 'See my path',
+        leccionAbrev: 'Lesson' },
       rangos: ['Initiate', 'Signal Reader', 'Chunk Counter', 'Dial Keeper', 'Temperature Tamer',
         'Mirage Hunter', 'Context Custodian', 'Chain Weaver', 'Data Alchemist',
         'Probability Oracle', 'Agent Architect', 'Steady Hand'],
@@ -444,6 +455,7 @@ export const STR = {
       salon: 'Hall', salonB: 'You finished all 36 labs: you no longer generate flow, so you keep your metal instead of dropping for having finished.',
       comoLbl: 'How it is counted', comoB: 'Only the first time you solved each lab counts. Re-solving an old one adds nothing: the date that counts is the first, so it cannot be inflated.',
       nadie: 'Nobody in this league this week',
+      subiste: 'You moved up', subisteB: 'From {de} to {a}.',
     },
     rank: {
       crumb: 'LEADERBOARD / WHO OPTED IN', titulo: 'Leaderboard', eb: 'Leaderboard',
@@ -460,7 +472,7 @@ export const STR = {
     },
     narra: {
       leer: 'Listen to the lesson', pausa: 'Pause', seguir: 'Resume', parar: 'Stop',
-      vel: 'Reading speed', deN: 'sentence {i} of {n}',
+      vel: 'Reading speed', voz: 'Voice', preparando: 'Starting…', deN: 'sentence {i} of {n}',
       sinVoz: 'No English voice',
       sinVozB: 'Your browser has no English voice installed. Narration uses the operating system voices, so installing a voice in your system settings fixes it.',
       sinSoporte: 'This browser cannot narrate text',

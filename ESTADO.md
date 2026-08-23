@@ -1,4 +1,4 @@
-# Estado · 2026-08-21
+# Estado · 2026-08-22
 
 Cuatro encargos, 28 puntos. **24 hechos y verificados · 2 esperando a Luna · 1 descartado con
 motivo · 8 bloqueados en llaves o archivos que no puedo poner yo.**
@@ -66,3 +66,28 @@ pnpm --dir api test      # aislamiento del agente (31) + harness (17)
 pnpm --dir web i18n      # deriva de claves entre idiomas
 pnpm --dir web exec astro check
 ```
+
+
+---
+
+## Encargo 5 · migración a v3 (IA a Python, tsgo, algoritmos, colas, Go)
+
+Detalle completo con los números de cada decisión: **`MIGRACION.md`**.
+
+| punto | estado | con qué se comprueba |
+|---|---|---|
+| Toda la IA a Python | hecho | `ai/` (FastAPI). `uv --directory ai run ia-verifica` → 33 pruebas, aislamiento, artefacto |
+| Ontología como datos + grafo que la demuestra | hecho | P1/P2/P3 sobre 84 nodos y 95 aristas; `test_grafo.py` mete fugas y comprueba que las atrapa |
+| El servicio de IA no ve ningún `userId` | hecho | `api/test/puente.mjs`, 19 comprobaciones; el `user_id` colado queda `_ignorado` |
+| v1 y v2 legacy **deprecadas**, v3 actual | hecho | `x-api-version`, `deprecation`, `sunset`, `link`; `/api/version` cuenta golpes por versión |
+| Módulos v2 marcados sin borrar | hecho | cabecera de deprecación en `ontology.js`, `harness.js`, `proveedores.js`; sus pruebas v2 siguen pasando |
+| TS 7 con el compilador de Go | hecho | `tsgo` 0.208 s vs `tsc` 1.380 s (6.6×). API con `checkJs`: 0.83 s |
+| Bugs que encontró el chequeo de tipos | hecho | 2 reales corregidos (spread de `unknown`, `padEnd`) + `sameSite` fijado al literal |
+| Baseline de tipos que no puede subir | hecho | `pnpm --dir api check` (59). Ya atrapó 10 mensajes de mi propio código |
+| Complejidad: el cuadrático de ligas | hecho | O(U×P) → O(U+P); 1.314 → 0.603 ms medido con `EXPLAIN ANALYZE` |
+| Cola de trabajos | hecho | Postgres con `FOR UPDATE SKIP LOCKED`; 19 comprobaciones en `api/test/cola.mjs` |
+| Webhook de pago fuera de la respuesta | hecho | verifica firma → encola → 200; reintentos con espera exponencial |
+| RabbitMQ | **descartado con motivo y disparador escrito** | un trabajo, un consumidor: negativo hoy. Cambia con >50 trabajos/s, consumidor externo o fan-out |
+| Go preparado para operar | **sin código, a propósito** | tres servicios por HTTP con contratos escritos; el primer candidato y su umbral están en `MIGRACION.md` |
+| Aviso de desbloqueo (los toasts de logro) | hecho | `web/src/lib/desbloqueo.ts`; verificado en navegador, 0 errores de consola |
+| Ascenso de liga se anuncia en el panel | hecho | `panel.astro`, una vez por semana y navegador, misma clave que `/ligas` |

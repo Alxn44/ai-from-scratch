@@ -1,5 +1,9 @@
-# Tres contenedores: base, backend y frontend. Un solo comando:
+# Cuatro contenedores: base, IA, backend y frontend. Un solo comando:
 #   docker compose up --build
+#
+# La IA es un servicio aparte desde v3: el bucle del agente y la ontologia estan
+# en Python (ai/). Las llaves de modelo las tiene ESE contenedor, no la API — asi
+# el proceso que habla con internet no es el que tiene la base delante.
 services:
   db:
     image: postgres:17-alpine
@@ -29,13 +33,44 @@ services:
       MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
       MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
       JWT_SECRET: ${JWT_SECRET:-dev-solo-para-local}
+      # Secreto compartido con el servicio de IA. Sin el, /api/chat responde 501.
+      IA_URL: http://ia:8799
+      IA_SECRETO: ${IA_SECRETO:-dev-solo-para-local}
     # La siembra es idempotente: actualiza lecciones y labs sin borrar intentos.
     command: sh -c "node src/seed.js && node src/server.js"
     depends_on:
       db:
         condition: service_healthy
+      ia:
+        condition: service_started
     ports:
       - "8787:8787"
+
+  ia:
+    build: ./ai
+    environment:
+      # El puente de vuelta: la IA pide a la API que ejecute las herramientas,
+      # porque la API es la unica que tiene la sesion del usuario.
+      NODE_URL: http://api:8787
+      IA_SECRETO: ${IA_SECRETO:-dev-solo-para-local}
+      PORT: "8799"
+      # Basta UNA. El orden se fija con PROVEEDOR_ORDEN.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      PROVEEDOR_ORDEN: ${PROVEEDOR_ORDEN:-}
+    # No se publica puerto al host a proposito: solo lo llama la API por la red
+    # interna. Es un servicio interno, no una API publica.
+    expose:
+      - "8799"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8799/salud')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   web:
     build: ./web

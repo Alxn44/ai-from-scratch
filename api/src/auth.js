@@ -45,6 +45,11 @@ export function verify(token) {
 }
 
 export const COOKIE = 'sid';
+// El @type no es cosmetico: sin el, `sameSite` se ensancha a `string` y un dia
+// alguien escribe 'Lax' o 'lx' y compila igual — la cookie sale sin proteccion
+// CSRF y nada avisa. Con el literal, un valor que no sea uno de los tres es un
+// error de tipo. Lo senalo tsgo (TS2345, tres llamadas a setCookie).
+/** @type {{ httpOnly: true, sameSite: 'lax', path: string, secure: boolean, maxAge: number }} */
 export const cookieOpts = {
   httpOnly: true,
   sameSite: 'lax',

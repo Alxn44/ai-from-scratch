@@ -4,11 +4,86 @@ import { all, get, migrate, run } from './db.js';
 import { COOKIE, MINUTOS_TOKEN, cookieOpts, hashPassword, hashToken, nuevoToken, sign, verify, verifyPassword } from './auth.js';
 import { grade, hint, publicLab } from './grade.js';
 import { logrosDe, nivelRango } from './logros.js';
-import { correr } from './harness.js';
-import { hayProveedor, proveedores } from './proveedores.js';
-import { catalogo } from './agent-tools.js';
+import { cerrarSemana, estadoLigas } from './ligas.js';
+import { catalogo, ejecutar } from './agent-tools.js';
+// v3: el bucle del agente vive en ai/ (Python). harness.js y proveedores.js
+// siguen en el repo marcados como v2 legacy deprecado y ya no se importan.
+import { IA_SECRETO, IA_URL, hablarConIA, hayIA, saludIA } from './ia.js';
+import { encola, estadoCola, obrero, registra } from './trabajos.js';
 
-const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
+// ---------------------------------------------------------------------------
+// VERSIONADO DE LA API
+//
+// v3 es el camino canonico: /api/v3/*. TODO lo anterior es LEGACY DEPRECADO:
+//
+//   /api/v3/...   ACTUAL
+//   /api/v2/...   legacy deprecado  (alias explicito)
+//   /api/v1/...   legacy deprecado  (alias explicito; nunca se publico con este
+//                 prefijo, se acepta para que un cliente que lo escriba reciba
+//                 el aviso de retirada en vez de un 404 sin explicacion)
+//   /api/...      legacy deprecado  (la superficie sin version = v2)
+//
+// COMO, y lo que esto NO es: rewriteUrl corre ANTES del enrutado, asi que
+// /api/v3/ligas entra por el MISMO manejador que /api/ligas. Son los mismos
+// handlers, no dos copias, y por construccion no pueden divergir.
+//
+// El coste, dicho: v3 es hoy un ALIAS de ruta, no una version evolucionable por
+// separado. El dia que v4 tenga que responder distinto en la misma ruta hara
+// falta duplicar handlers de verdad. Lo que compra hoy: un camino estable para
+// clientes nuevos, un aviso legible por maquina en el viejo, y una cuenta de
+// golpes para saber cuando se puede borrar.
+//
+// Y con UN solo consumidor propio (el front de este repo) esto no compra nada
+// funcional todavia: se hace ahora porque es barato antes de que haya clientes
+// fuera, y carisimo despues.
+const V_ACTUAL = 3;
+const V_LEGACY = 2;                       // la superficie sin version es esta
+const V_VIEJAS = [1, 2];                  // prefijos explicitos, todos deprecados
+// Fecha de retirada de la superficie sin version. Sunset es un campo HTTP de
+// fecha (RFC 8594); Deprecation es su companero y avisa de que ya lo esta.
+const SUNSET = new Date('2027-02-21T00:00:00Z').toUTCString();
+// Cuenta por version, no un total: «hay 40 golpes legacy» no dice si se puede
+// borrar v1, y borrar la que aun se usa es el error que esto evita.
+const golpes = { 1: 0, 2: 0 };
+let golpesLegacy = 0;   // total, para el resumen de /api/version
+
+// La marca de version se cuelga de la peticion CRUDA porque rewriteUrl corre
+// antes de que exista el objeto de Fastify. Se declara para que el chequeo de
+// tipos no lo lea como una propiedad inventada.
+/** @typedef {import('node:http').IncomingMessage & { __api?: number }} PeticionCruda */
+
+const app = Fastify({
+  logger: { level: process.env.LOG_LEVEL ?? 'info' },
+  // Corre antes del enrutado: es el unico sitio donde se puede reescribir la URL
+  // sin duplicar rutas. Marca la version en la peticion cruda porque despues de
+  // reescribir ya no se distingue por donde entro.
+  /** @param {PeticionCruda} req */
+  rewriteUrl: (req) => {
+    const pref = `/api/v${V_ACTUAL}/`;
+    if (req.url.startsWith(pref)) { req.__api = V_ACTUAL; return '/api/' + req.url.slice(pref.length); }
+    for (const v of V_VIEJAS) {
+      const p = `/api/v${v}/`;
+      if (req.url.startsWith(p)) {
+        req.__api = v; golpes[v]++; golpesLegacy++;
+        return '/api/' + req.url.slice(p.length);
+      }
+    }
+    if (req.url.startsWith('/api/')) { req.__api = V_LEGACY; golpes[V_LEGACY]++; golpesLegacy++; }
+    return req.url;
+  },
+});
+
+app.addHook('onSend', async (req, reply, payload) => {
+  const v = /** @type {PeticionCruda} */ (req.raw).__api;
+  if (!v) return payload;
+  reply.header('x-api-version', v === V_ACTUAL ? String(V_ACTUAL) : `${v}-legacy`);
+  if (v !== V_ACTUAL) {
+    reply.header('deprecation', 'true');
+    reply.header('sunset', SUNSET);
+    reply.header('link', `<${req.url.replace('/api/', `/api/v${V_ACTUAL}/`)}>; rel="successor-version"`);
+  }
+  return payload;
+});
 await app.register(cookie);
 
 const ORIGIN = process.env.WEB_ORIGIN ?? 'http://localhost:4321';
@@ -327,95 +402,18 @@ app.delete('/api/ranking/optin', async (req, reply) => {
   return { apuntado: false };
 });
 
-// ---------------------------------------------------------------------------
-// Ligas semanales
-//
-// Decisiones tomadas, no heredadas:
-//  · ZONA: America/Bogota para todo el mundo. Una sola zona declarada, porque con
-//    la de cada cual dos personas ven cierres distintos y la tabla no compara.
-//  · MINIMO DE COHORTE: por debajo de MIN_LIGA nadie tiene liga. Una liga de dos
-//    es una competicion falsa; es mas honesto decir que aun no hay.
-//  · SOLO PAGO Y APUNTADO: hace falta ranking_optin (el alias es lo unico publico)
-//    y paid=1. Competir por un ascenso que no puedes usar es una mala experiencia.
-//  · TERMINAL: quien acabo los 36 labs no genera caudal y bajaria por haber
-//    terminado. Pasa a 'salon' y conserva su metal.
-const ZONA_LIGA = 'America/Bogota';
-const MIN_LIGA = 5;
-const METALES = ['bronce', 'plata', 'oro'];
-
-// Caudal de la semana en curso: labs resueltos por PRIMERA vez dentro de ella.
-// El MIN(at) por (user_id, lab_id) es lo que hace imposible inflarlo repitiendo.
-// Nota: aqui va $1 literal en vez de ? porque la zona se reusa tres veces y
-// dollars() numeraria tres parametros distintos. dollars() solo toca los ?.
-const SQL_CAUDAL = `
-  WITH primera AS (
-    SELECT user_id, lab_id, MIN(at) AS cuando
-    FROM attempts WHERE correct = 1
-    GROUP BY user_id, lab_id
-  ), sem AS (
-    SELECT date_trunc('week', (now() AT TIME ZONE $1)) AS lunes
-  )
-  SELECT o.user_id, o.alias,
-         COUNT(p.lab_id)::int AS caudal,
-         (SELECT COUNT(*)::int FROM primera q WHERE q.user_id = o.user_id) AS total
-  FROM ranking_optin o
-  JOIN users us ON us.id = o.user_id AND us.paid = 1
-  LEFT JOIN primera p ON p.user_id = o.user_id
-       AND (p.cuando AT TIME ZONE $1) >= (SELECT lunes FROM sem)
-  GROUP BY o.user_id, o.alias
-  ORDER BY caudal DESC, o.alias ASC`;
-
-// El metal sale del TERCIO en que caes, no de un umbral fijo de labs. Con umbral
-// fijo, una semana floja deja la liga de oro vacia y la de bronce llena.
-function reparteMetales(filas) {
-  const n = filas.length;
-  const corte1 = Math.ceil(n / 3), corte2 = Math.ceil((n * 2) / 3);
-  return filas.map((f, i) => ({
-    ...f,
-    metal: f.total >= 36 ? 'oro' : i < corte1 ? 'oro' : i < corte2 ? 'plata' : 'bronce',
-    estado: f.total >= 36 ? 'salon' : 'activo',
-    puesto: i + 1,
-  }));
-}
-
+// Ligas semanales. La logica vive en ./ligas.js porque el cron la necesita igual
+// y duplicar el reparto de metales garantiza que un dia la tabla que ves y la que
+// se cierra no coincidan.
 app.get('/api/ligas', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  const filas = await all(SQL_CAUDAL, [ZONA_LIGA]);
-  const sem = await get(`SELECT date_trunc('week', (now() AT TIME ZONE $1))::date AS lunes,
-                                (date_trunc('week', (now() AT TIME ZONE $1)) + interval '7 days')::date AS cierra`,
-                        [ZONA_LIGA]);
-  if (filas.length < MIN_LIGA) {
-    return { activa: false, faltan: MIN_LIGA - filas.length, minimo: MIN_LIGA,
-             zona: ZONA_LIGA, semana: sem, tabla: [], yo: null };
-  }
-  const tabla = reparteMetales(filas);
-  const yo = tabla.find((r) => r.user_id === u.id) ?? null;
-  // El user_id no sale: el alias es lo unico publico de otra persona.
-  const publica = tabla.map(({ user_id, ...r }) => r);
-  return {
-    activa: true, zona: ZONA_LIGA, semana: sem, minimo: MIN_LIGA,
-    metales: METALES, tabla: publica,
-    yo: yo ? { alias: yo.alias, metal: yo.metal, puesto: yo.puesto, caudal: yo.caudal, estado: yo.estado } : null,
-  };
+  return estadoLigas(u.id);
 });
 
-// Cierre de la semana. Idempotente: la PK (user_id, week) con DO NOTHING deja
-// reintentar sin duplicar. Lo llama un cron; tambien vale a mano desde admin.
 app.post('/api/ligas/cerrar', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   if (u.role !== 'admin') return reply.code(403).send({ error: 'solo_admin' });
-  const filas = await all(SQL_CAUDAL, [ZONA_LIGA]);
-  if (filas.length < MIN_LIGA) return { cerradas: 0, motivo: 'cohorte_insuficiente', minimo: MIN_LIGA };
-  const tabla = reparteMetales(filas);
-  const sem = await get(`SELECT date_trunc('week', (now() AT TIME ZONE $1))::date AS lunes`, [ZONA_LIGA]);
-  let n = 0;
-  for (const r of tabla) {
-    const res = await run(`INSERT INTO league_week (user_id, week, metal, caudal, puesto, estado, cerrada)
-      VALUES (?,?,?,?,?,?,1) ON CONFLICT (user_id, week) DO NOTHING`,
-      [r.user_id, sem.lunes, r.metal, r.caudal, r.puesto, r.estado]);
-    n += res?.rowCount ?? 0;
-  }
-  return { cerradas: n, semana: sem.lunes, total: tabla.length };
+  return cerrarSemana();
 });
 
 app.post('/api/labs/:id/attempt', async (req, reply) => {
@@ -456,20 +454,90 @@ const MAX_HIST = 24;
 
 app.get('/api/chat/estado', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  // Se dice qué proveedor atiende: la política de privacidad lo promete.
+  // Se dice qué proveedor atiende: la política de privacidad lo promete. El dato
+  // viene del servicio de IA, que es quien tiene las llaves desde v3.
+  const s = await saludIA();
   return {
-    disponible: hayProveedor(),
-    proveedores: proveedores().map((p) => ({ id: p.id, modelo: p.modelo })),
+    disponible: Boolean(s.ok) && (s.proveedores?.length ?? 0) > 0,
+    proveedores: (s.proveedores ?? []).map((id) => ({ id, modelo: s.modelos?.[id] ?? null })),
     herramientas: catalogo().map((h) => h.nombre),
-    vueltasMax: 4,
+    vueltasMax: s.vueltas ?? 4,
+    servicio: { ok: Boolean(s.ok), error: s.error ?? null, version: s.version ?? null,
+                promptSha: s.prompt_sha ?? null, violaciones: s.violaciones ?? null },
   };
 });
 
-app.post('/api/chat', async (req, reply) => {
+// ---------- Puente interno: SOLO lo llama el servicio de IA ----------
+//
+// Aqui es donde el aislamiento se cumple de verdad. El servicio manda el nombre
+// de la herramienta y los args del modelo; el userId sale de la COOKIE que el
+// servicio reenvia sin abrir. Ninguna firma acepta un identificador de persona,
+// asi que el modelo no tiene forma de expresar «los datos de otro».
+//
+// Se exige el secreto de servicio Y una sesion valida: el secreto prueba de donde
+// viene la llamada, la cookie prueba de quien. Sin las dos no se ejecuta nada.
+function esDelServicio(req) {
+  return Boolean(IA_SECRETO) && req.headers['x-ia-secreto'] === IA_SECRETO;
+}
+
+app.get('/api/interno/catalogo', async (req, reply) => {
+  if (!esDelServicio(req)) return reply.code(401).send({ error: 'no_es_el_servicio' });
+  return { catalogo: catalogo() };
+});
+
+// El esquema no es decoracion: Fastify valida ANTES del handler y responde 400
+// solo. Es la respuesta al hallazgo de tsgo — «se lee req.body sin forma
+// declarada» — en el codigo nuevo. additionalProperties:false es lo que impide
+// que llegue un campo que nadie mira.
+const ESQ_HERRAMIENTA = {
+  body: {
+    type: 'object', required: ['nombre'], additionalProperties: false,
+    properties: {
+      nombre: { type: 'string', minLength: 1, maxLength: 64 },
+      args: { type: 'object' },
+    },
+  },
+};
+
+app.post('/api/interno/herramienta', { schema: ESQ_HERRAMIENTA }, async (req, reply) => {
+  if (!esDelServicio(req)) return reply.code(401).send({ error: 'no_es_el_servicio' });
+  const sesion = String(req.headers['x-ia-sesion'] ?? '');
+  if (!sesion) return reply.code(401).send({ error: 'sin_sesion' });
+  // La cookie se valida con el MISMO camino que una peticion del navegador: no
+  // hay una via de confianza distinta para el servicio.
+  const claim = verify(sesion);
+  if (!claim?.sub) return reply.code(401).send({ error: 'sesion_invalida' });
+  const u = await get('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL', [claim.sub]);
+  if (!u) return reply.code(401).send({ error: 'sesion_invalida' });
+  const nombre = String(req.body?.nombre ?? '');
+  const args = req.body?.args && typeof req.body.args === 'object' ? req.body.args : {};
+  return ejecutar({ userId: u.id }, nombre, args);
+});
+
+const ESQ_CHAT = {
+  body: {
+    type: 'object', required: ['mensajes'], additionalProperties: false,
+    properties: {
+      mensajes: {
+        type: 'array', minItems: 1, maxItems: 64,
+        items: {
+          type: 'object', required: ['role', 'content'], additionalProperties: false,
+          properties: {
+            role: { type: 'string', enum: ['user', 'assistant'] },
+            content: { type: 'string', minLength: 1, maxLength: LARGO_MSG },
+          },
+        },
+      },
+      lang: { type: 'string', enum: ['es', 'en', 'auto'] },
+    },
+  },
+};
+
+app.post('/api/chat', { schema: ESQ_CHAT }, async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  if (!hayProveedor()) {
-    return reply.code(501).send({ error: 'sin_proveedor',
-      msg: 'Falta la llave de un proveedor en el servidor (ANTHROPIC_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, KIMI_API_KEY, HF_TOKEN u OPENCODE_API_KEY).' });
+  if (!hayIA()) {
+    return reply.code(501).send({ error: 'sin_ia',
+      msg: 'Falta IA_SECRETO: la API no puede hablar con el servicio de IA (ai/). Genera las claves con scripts/claves.sh.' });
   }
   const crudos = Array.isArray(req.body?.mensajes) ? req.body.mensajes : [];
   const mensajes = crudos
@@ -479,8 +547,12 @@ app.post('/api/chat', async (req, reply) => {
   if (!mensajes.length) return reply.code(400).send({ error: 'sin_mensaje' });
   const lang = LANGS.includes(req.body?.lang) && req.body.lang !== 'auto' ? req.body.lang : (u.lang === 'auto' ? 'es' : u.lang);
 
-  const r = await correr({ ctx: { userId: u.id }, mensajes, lang });
-  if (r.error) return reply.code(502).send(r);
+  // La cookie viaja OPACA al servicio: no se abre ni se traduce a un userId.
+  // Ese es el punto — el servicio de IA no puede filtrar lo que no tiene.
+  const sesion = req.cookies?.[COOKIE] ?? '';
+  if (!sesion) return reply.code(401).send({ error: 'sin_sesion' });
+  const r = await hablarConIA({ sesion, mensajes, lang });
+  if (r.error) return reply.code(r.error === 'sin_proveedor' ? 501 : 502).send(r);
   return r;
 });
 
@@ -593,26 +665,56 @@ app.post('/api/payments/mercadopago/webhook', async (req, reply) => {
   if (got.length !== exp.length || !timingSafeEqual(got, exp)) {
     return reply.code(401).send({ error: 'firma_invalida' });
   }
+  // Firma valida: se ANOTA y se responde 200 ya. Consultar la API de Mercado Pago
+  // aqui era el problema — si tarda, ellos dan timeout y reintentan, y el paid=1
+  // del comprador quedaba a merced de su politica de reintentos.
+  // La clave es el id del pago: su reintento no encola un segundo trabajo.
+  const { nuevo } = await encola('pago.mercadopago', { dataId: String(dataId) }, String(dataId));
+  return { ok: true, encolado: nuevo };
+});
+
+app.get('/api/version', async () => ({
+  actual: V_ACTUAL,
+  deprecadas: V_VIEJAS.map((v) => ({ version: v, prefijo: `/api/v${v}/`, estado: 'legacy-deprecado',
+                                     sunset: SUNSET, golpes: golpes[v] })),
+  sinVersion: { prefijo: '/api/', trata_como: V_LEGACY, estado: 'legacy-deprecado' },
+  golpesLegacy,
+  ia: { url: IA_URL, secreto: Boolean(IA_SECRETO) },
+}));
+
+app.get('/api/health', async () => {
+  const { c } = await get('SELECT COUNT(*)::int AS c FROM labs');
+  return { ok: true, labs: c, cola: await estadoCola() };
+});
+
+// ---------- Trabajos en segundo plano ----------
+//
+// El manejador hace lo que antes hacia el webhook, pero fuera de su respuesta y
+// con reintentos. Si la API de Mercado Pago esta caida, lanza: trabajos.js lo
+// reprograma con espera exponencial y el pago acaba entrando.
+registra('pago.mercadopago', async ({ dataId }) => {
   const token = process.env.MP_ACCESS_TOKEN;
-  const pay = await (await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
+  if (!token) throw new Error('sin MP_ACCESS_TOKEN');
+  const res = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
     headers: { authorization: `Bearer ${token}` },
-  })).json();
+  });
+  if (!res.ok) throw new Error(`mercadopago ${res.status}`);
+  const pay = /** @type {any} */ (await res.json());
   const userId = pay?.metadata?.user_id ?? null;
   await run(`INSERT INTO payments (user_id,ext_id,status,amount,currency,raw) VALUES (?,?,?,?,?,?)
              ON CONFLICT (ext_id) DO UPDATE SET status = excluded.status, raw = excluded.raw`,
     [userId, String(dataId), String(pay.status), Number(pay.transaction_amount ?? 0),
      String(pay.currency_id ?? 'USD'), JSON.stringify(pay)]);
   if (pay.status === 'approved' && userId) await run('UPDATE users SET paid = 1 WHERE id = ?', [userId]);
-  return { ok: true };
-});
-
-app.get('/api/health', async () => {
-  const { c } = await get('SELECT COUNT(*)::int AS c FROM labs');
-  return { ok: true, labs: c };
 });
 
 // El esquema se aplica al arrancar: en Docker el backend puede subir antes que la base.
 await migrate();
+
+// El obrero arranca DESPUES de migrate(): sin la tabla jobs, su primera consulta
+// fallaria y el log abriria con un error que no significa nada.
+const paraObrero = obrero({ log: app.log });
+for (const s of ['SIGTERM', 'SIGINT']) process.once(s, () => { paraObrero(); process.exit(0); });
 
 const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? '127.0.0.1';

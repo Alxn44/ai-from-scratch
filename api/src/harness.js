@@ -1,3 +1,18 @@
+// ============================================================================
+// v2 LEGACY — DEPRECADO.  Retirada: 2027-02-21
+//
+// Sustituido por  ai/src/ia/agente/bucle.py  (Python, v3).
+// Ya no lo importa nadie: server.js habla con el servicio via api/src/ia.js.
+//
+// El paso [guardia] ya no esta en el bucle: el bucle manda nombre y args al
+// puente y el userId lo resuelve api/src/server.js desde la cookie. El servicio
+// de IA NUNCA ve un userId, asi que no puede filtrarlo ni por error.
+//
+// Se conserva sin borrar para poder comparar comportamiento con v3 mientras el
+// servicio nuevo acumula horas de vuelo. Borrarlo es seguro cuando
+// /api/version deje de contar golpes en v1 y v2.
+// ============================================================================
+
 // Harness del agente: un grafo pequeño y explícito, recorrido en bucle.
 //
 //   entrada -> [modelo] --texto--> salida

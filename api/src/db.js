@@ -166,6 +166,27 @@ CREATE TABLE IF NOT EXISTS league_week (
 );
 CREATE INDEX IF NOT EXISTS liga_semana ON league_week(week, metal, caudal DESC);
 
+-- Cola de trabajos (v3). Postgres como cola: ver el porque en trabajos.js.
+CREATE TABLE IF NOT EXISTS jobs (
+  id         SERIAL PRIMARY KEY,
+  tipo       TEXT NOT NULL,
+  -- (tipo, clave) UNIQUE es lo que hace encola() idempotente: el reintento de un
+  -- webhook trae el mismo id de pago y no crea un segundo trabajo.
+  clave      TEXT NOT NULL,
+  datos      JSONB NOT NULL DEFAULT '{}'::jsonb,
+  estado     TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','curso','hecho','muerto')),
+  intentos   SMALLINT NOT NULL DEFAULT 0,
+  error      TEXT,
+  corre_en   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  tomado_en  TIMESTAMPTZ,
+  acabado_en TIMESTAMPTZ,
+  creado_en  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (tipo, clave)
+);
+-- El indice es el que hace que tomaLote() no lea la tabla entera: filtra por
+-- estado y ordena por corre_en, que es exactamente lo que hace la consulta.
+CREATE INDEX IF NOT EXISTS jobs_listos ON jobs (estado, corre_en) WHERE estado = 'pendiente';
+
 CREATE TABLE IF NOT EXISTS ranking_optin (
   user_id   INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   alias     TEXT NOT NULL UNIQUE,

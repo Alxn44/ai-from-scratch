@@ -1,3 +1,18 @@
+// ============================================================================
+// v2 LEGACY — DEPRECADO.  Retirada: 2027-02-21
+//
+// Sustituido por  ai/src/ia/agente/proveedores.py  (Python, v3).
+// Ya no lo importa nadie: server.js habla con el servicio via api/src/ia.js.
+//
+// Portado sin cambiar la logica: mismos seis proveedores, mismos dos formatos de
+// cable, mismo orden por PROVEEDOR_ORDEN. Las llaves las lee ahora el servicio
+// de IA, no la API.
+//
+// Se conserva sin borrar para poder comparar comportamiento con v3 mientras el
+// servicio nuevo acumula horas de vuelo. Borrarlo es seguro cuando
+// /api/version deje de contar golpes en v1 y v2.
+// ============================================================================
+
 // Router de proveedores. La lista se arma con las llaves que existan en el
 // entorno: si falta una, ese proveedor simplemente no está. Se intenta en orden
 // y el primero que responda gana; el que falla queda anotado en la traza.
