@@ -1,46 +1,50 @@
+# Patrones SIN anclar a proposito: el proyecto se movio a app_ai_from_scratch/ y
+# las rutas ancladas (ai/.venv/, api/data/) dejaron de coincidir en silencio —
+# `ai/.venv` volvio a ser rastreable, 55 MB. Sin anclar sobreviven a la siguiente
+# mudanza.
+
+# --- Dependencias y compilados ---
 node_modules/
 dist/
-.DS_Store
-.env
-.env.*
-!.env.example
-*.log
-.gstack/
-.playwright-mcp/
-pgdata/
-api/data/
-
-# --- Python (servicio de IA, v3) ---
-ai/.venv/
+.astro/
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
 
-# --- Secretos: claves.sh los escribe, nunca se suben ---
-ai/.env
-scripts/claves/
-.env.bak.*
+# --- Datos locales ---
+pgdata/
+data/
+*.sqlite
+*.dump
 
-# --- Material que no es codigo fuente ---
-# Estaba en el arbol sin ignorar: `git add -A` intentaba subir 824 MB
-# (music/ 133M, iot/ 636M, ai/.venv 55M, un mp3 de 3.4M). GitHub rechaza >100MB.
+# --- Secretos: los escribe scripts/claves.sh, nunca se suben ---
+.env
+.env.*
+!.env.example
+claves/
+*.pem
+*.key
+
+# --- Sistema y herramientas ---
+.DS_Store
+*.log
+.gstack/
+.playwright-mcp/
+
+# --- Fuera del proyecto del curso: material pesado que vive en esta carpeta ---
+# (el proyecto es app_ai_from_scratch/; lo de abajo es de otras cosas)
+/iot/
+/music/
+/design_handoff_ai_carousel_hig/
+/CLAUDE.md
 *.mp3
-*.pdf
-music/
-iot/
-design_handoff_ai_carousel_hig/
-landing-full.png
-registro-en-oscuro.png
-cotizacion-*.html
-cotizacion-*.pdf
-music/
-# --- Material pesado que no es codigo del curso (defensivo) ---
 *.mp4
 *.mov
 *.wav
+*.pdf
 *.zip
-*.sqlite
-*.dump
-/scratch/
-/tmp/
+/landing-full.png
+/registro-en-oscuro.png
+/cotizacion-*.html
