@@ -12,7 +12,9 @@
     "docker": "docker compose up --build",
     "stop": "pnpm run stop:web; docker compose down",
     "reset": "docker compose down -v && docker compose up -d db && pnpm --dir api seed",
+    "test": "cd api && DATABASE_URL=${DATABASE_URL:-postgres://curso:curso@localhost:5432/curso} pnpm test",
     "test:aislamiento": "cd api && DATABASE_URL=${DATABASE_URL:-postgres://curso:curso@localhost:5432/curso} node test/aislamiento.mjs",
+    "test:herramientas": "cd api && DATABASE_URL=${DATABASE_URL:-postgres://curso:curso@localhost:5432/curso} node test/herramientas.mjs",
     "ontologia": "node scripts/gen-ontologia.mjs"
   }
 }

@@ -81,7 +81,9 @@ El gestor de paquetes es **pnpm** (`packageManager` fijado en los dos `package.j
 | Ranking | funciona · solo con opt-in y alias (`ranking_optin`). La respuesta no lleva nombre ni correo |
 | Chat | funciona · `/chat` con modo normal (sin costo, contesta con tus datos) y modo IA |
 | Modo IA | cableado · `api/src/harness.js` (modelo → guardia → herramientas → modelo, tope 4 vueltas) y 6 proveedores en `proveedores.js`. **Sin llave devuelve 501** |
-| Aislamiento del agente | probado · `pnpm --dir api test`: 31 comprobaciones de aislamiento + 17 del harness |
+| Herramientas del agente | funciona · **37 en cuatro familias** (`agent-tools.js`): 7 del curso, 16 de tu cuenta, 7 de la plataforma (precio, rutas, PDF, ajustes, soporte) y 7 de coordinación. Ninguna acepta el identificador de otra persona |
+| Pila, cola y caché | funciona · `api/src/agent-bus.js`. `plan_estudio` y `mis_errores` encolan (FIFO); `cola_siguiente` entrega el lab con su ficha, tus intentos y su lección **en una llamada**; el foco se apila (LIFO) y `foco_volver` regresa; el memo reusa el contenido del curso 10 min y lo tuyo solo dentro del turno. La traza dice cuándo un dato salió de la caché |
+| Aislamiento del agente | probado · `pnpm --dir api test`: 74 comprobaciones de aislamiento + 31 del bus + 42 de las herramientas + 21 del harness |
 | Progreso | funciona · cada intento va a Postgres y el panel lo lee |
 | Idioma y tema | funciona · los selectores se construyen con los diccionarios que existan (`IDIOMAS`); el API ya acepta `fr` y `pt` |
 | Narrativa por región | funciona · CO / LATAM / US / UE por cabecera geo del CDN, con los medios de pago que existen en cada mercado (`REGIONES.md`) |

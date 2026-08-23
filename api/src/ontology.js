@@ -68,6 +68,54 @@ export const ONTOLOGIA = {
     },
   },
 
+  lesson_text: {
+    proposito: 'El texto de enseñanza de cada lección por idioma: mecanismo, analogía y ejemplos resueltos.',
+    porUsuario: 'Idéntico para todos. Se sirve en el idioma de la sesión, con respaldo al español.',
+    columnas: {
+      lesson_n:  { clase: 'publico', nota: 'A qué lección pertenece.' },
+      lang:      { clase: 'publico', nota: 'es | en (fr y pt cuando existan).' },
+      technical: { clase: 'publico', nota: 'El mecanismo con precisión, 90-140 palabras.' },
+      analogy:   { clase: 'publico', nota: 'Una sola imagen cotidiana, 50-80 palabras.' },
+      examples:  { clase: 'publico', nota: 'JSON con dos casos resueltos: entrada, salida y por qué.' },
+    },
+  },
+
+  achievements: {
+    proposito: 'Logros ganados: tres grados por lección y un rango por cada lección cerrada.',
+    porUsuario: 'Solo los propios. El rango de un tercero solo aparece dentro del ranking, y solo si esa persona aceptó salir.',
+    columnas: {
+      user_id:   { clase: 'jamas',  nota: 'El agente nunca lo ve ni lo escribe: sale de la sesión.' },
+      code:      { clase: 'propio', nota: 'l07.maestro, rango.05. El nombre visible vive en el i18n del front.' },
+      kind:      { clase: 'propio', nota: 'leccion | rango.' },
+      lesson_n:  { clase: 'propio', nota: 'A qué lección pertenece, o vacío en los rangos.' },
+      earned_at: { clase: 'propio', nota: 'Cuándo se ganó.' },
+    },
+  },
+
+  ranking_optin: {
+    proposito: 'Quién aceptó aparecer en el ranking y con qué alias.',
+    porUsuario: 'AGREGADO: el agente ve alias y conteos de quienes aceptaron. El mapeo alias → nombre/correo no lo expone ninguna herramienta, así que «quién es kata.mono» no tiene respuesta.',
+    columnas: {
+      user_id:   { clase: 'jamas',    nota: 'Uniría el alias con la persona: es justo lo que no puede salir.' },
+      alias:     { clase: 'agregado', nota: 'Lo único público de otra persona.' },
+      joined_at: { clase: 'agregado', nota: 'Desempata la tabla: a igual avance, quien llegó antes va arriba.' },
+    },
+  },
+
+  league_week: {
+    proposito: 'La liga semanal cerrada: metal, caudal y puesto de cada semana.',
+    porUsuario: 'El puesto propio, y de terceros solo el alias con su metal. El caudal se calcula de attempts, no de aquí.',
+    columnas: {
+      user_id: { clase: 'jamas',    nota: 'De la sesión.' },
+      week:    { clase: 'propio',   nota: 'El lunes de la semana, en America/Bogota.' },
+      metal:   { clase: 'agregado', nota: 'bronce | plata | oro, por tercios de la tabla.' },
+      caudal:  { clase: 'agregado', nota: 'Labs resueltos por primera vez esa semana.' },
+      puesto:  { clase: 'agregado', nota: 'Dentro de su metal, 1 = arriba.' },
+      estado:  { clase: 'agregado', nota: 'activo | salon. Quien acabó los 36 conserva su metal.' },
+      cerrada: { clase: 'propio',   nota: '1 = la semana ya se cerró y no se recalcula.' },
+    },
+  },
+
   attempts: {
     proposito: 'Cada intento de cada persona en cada lab. Es de donde sale el progreso.',
     porUsuario: 'Solo las filas propias. Los intentos de terceros no son alcanzables ni como conteo: «cuántos intentos lleva Paula» es exactamente la fuga que hay que evitar.',
@@ -110,13 +158,9 @@ export const ONTOLOGIA = {
 // Tablas que aún no existen. La regla se escribe ANTES para que quien las
 // construya la herede en vez de improvisarla.
 export const ONTOLOGIA_PREVISTA = {
-  achievements: {
-    proposito: 'Rango conseguido por persona (Iniciado … Mano Firme).',
-    porUsuario: 'Solo los propios. El rango de un tercero solo aparece dentro del ranking, y solo si esa persona aceptó salir.',
-  },
-  ranking_optin: {
-    proposito: 'Quién aceptó aparecer en el ranking y con qué alias.',
-    porUsuario: 'AGREGADO: el agente ve alias + conteos de quienes aceptaron. El mapeo alias → nombre/correo no lo expone ninguna herramienta, así que «quién es kata.mono» no tiene respuesta.',
+  chat_log: {
+    proposito: 'Historial de conversaciones del modo IA, si algún día se guarda.',
+    porUsuario: 'PROPIO y con fecha de caducidad. Hoy no se guarda nada: la conversación vive en el navegador y el servidor solo la ve de paso. Si se añade la tabla, el agente no debe poder leer conversaciones anteriores sin que la persona lo pida.',
   },
 };
 

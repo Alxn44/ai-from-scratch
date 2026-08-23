@@ -4,9 +4,10 @@ import { all, get, migrate, run } from './db.js';
 import { COOKIE, MINUTOS_TOKEN, cookieOpts, hashPassword, hashToken, nuevoToken, sign, verify, verifyPassword } from './auth.js';
 import { grade, hint, publicLab } from './grade.js';
 import { logrosDe, nivelRango } from './logros.js';
-import { correr } from './harness.js';
+import { VUELTAS, correr } from './harness.js';
+import { METALES, MIN_LIGA, ZONA as ZONA_LIGA, caudal, reparteMetales, semanaActual } from './ligas.js';
 import { hayProveedor, proveedores } from './proveedores.js';
-import { catalogo } from './agent-tools.js';
+import { catalogo, familias } from './agent-tools.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 await app.register(cookie);
@@ -339,51 +340,14 @@ app.delete('/api/ranking/optin', async (req, reply) => {
 //    y paid=1. Competir por un ascenso que no puedes usar es una mala experiencia.
 //  · TERMINAL: quien acabo los 36 labs no genera caudal y bajaria por haber
 //    terminado. Pasa a 'salon' y conserva su metal.
-const ZONA_LIGA = 'America/Bogota';
-const MIN_LIGA = 5;
-const METALES = ['bronce', 'plata', 'oro'];
-
-// Caudal de la semana en curso: labs resueltos por PRIMERA vez dentro de ella.
-// El MIN(at) por (user_id, lab_id) es lo que hace imposible inflarlo repitiendo.
-// Nota: aqui va $1 literal en vez de ? porque la zona se reusa tres veces y
-// dollars() numeraria tres parametros distintos. dollars() solo toca los ?.
-const SQL_CAUDAL = `
-  WITH primera AS (
-    SELECT user_id, lab_id, MIN(at) AS cuando
-    FROM attempts WHERE correct = 1
-    GROUP BY user_id, lab_id
-  ), sem AS (
-    SELECT date_trunc('week', (now() AT TIME ZONE $1)) AS lunes
-  )
-  SELECT o.user_id, o.alias,
-         COUNT(p.lab_id)::int AS caudal,
-         (SELECT COUNT(*)::int FROM primera q WHERE q.user_id = o.user_id) AS total
-  FROM ranking_optin o
-  JOIN users us ON us.id = o.user_id AND us.paid = 1
-  LEFT JOIN primera p ON p.user_id = o.user_id
-       AND (p.cuando AT TIME ZONE $1) >= (SELECT lunes FROM sem)
-  GROUP BY o.user_id, o.alias
-  ORDER BY caudal DESC, o.alias ASC`;
-
-// El metal sale del TERCIO en que caes, no de un umbral fijo de labs. Con umbral
-// fijo, una semana floja deja la liga de oro vacia y la de bronce llena.
-function reparteMetales(filas) {
-  const n = filas.length;
-  const corte1 = Math.ceil(n / 3), corte2 = Math.ceil((n * 2) / 3);
-  return filas.map((f, i) => ({
-    ...f,
-    metal: f.total >= 36 ? 'oro' : i < corte1 ? 'oro' : i < corte2 ? 'plata' : 'bronce',
-    estado: f.total >= 36 ? 'salon' : 'activo',
-    puesto: i + 1,
-  }));
-}
+//
+// El calculo vive en `src/ligas.js` porque tambien lo usan las herramientas del
+// agente: si estuviera aqui, el chat y la pantalla contarian la semana distinto.
 
 app.get('/api/ligas', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  const filas = await all(SQL_CAUDAL, [ZONA_LIGA]);
-  const sem = await get(`SELECT date_trunc('week', (now() AT TIME ZONE $1))::date AS lunes,
-                                (date_trunc('week', (now() AT TIME ZONE $1)) + interval '7 days')::date AS cierra`,
-                        [ZONA_LIGA]);
+  const filas = await caudal();
+  const sem = await semanaActual();
   if (filas.length < MIN_LIGA) {
     return { activa: false, faltan: MIN_LIGA - filas.length, minimo: MIN_LIGA,
              zona: ZONA_LIGA, semana: sem, tabla: [], yo: null };
@@ -404,10 +368,10 @@ app.get('/api/ligas', async (req, reply) => {
 app.post('/api/ligas/cerrar', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   if (u.role !== 'admin') return reply.code(403).send({ error: 'solo_admin' });
-  const filas = await all(SQL_CAUDAL, [ZONA_LIGA]);
+  const filas = await caudal();
   if (filas.length < MIN_LIGA) return { cerradas: 0, motivo: 'cohorte_insuficiente', minimo: MIN_LIGA };
   const tabla = reparteMetales(filas);
-  const sem = await get(`SELECT date_trunc('week', (now() AT TIME ZONE $1))::date AS lunes`, [ZONA_LIGA]);
+  const sem = await semanaActual();
   let n = 0;
   for (const r of tabla) {
     const res = await run(`INSERT INTO league_week (user_id, week, metal, caudal, puesto, estado, cerrada)
@@ -457,11 +421,15 @@ const MAX_HIST = 24;
 app.get('/api/chat/estado', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   // Se dice qué proveedor atiende: la política de privacidad lo promete.
+  // Se dicen las herramientas agrupadas: 37 nombres en fila no le dicen nada a
+  // nadie, y la familia es justo lo que explica que el agente sepa de tu progreso
+  // pero no de nadie mas.
   return {
     disponible: hayProveedor(),
     proveedores: proveedores().map((p) => ({ id: p.id, modelo: p.modelo })),
     herramientas: catalogo().map((h) => h.nombre),
-    vueltasMax: 4,
+    familias: familias(),
+    vueltasMax: VUELTAS,
   };
 });
 

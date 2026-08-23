@@ -59,7 +59,8 @@ export function responderLocal(q: string, d: Datos): Resp {
   return { texto: `${T.rNoEntiendo} ${T.rNoEntiendoB}` };
 }
 
-export type Traza = { paso: string; proveedor?: string; modelo?: string; nombre?: string; ms?: number; ok?: boolean; herramientas?: string[]; error?: string; vuelta?: number };
+// `memo: true` = ese dato ya estaba en la sesión y no se volvió a consultar.
+export type Traza = { paso: string; proveedor?: string; modelo?: string; nombre?: string; ms?: number; ok?: boolean; memo?: boolean; herramientas?: string[]; error?: string; vuelta?: number };
 
 export async function preguntarIA(historial: { role: 'user' | 'assistant'; content: string }[], lang: string) {
   const res = await fetch('/api/chat', {
