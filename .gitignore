@@ -34,3 +34,13 @@ landing-full.png
 registro-en-oscuro.png
 cotizacion-*.html
 cotizacion-*.pdf
+music/
+# --- Material pesado que no es codigo del curso (defensivo) ---
+*.mp4
+*.mov
+*.wav
+*.zip
+*.sqlite
+*.dump
+/scratch/
+/tmp/

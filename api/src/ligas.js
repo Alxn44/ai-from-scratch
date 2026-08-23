@@ -77,6 +77,23 @@ export function reparteMetales(filas) {
   }));
 }
 
+// --- API que consume agent-tools.js (viene de la rama de las 37 herramientas) ---
+//
+// Se resuelve el add/add asi: se conserva ESTA implementacion (tiene el arreglo
+// medido de la consulta, O(U+P) en vez de O(UxP), y la ventana de ascenso) y se
+// exponen los tres nombres que la otra rama definia por su cuenta. Envoltorios
+// sobre el MISMO SQL: dos copias del reparto de caudal es garantizar que un dia
+// la tabla que ves y la que se cierra no coincidan.
+
+/** Alias historico. La otra rama llamaba ZONA a lo que aqui es ZONA_LIGA. */
+export const ZONA = ZONA_LIGA;
+
+/** Caudal crudo de la semana, sin repartir metales. */
+export const caudal = () => all(SQL_CAUDAL, [ZONA_LIGA]);
+
+/** Lunes de la semana en curso y cuando cierra. */
+export const semanaActual = () => get(SQL_SEMANA, [ZONA_LIGA]);
+
 /** Estado de la semana en curso. `userId` marca cual es "yo" y si subio de liga. */
 export async function estadoLigas(userId) {
   const filas = await all(SQL_CAUDAL, [ZONA_LIGA]);

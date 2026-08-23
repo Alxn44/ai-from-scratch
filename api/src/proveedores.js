@@ -56,14 +56,16 @@ export const hayProveedor = () => proveedores().length > 0;
 /** Herramientas del harness -> esquema del proveedor. */
 function comoTools(catalogo, formato) {
   // En agent-tools el argumento se declara como texto: «entero 1..12». Ese texto
-  // ES la descripción, y de ahí se deduce el tipo. Todos los declarados son
-  // obligatorios: no hay herramienta con argumento opcional.
+  // ES la descripción, y de ahí se deduce el tipo. Si empieza por «opcional», el
+  // argumento no entra en `required`: así `mis_pendientes` sirve para todo el
+  // curso o para una lección sin necesitar dos herramientas.
   const props = (args) => {
     const p = {}; const req = [];
     for (const [k, nota] of Object.entries(args ?? {})) {
-      const esNumero = /entero|n[uú]mero/i.test(String(nota));
-      p[k] = { type: esNumero ? 'integer' : 'string', description: String(nota) };
-      req.push(k);
+      const texto = String(nota);
+      const esNumero = /entero|n[uú]mero/i.test(texto);
+      p[k] = { type: esNumero ? 'integer' : 'string', description: texto };
+      if (!/^\s*opcional\b/i.test(texto)) req.push(k);
     }
     return { type: 'object', properties: p, required: req };
   };

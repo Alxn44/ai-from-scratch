@@ -42,7 +42,7 @@ const yo = await get("SELECT id FROM users WHERE email = 'ricardo@velez.co'");
 const otro = await get("SELECT id FROM users WHERE email = 'paula@correo.com'");
 
 let fallos = 0;
-const ok = (cond, txt) => { console.log(`  ${cond ? 'ok  ' : 'FALLO'} · ${txt}`); if (!cond) fallos++; };
+const ok = (cond, txt, extra) => { console.log(`  ${cond ? 'ok  ' : 'FALLO'} · ${txt}${!cond && extra ? ` — ${extra}` : ''}`); if (!cond) fallos++; };
 
 ok(proveedores().some((p) => p.id === 'opencode'), 'el router ve el proveedor falso');
 
@@ -70,14 +70,27 @@ ok(!/paula|correo\.com|pass_hash/i.test(resultado.content), 'el resultado no lle
 
 // El esquema de herramientas que ve el modelo: sin identificadores de usuario.
 const tools = segundo.tools ?? [];
-ok(tools.length === 7, `se declaran las 7 herramientas (fueron ${tools.length})`);
+ok(tools.length === 37, `se declaran las 37 herramientas (fueron ${tools.length})`);
 const props = JSON.stringify(tools.map((t) => t.function.parameters));
 ok(!/user_?id/i.test(props), 'ningún argumento declarado acepta un id de usuario');
-ok(/"lecci?on"|"leccion"/.test(JSON.stringify(tools.map((t) => t.function.name))), 'la herramienta de lección está declarada');
+const nombres = tools.map((t) => t.function.name);
+ok(nombres.includes('leccion') && nombres.includes('mi_panorama') && nombres.includes('cola_siguiente'),
+  'están declaradas las herramientas de lección, panorama y cola');
+
+// Un argumento «opcional ·» no puede salir como obligatorio: si sale, el modelo
+// se ve forzado a inventar un valor para poder llamar a la herramienta.
+const pend = tools.find((t) => t.function.name === 'mis_pendientes');
+ok(Array.isArray(pend?.function.parameters.required) && pend.function.parameters.required.length === 0,
+  'el argumento opcional de mis_pendientes no viaja como obligatorio');
+const enc = tools.find((t) => t.function.name === 'cola_encolar');
+ok(JSON.stringify(enc?.function.parameters.required ?? []) === '["tipo","ref"]',
+  'cola_encolar exige tipo y ref, y deja el motivo opcional', JSON.stringify(enc?.function.parameters.required));
 
 // Sistema: la ontología viaja y no menciona columnas prohibidas.
 const sistema = segundo.messages[0];
 ok(sistema.role === 'system' && sistema.content.includes('Ontología'), 'el sistema lleva la ontología');
+ok(/HERRAMIENTAS, POR FAMILIA[\s\S]*coordinar/.test(sistema.content), 'el sistema le explica al modelo las cuatro familias');
+ok(sistema.content.includes('mi_panorama'), 'y le dice por dónde empezar para no gastar vueltas');
 ok(!/pass_hash|solution/.test(sistema.content), 'el sistema no menciona pass_hash ni solution');
 
 // Sin sesión válida el bucle no ejecuta nada.

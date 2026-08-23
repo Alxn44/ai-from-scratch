@@ -19,7 +19,8 @@ const [prog, lecs, logros, rank, estado] = await Promise.all([
   apiFetch<{ lessons: Lec[] }>('/api/lessons', Astro.request),
   apiFetch<{ nivel: number; logros: unknown[] }>('/api/logros', Astro.request),
   apiFetch<{ tabla: { alias: string }[]; yo: { alias: string | null; puesto: number | null } }>('/api/ranking', Astro.request),
-  apiFetch<{ disponible: boolean; proveedores: { id: string; modelo: string }[]; herramientas: string[] }>('/api/chat/estado', Astro.request),
+  apiFetch<{ disponible: boolean; proveedores: { id: string; modelo: string }[]; herramientas: string[];
+             familias: Record<string, string[]> }>('/api/chat/estado', Astro.request),
 ]);
 
 // Todo lo que el modo normal necesita para responder sin llamar a nadie.
@@ -34,6 +35,15 @@ const datos = {
 const hayIA = !!estado?.disponible;
 const provs = estado?.proveedores ?? [];
 const tools = estado?.herramientas ?? [];
+// Treinta y siete nombres en fila no dicen nada. Agrupados por familia sí: es lo
+// que explica que el agente sepa de tu progreso y no pueda saber del de nadie más.
+const FAMILIAS: [string, string][] = [
+  ['contenido', C.famContenido], ['propio', C.famPropio],
+  ['producto', C.famProducto], ['coordinar', C.famCoordinar],
+];
+const grupos = FAMILIAS
+  .map(([clave, titulo]) => ({ titulo, nombres: estado?.familias?.[clave] ?? [] }))
+  .filter((g) => g.nombres.length);
 ---
 <App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.chat}>
   <div slot="topbar" class="seg" role="group" aria-label={C.modoAria}>
@@ -71,11 +81,23 @@ const tools = estado?.herramientas ?? [];
       <div class="card" style="display:flex;flex-direction:column;gap:10px;border-color:var(--hair2)">
         <p class="lbl">{C.soloTuyo}</p>
         <p class="s" style="color:var(--l2)">{C.soloTuyoB}</p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
-          {tools.map((h) => (
-            <span class="num" style="display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--hair2);font:500 10px/1 var(--m);color:var(--l3)">{h}</span>
+        <p class="lbl" style="margin-top:2px">{C.toolsTitulo.replace('{n}', String(tools.length))}</p>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          {grupos.map((g) => (
+            <div style="display:flex;gap:8px;align-items:baseline">
+              <span class="num" style="font:600 12px/1 var(--m);width:22px;flex:none">{g.nombres.length}</span>
+              <span class="s" style="color:var(--l2)">{g.titulo}</span>
+            </div>
           ))}
         </div>
+        <details style="margin-top:2px">
+          <summary class="lbl" style="cursor:pointer">{C.toolsVer}</summary>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+            {tools.map((h) => (
+              <span class="num" style="display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--hair2);font:500 10px/1 var(--m);color:var(--l3)">{h}</span>
+            ))}
+          </div>
+        </details>
       </div>
 
       <div class="card" style={`display:flex;flex-direction:column;gap:8px;border-left:2px solid ${hayIA ? 'var(--ok)' : 'var(--or)'}`}>
@@ -138,7 +160,7 @@ const tools = estado?.herramientas ?? [];
     const pintaTraza = (traza: Traza[]) => {
       const filas = traza.map((t) => {
         if (t.paso === 'modelo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none">${T.trazaModelo}</span><span class="s">${t.proveedor} · ${t.modelo} · ${t.ms}ms${t.herramientas?.length ? ` → ${t.herramientas.join(', ')}` : ''}</span></div>`;
-        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${t.nombre} · ${t.ms}ms</span></div>`;
+        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${t.nombre} · ${t.ms}ms${t.memo ? ` · ${T.trazaMemo}` : ''}</span></div>`;
         if (t.paso === 'fallo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:var(--rd)">${T.trazaFallo}</span><span class="s">${esc(String(t.error ?? ''))}</span></div>`;
         return '';
       }).join('');

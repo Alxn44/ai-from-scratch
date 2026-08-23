@@ -5,9 +5,13 @@ import { COOKIE, MINUTOS_TOKEN, cookieOpts, hashPassword, hashToken, nuevoToken,
 import { grade, hint, publicLab } from './grade.js';
 import { logrosDe, nivelRango } from './logros.js';
 import { cerrarSemana, estadoLigas } from './ligas.js';
-import { catalogo, ejecutar } from './agent-tools.js';
-// v3: el bucle del agente vive en ai/ (Python). harness.js y proveedores.js
-// siguen en el repo marcados como v2 legacy deprecado y ya no se importan.
+// ESTADO INTERMEDIO, dicho a proposito: el BUCLE del agente ya vive en Python
+// (ai/), y las HERRAMIENTAS siguen aqui — Python las pide por
+// /api/interno/herramienta y este proceso las ejecuta con el userId de la cookie.
+// Es coherente y funciona, pero no es el destino: las herramientas se portan a
+// Python (todo lo que es IA va a Python) y entonces agent-tools.js pasa a v2
+// legacy como harness.js y proveedores.js. Ver MIGRACION.md.
+import { catalogo, ejecutar, familias } from './agent-tools.js';
 import { IA_SECRETO, IA_URL, hablarConIA, hayIA, saludIA } from './ia.js';
 import { encola, estadoCola, obrero, registra } from './trabajos.js';
 
@@ -402,9 +406,26 @@ app.delete('/api/ranking/optin', async (req, reply) => {
   return { apuntado: false };
 });
 
-// Ligas semanales. La logica vive en ./ligas.js porque el cron la necesita igual
-// y duplicar el reparto de metales garantiza que un dia la tabla que ves y la que
-// se cierra no coincidan.
+// ---------------------------------------------------------------------------
+// Ligas semanales
+//
+// Decisiones tomadas, no heredadas:
+//  · ZONA: America/Bogota para todo el mundo. Una sola zona declarada, porque con
+//    la de cada cual dos personas ven cierres distintos y la tabla no compara.
+//  · MINIMO DE COHORTE: por debajo de MIN_LIGA nadie tiene liga. Una liga de dos
+//    es una competicion falsa; es mas honesto decir que aun no hay.
+//  · SOLO PAGO Y APUNTADO: hace falta ranking_optin y paid=1.
+//  · TERMINAL: quien acabo los 36 labs pasa a 'salon' y conserva su metal.
+//
+// El calculo vive en ./ligas.js porque lo usan tambien el cron y las herramientas
+// del agente: si estuviera aqui, el chat, la pantalla y el cierre semanal
+// contarian la semana distinto.
+//
+// Se llama a estadoLigas() y no se reconstruye la respuesta a mano: esa funcion
+// es la unica que calcula `subida` (el ascenso contra la ultima semana CERRADA,
+// con la ventana que evita compararte contigo mismo de hace unas horas). La
+// version en linea de la otra rama no lo traia, y sin `subida` la tarjeta de
+// ascenso no aparece nunca.
 app.get('/api/ligas', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   return estadoLigas(u.id);
@@ -413,6 +434,8 @@ app.get('/api/ligas', async (req, reply) => {
 app.post('/api/ligas/cerrar', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   if (u.role !== 'admin') return reply.code(403).send({ error: 'solo_admin' });
+  // Idempotente por la PK (user_id, week) con DO NOTHING: el cron puede fallar
+  // y reintentar sin que nadie mire nada a mano.
   return cerrarSemana();
 });
 
@@ -456,11 +479,18 @@ app.get('/api/chat/estado', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   // Se dice qué proveedor atiende: la política de privacidad lo promete. El dato
   // viene del servicio de IA, que es quien tiene las llaves desde v3.
+  //
+  // Y se dicen las herramientas AGRUPADAS por familia: 37 nombres en fila no le
+  // dicen nada a nadie, y la familia es justo lo que explica que el agente sepa
+  // de tu progreso y no del de nadie mas.
   const s = await saludIA();
   return {
     disponible: Boolean(s.ok) && (s.proveedores?.length ?? 0) > 0,
     proveedores: (s.proveedores ?? []).map((id) => ({ id, modelo: s.modelos?.[id] ?? null })),
     herramientas: catalogo().map((h) => h.nombre),
+    familias: familias(),
+    // VUELTAS ya no se importa de harness.js (v2 deprecado): el tope lo declara
+    // quien corre el bucle, que es el servicio de Python.
     vueltasMax: s.vueltas ?? 4,
     servicio: { ok: Boolean(s.ok), error: s.error ?? null, version: s.version ?? null,
                 promptSha: s.prompt_sha ?? null, violaciones: s.violaciones ?? null },

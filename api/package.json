@@ -8,15 +8,17 @@
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js",
     "seed": "node --env-file-if-exists=.env src/seed.js",
-    "test": "node test/aislamiento.mjs && node test/harness.mjs && node --env-file-if-exists=.env test/cola.mjs && node --env-file-if-exists=.env test/puente.mjs",
+    "test": "node test/aislamiento.mjs && node test/bus.mjs && node test/herramientas.mjs && node test/harness.mjs && node --env-file-if-exists=.env test/cola.mjs && node --env-file-if-exists=.env test/puente.mjs",
     "test:aislamiento": "node test/aislamiento.mjs",
     "test:harness": "node test/harness.mjs",
-    "ligas:cerrar": "node --env-file-if-exists=.env scripts/cerrar-ligas.mjs",
+    "test:bus": "node test/bus.mjs",
+    "test:herramientas": "node test/herramientas.mjs",
+    "test:cola": "node --env-file-if-exists=.env test/cola.mjs",
     "test:puente": "node --env-file-if-exists=.env test/puente.mjs",
+    "ligas:cerrar": "node --env-file-if-exists=.env scripts/cerrar-ligas.mjs",
     "check": "node scripts/tipos.mjs",
     "check:lista": "node scripts/tipos.mjs --lista",
-    "check:fijar": "node scripts/tipos.mjs --fijar",
-    "test:cola": "node --env-file-if-exists=.env test/cola.mjs"
+    "check:fijar": "node scripts/tipos.mjs --fijar"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

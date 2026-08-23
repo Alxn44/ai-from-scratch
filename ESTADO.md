@@ -26,9 +26,11 @@ Versión visual del mismo tablero: `Libro de obra · IA desde cero` (artifact pu
 
 | punto | estado | con qué se comprueba |
 |---|---|---|
-| Ontología por tabla | hecho | `api/src/ontology.js`, `ONTOLOGIA.md` generado del módulo |
-| Nadie sabe de nadie por el agente | hecho | `pnpm --dir api test` → 31 + 17 comprobaciones, sin fallos |
+| Ontología por tabla | hecho | `api/src/ontology.js`, `ONTOLOGIA.md` generado del módulo (10 tablas) |
+| Nadie sabe de nadie por el agente | hecho | `pnpm --dir api test` → 74 + 31 + 42 + 21 comprobaciones, sin fallos |
 | Chat que integra todo | hecho | `/chat`, 5 atajos verificados |
+| Herramientas para lo que se pregunta por chat | hecho | 37 en cuatro familias (`agent-tools.js`): curso, cuenta propia, plataforma y coordinación |
+| Pila y cola para no gastar vueltas | hecho | `api/src/agent-bus.js`: cola FIFO de plan, pila LIFO de foco, memo por turno. `mi_panorama` responde con una llamada lo que antes costaba cinco |
 | Modo IA junto al normal | hecho | modo normal sin costo; modo IA con traza visible |
 | Harness / bucle / grafo | hecho | `api/src/harness.js`, tope 4 vueltas, `api/test/harness.mjs` |
 | Seis proveedores cableados | hecho, faltan llaves | `api/src/proveedores.js`: anthropic, openrouter, deepseek, kimi, huggingface, opencode |

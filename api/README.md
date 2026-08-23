@@ -24,8 +24,23 @@ pnpm dev               # http://127.0.0.1:8787
 - **Pagos**: sin `MP_ACCESS_TOKEN` las rutas devuelven 501 a propósito. El webhook
   verifica la firma `x-signature` con `MP_WEBHOOK_SECRET` antes de creer nada, y solo
   marca `paid = 1` cuando Mercado Pago confirma `approved`.
-- 29 de los 36 labs están en `draft = 1`: mecánica asignada, enunciado por escribir.
-  Responder uno devuelve 409.
+- **El agente tiene 37 herramientas y ninguna acepta un identificador de persona**
+  (`src/agent-tools.js`). El `userId` sale de la cookie, en el servidor, y `ejecutar()`
+  descarta cualquier clave que no esté declarada — queda anotada en `_ignorado`. Si
+  añades una herramienta: declara su familia, si es pública o propia, y qué argumentos
+  acepta; nada de un parámetro de usuario, y nada de leer `labs.solution`.
+- **La pila y la cola del agente viven en memoria** (`src/agent-bus.js`), indexadas por
+  sesión. La cola es el plan de estudio (una herramienta encola, otra consume), la pila es
+  el foco de la conversación y el memo evita repetir la misma consulta dentro del turno.
+  Un reinicio borra todo eso a propósito: no es un dato del que haya que responder, así
+  que no hay tabla. Lo propio se cachea **solo dentro del turno**, porque entre dos
+  mensajes la persona puede haber resuelto un lab en otra pestaña.
+- **El precio vive en `src/producto.js`**, y de ahí lo leen el checkout y la herramienta
+  `precio_y_compra`. Si cambia en un sitio y no en el otro, el chat miente.
+- **Las ligas se calculan en `src/ligas.js`**, no en la ruta: lo usan `/api/ligas` y el
+  agente, y con dos copias el chat y la pantalla contarían la semana distinto.
+- Los 36 labs están escritos (`draft = 0`). Si alguno vuelve a `draft = 1`, responderlo
+  devuelve 409 y el agente lo marca como borrador en vez de inventarle enunciado.
 
 ## Usuarios sembrados (solo desarrollo)
 
@@ -52,6 +67,22 @@ pnpm dev               # http://127.0.0.1:8787
 | GET | `/api/tutor/cohort` | tutor, admin |
 | GET/PATCH | `/api/admin/users…` · `/api/admin/payments` | admin |
 | POST | `/api/payments/mercadopago/preference` · `/webhook` | ver arriba |
+| POST | `/api/chat` · GET `/api/chat/estado` | sesión (501 sin llave de proveedor) |
+
+## Pruebas
+
+```bash
+pnpm test                  # las cuatro, en orden
+pnpm test:aislamiento      # 74 · que no se pueda sacar nada de otra persona
+pnpm test:bus              # 31 · FIFO, LIFO, topes y caché por turno (sin base)
+pnpm test:herramientas     # 42 · que las 37 respondan y que la cola se consuma
+pnpm test:harness          # 21 · el bucle contra un proveedor falso, sin gastar créditos
+```
+
+Necesitan Postgres arriba y la siembra hecha (`pnpm db && pnpm seed` desde la raíz).
+
+Las de la cola y del puente necesitan el servidor arriba y el `.env` con
+`IA_SECRETO` (`pnpm test:cola`, `pnpm test:puente`).
 
 ## Versiones de la API
 
