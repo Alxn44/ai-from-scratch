@@ -16,4 +16,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
 EXPOSE 4321
+
+# Drop root, same reasoning as api/Dockerfile: the `node` user ships with the
+# image, /app stays root-owned and read-only to the process, and the Astro
+# standalone server writes nothing at runtime.
+USER node
 CMD ["node", "dist/server/entry.mjs"]

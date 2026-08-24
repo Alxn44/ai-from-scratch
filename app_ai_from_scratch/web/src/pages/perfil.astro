@@ -4,6 +4,7 @@ import App from '../layouts/App.astro';
 import { gate, apiFetch, initials } from '../lib/session';
 import { icon } from '../lib/icons';
 import { t, resolveLang } from '../lib/i18n';
+import { jsonSafe } from '../lib/json-safe';
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
 const prog = await apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number; perLesson: { n: number; total: number; solved: number }[] }>('/api/progress', Astro.request);
@@ -58,7 +59,7 @@ const labPct = prog ? Math.round((prog.solvedLabs / prog.totalLabs) * 100) : 0;
     </div>
   </div>
 
-  <script type="application/json" id="ui-txt" is:inline set:html={JSON.stringify(L.ui)}></script>
+  <script type="application/json" id="ui-txt" is:inline set:html={jsonSafe(L.ui)}></script>
 
   <script>
     const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);

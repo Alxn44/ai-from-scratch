@@ -3,6 +3,9 @@ import { icon } from '../lib/icons';
 import { initials, type User } from '../lib/session';
 import { t, resolveLang, IDIOMAS, NOMBRE_IDIOMA, type Lang } from '../lib/i18n';
 import { TOKENS, LANG_FX } from '../lib/theme-css';
+import { jsonSafe } from '../lib/json-safe';
+import { aiFlags } from '../lib/ai-mode';
+import AiPanel from '../components/AiPanel.astro';
 interface Props { user: User; title: string; crumb: string; active: string; }
 const { user, title, crumb, active } = Astro.props;
 
@@ -13,10 +16,14 @@ const L = t(lang);
 // El tema 'auto' lo resuelve el CSS con prefers-color-scheme, sin JS y sin parpadeo.
 const themeAttr = user.theme;
 
+// Data embedded in a <script type="application/json"> block must not contain a
+// literal "<": a value holding "</script>" would close the element early and the
+// browser would parse the rest as HTML. "\u003c" is the same character to any
+// JSON parser and inert to the HTML parser.
+
 const NAV = [
   { href: '/panel',     ic: 'home',   key: 'panel',   label: L.nav.panel,   roles: ['student', 'tutor', 'admin'] },
   { href: '/curso',     ic: 'book',   key: 'curso',   label: L.nav.curso,   roles: ['student', 'tutor', 'admin'] },
-  { href: '/chat',      ic: 'spark',  key: 'chat',    label: L.nav.chat,    roles: ['student', 'tutor', 'admin'] },
   { href: '/logros',    ic: 'chart',  key: 'logros',  label: L.nav.logros,  roles: ['student', 'tutor', 'admin'] },
   { href: '/ranking',   ic: 'chart',  key: 'ranking', label: L.nav.ranking, roles: ['student', 'tutor', 'admin'] },
   { href: '/ligas',     ic: 'chart',  key: 'ligas',   label: L.nav.ligas,   roles: ['student', 'tutor', 'admin'] },
@@ -27,6 +34,18 @@ const NAV = [
 ].filter((n) => n.roles.includes(user.role));
 
 const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolTutor, admin: L.ui.rolAdmin };
+
+// AI mode replaces the «Chat» nav entry. A nav entry NAVIGATES: it took the
+// student off the lesson they were reading to go and ask about it. The toggle
+// switches on a layer that follows them instead, so the same question can be
+// asked from any tab without losing the page. The state is read from the cookie
+// HERE, on the server, so the switch never paints in the wrong position first
+// (the same reason `lang` and `theme` live in cookies).
+//
+// /chat still exists and still works — the panel links to it. Removing the route
+// would 404 every bookmark, and the full page is still the right place for a long
+// answer with its tool trace.
+const ia = aiFlags(Astro.request);
 ---
 <!doctype html>
 <html lang={lang} data-theme={themeAttr}>
@@ -101,6 +120,12 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
             <span>{n.label}</span>
           </a>
         ))}
+        <button id="ia-toggle" class="ia-nav" type="button" role="switch"
+                aria-checked={ia.mode ? 'true' : 'false'} title={L.ia.modoAria}>
+          <Fragment set:html={icon('spark', 18)} />
+          <span>{L.ia.modo}</span>
+          <span class="ia-track" aria-hidden="true"><span class="ia-knob"></span></span>
+        </button>
       </nav>
       <div style="margin-top:auto;border-top:1px solid var(--hair2);padding:14px 16px;display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:center;gap:11px">
@@ -143,7 +168,9 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
   </div>
 
   <div id="toasts"></div>
-  <script type="application/json" id="txt" is:inline set:html={JSON.stringify({ ...L.avisos, auto: L.automatico, dark: L.oscuro, paper: L.papel })}></script>
+  <AiPanel lang={lang} flags={ia} nombre={user.name.split(' ')[0] ?? ''} />
+
+  <script type="application/json" id="txt" is:inline set:html={jsonSafe({ ...L.avisos, auto: L.automatico, dark: L.oscuro, paper: L.papel })}></script>
 
   <script>
     import { animarIdioma } from '../lib/lang-anim';
@@ -165,12 +192,33 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
       const el = document.createElement('div');
       el.className = 'toast';
       el.style.borderColor = COLOR[kind];
-      el.innerHTML = `<div style="color:${COLOR[kind]};margin-top:1px">${ICONS[kind]}</div>
-        <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-          <div class="h3">${title}</div><p class="s" style="color:var(--l2)">${body}</p></div>
-        <button aria-label="Cerrar" style="background:none;border:0;color:var(--l3);cursor:pointer;padding:0">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.2 6.2l11.6 11.6M17.8 6.2 6.2 17.8"/></svg></button>`;
-      el.querySelector('button')!.onclick = () => { el.remove(); seen.delete(id); };
+      // `title` and `body` are caller data, not markup: admin.astro feeds this
+      // helper a stored user name and other callers feed it API error text. They
+      // are written with textContent so a name like `<img src=x onerror=...>`
+      // cannot execute in the authenticated origin. innerHTML is kept only for
+      // the fixed icon and close-button markup owned by this file.
+      const icono = document.createElement('div');
+      icono.setAttribute('style', `color:${COLOR[kind]};margin-top:1px`);
+      icono.innerHTML = ICONS[kind] ?? '';
+
+      const col = document.createElement('div');
+      col.setAttribute('style', 'display:flex;flex-direction:column;gap:4px;flex:1;min-width:0');
+      const h = document.createElement('div');
+      h.className = 'h3';
+      h.textContent = title;
+      const cuerpo = document.createElement('p');
+      cuerpo.className = 's';
+      cuerpo.setAttribute('style', 'color:var(--l2)');
+      cuerpo.textContent = body;
+      col.append(h, cuerpo);
+
+      const cerrar = document.createElement('button');
+      cerrar.setAttribute('aria-label', 'Cerrar');
+      cerrar.setAttribute('style', 'background:none;border:0;color:var(--l3);cursor:pointer;padding:0');
+      cerrar.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.2 6.2l11.6 11.6M17.8 6.2 6.2 17.8"/></svg>';
+      cerrar.onclick = () => { el.remove(); seen.delete(id); };
+
+      el.append(icono, col, cerrar);
       box.append(el);
       seen.set(id, el);
       while (box.children.length > 3) box.firstElementChild!.remove();

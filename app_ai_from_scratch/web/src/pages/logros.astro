@@ -3,7 +3,8 @@ export const prerender = false;
 import App from '../layouts/App.astro';
 import { gate, apiFetch } from '../lib/session';
 import { t, resolveLang } from '../lib/i18n';
-import { trofeo, estrella, RANGO_METAL, RANGO_FORMA } from '../lib/insignias';
+import { jsonSafe } from '../lib/json-safe';
+import { trofeo, estrella, RANGO_METAL, RANGO_FORMA } from '../lib/badges';
 
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
@@ -114,7 +115,7 @@ const camino = Array.from({ length: 12 }, (_, i) => i + 1)
     )}
   </div>
 
-  <script type="application/json" id="rm-txt" is:inline set:html={JSON.stringify({
+  <script type="application/json" id="rm-txt" is:inline set:html={jsonSafe({
     nivel, eb: G.eb, titulo: G.titulo, sub: G.sub, cerrar: G.cerrar, seguir: G.seguir,
     rangos: G.rangos, paradaN: G.parada,
   })}></script>

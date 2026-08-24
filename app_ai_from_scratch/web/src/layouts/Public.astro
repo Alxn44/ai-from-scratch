@@ -77,9 +77,27 @@ const F = L.pub.footer;
     const COLOR: Record<string, string> = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
     const box = document.getElementById('toasts')!;
     (window as any).toast = (kind: string, title: string, body: string) => {
-      box.innerHTML = `<div class="toast" style="border-color:${COLOR[kind]}"><div style="flex:1">
-        <div class="h3" style="color:${COLOR[kind]}">${title}</div>
-        <p class="s" style="color:var(--l2);margin-top:4px">${body}</p></div></div>`;
+      // Same rule as the app layout: `title` and `body` are caller data and go in
+      // with textContent, never interpolated into HTML. Today's callers only pass
+      // constants, but the signature is shared with the app toast, which is fed
+      // stored user names.
+      box.innerHTML = '';
+      const aviso = document.createElement('div');
+      aviso.className = 'toast';
+      aviso.style.borderColor = COLOR[kind];
+      const col = document.createElement('div');
+      col.setAttribute('style', 'flex:1');
+      const h = document.createElement('div');
+      h.className = 'h3';
+      h.setAttribute('style', `color:${COLOR[kind]}`);
+      h.textContent = title;
+      const cuerpo = document.createElement('p');
+      cuerpo.className = 's';
+      cuerpo.setAttribute('style', 'color:var(--l2);margin-top:4px');
+      cuerpo.textContent = body;
+      col.append(h, cuerpo);
+      aviso.append(col);
+      box.append(aviso);
       if (kind !== 'bad') setTimeout(() => (box.innerHTML = ''), 4000);
     };
   </script>

@@ -12,7 +12,7 @@ pnpm dev               # http://127.0.0.1:8787
 
 ## Lo que hay que saber antes de tocar esto
 
-- **La corrección de los labs vive en el servidor** (`src/grade.js`). La columna
+- **La corrección de los labs vive en el servidor** (`src/grading.ts`). La columna
   `labs.solution` no sale nunca en una respuesta: `publicLab()` filtra. Si mueves la
   corrección al cliente, las respuestas quedan en el bundle de JS.
 - **Borrado de cuenta = soft delete.** La fila se conserva (los intentos siguen contando
@@ -25,7 +25,7 @@ pnpm dev               # http://127.0.0.1:8787
   verifica la firma `x-signature` con `MP_WEBHOOK_SECRET` antes de creer nada, y solo
   marca `paid = 1` cuando Mercado Pago confirma `approved`.
 - **El agente tiene 37 herramientas y ninguna acepta un identificador de persona**
-  (`src/agent-tools.js`). El `userId` sale de la cookie, en el servidor, y `ejecutar()`
+  (`src/tools/index.ts`). El `userId` sale de la cookie, en el servidor, y `ejecutar()`
   descarta cualquier clave que no esté declarada — queda anotada en `_ignorado`. Si
   añades una herramienta: declara su familia, si es pública o propia, y qué argumentos
   acepta; nada de un parámetro de usuario, y nada de leer `labs.solution`.
@@ -35,20 +35,38 @@ pnpm dev               # http://127.0.0.1:8787
   Un reinicio borra todo eso a propósito: no es un dato del que haya que responder, así
   que no hay tabla. Lo propio se cachea **solo dentro del turno**, porque entre dos
   mensajes la persona puede haber resuelto un lab en otra pestaña.
-- **El precio vive en `src/producto.js`**, y de ahí lo leen el checkout y la herramienta
+- **El precio vive en `src/product.ts`**, y de ahí lo leen el checkout y la herramienta
   `precio_y_compra`. Si cambia en un sitio y no en el otro, el chat miente.
-- **Las ligas se calculan en `src/ligas.js`**, no en la ruta: lo usan `/api/ligas` y el
+- **Las ligas se calculan en `src/leagues.ts`**, no en la ruta: lo usan `/api/ligas` y el
   agente, y con dos copias el chat y la pantalla contarían la semana distinto.
 - Los 36 labs están escritos (`draft = 0`). Si alguno vuelve a `draft = 1`, responderlo
   devuelve 409 y el agente lo marca como borrador en vez de inventarle enunciado.
 
-## Usuarios sembrados (solo desarrollo)
+## Seeded users — LOCAL DEVELOPMENT ONLY
 
-| Correo | Rol | Clave |
+These three share one password, and it is printed below, which means it is public.
+That is acceptable on a laptop and unacceptable anywhere else: one of them is an
+`admin`, and an admin session can change roles, so anyone who can read this repo
+could promote themselves on a database that still holds these rows.
+
+| Email | Role | Password |
 |---|---|---|
 | ricardo@velez.co | student | `Curso2026*` |
 | paula@correo.com | tutor | `Curso2026*` |
 | founder.alpadev@gmail.com | admin | `Curso2026*` |
+
+Two things keep this from reaching a deployed database, and one thing checks it:
+
+- the seed creates them only when `SEED_DEMO_USERS=1` AND `SEED_DEMO_PASSWORD` is
+  set, so they cannot appear by accident and never with the password above;
+- under `NODE_ENV=production` they are refused entirely;
+- `pnpm audit:passwords` tries every password this repository has ever published
+  against every live account and exits 1 on a match. **Run it against any
+  database you deploy.** It reports which account matched and never prints a
+  password or a hash.
+
+Deleting a password from a README does not un-publish it — git keeps it. So the
+list in `api/scripts/audit-passwords.mjs` only ever grows.
 
 ## Endpoints
 
@@ -76,7 +94,6 @@ pnpm test                  # las cuatro, en orden
 pnpm test:aislamiento      # 74 · que no se pueda sacar nada de otra persona
 pnpm test:bus              # 31 · FIFO, LIFO, topes y caché por turno (sin base)
 pnpm test:herramientas     # 42 · que las 37 respondan y que la cola se consuma
-pnpm test:harness          # 21 · el bucle contra un proveedor falso, sin gastar créditos
 ```
 
 Necesitan Postgres arriba y la siembra hecha (`pnpm db && pnpm seed` desde la raíz).

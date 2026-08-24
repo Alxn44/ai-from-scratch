@@ -4,6 +4,7 @@ import App from '../layouts/App.astro';
 import { gate } from '../lib/session';
 import { icon } from '../lib/icons';
 import { t, resolveLang } from '../lib/i18n';
+import { jsonSafe } from '../lib/json-safe';
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
 const L = t(resolveLang(user!.lang, Astro.request));
@@ -98,13 +99,13 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
     </div>
   </div>
 
-  <script type="application/json" id="ui-txt" is:inline set:html={JSON.stringify(L.ui)}></script>
+  <script type="application/json" id="ui-txt" is:inline set:html={jsonSafe(L.ui)}></script>
 
   <script>
 
     // El sonido es preferencia de EQUIPO, no de cuenta: quien estudia en la
     // oficina lo quiere apagado y en casa encendido, y es el mismo usuario.
-    import { suena, silenciar, sonar, prepararSonido } from '../lib/sonido';
+    import { suena, silenciar, sonar, prepararSonido } from '../lib/sound';
     prepararSonido();
     const pintaSon = () => document.querySelectorAll<HTMLElement>('[data-son]').forEach((b) =>
       (b.dataset.son === (suena() ? 'on' : 'off')) ? b.setAttribute('data-on', '') : b.removeAttribute('data-on'));

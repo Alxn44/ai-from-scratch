@@ -5,6 +5,7 @@ import { gate, apiTry } from '../../lib/session';
 import LeccionCerrada from '../../components/LeccionCerrada.astro';
 import { icon } from '../../lib/icons';
 import { t, resolveLang } from '../../lib/i18n';
+import { jsonSafe } from '../../lib/json-safe';
 
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
@@ -73,10 +74,22 @@ const solved = labs.filter((l) => l.solved).length;
       <div style="display:flex;flex-direction:column;gap:14px">
         <p class="lbl">{L.lec.ejemplos}</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+          {/* Card anatomy: title, scene, the two text lines, note.
+              scenes/mount.ts builds the scene and, once it has, hides [data-example-io]:
+              the scene is already saying those two sentences with the example's own words.
+              With no JS, or on a lesson with no scene, the static card stays exactly as it was.
+              data-narra sits on each TEXT block rather than on the card, because the narrator
+              reads everything inside a marked block and must not read the scene's furniture. */}
           {texto.examples.map((e) => (
-            <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair2)" data-narra>
-              <div class="h3">{e.titulo}</div>
-              <div style="display:flex;flex-direction:column;gap:9px">
+            <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair2)" data-example-card>
+              <div class="h3" data-narra>{e.titulo}</div>
+              <div
+                style="display:flex;flex-direction:column;gap:10px"
+                data-scene-example={JSON.stringify(e)}
+                data-scene-lesson={n}
+                data-scene-lang={lang}
+              ></div>
+              <div style="display:flex;flex-direction:column;gap:9px" data-example-io data-narra>
                 <div style="display:flex;gap:10px;align-items:flex-start">
                   <span class="lbl" style="width:74px;flex:none;padding-top:3px">{L.lec.pides}</span>
                   <p class="p" style="font-size:14px">{e.entrada}</p>
@@ -86,7 +99,7 @@ const solved = labs.filter((l) => l.solved).length;
                   <p class="p" style="font-size:14px">{e.salida}</p>
                 </div>
               </div>
-              <p class="s" style="border-top:1px solid var(--hair2);padding-top:10px">{e.nota}</p>
+              <p class="s" style="border-top:1px solid var(--hair2);padding-top:10px" data-narra>{e.nota}</p>
             </div>
           ))}
         </div>
@@ -100,7 +113,7 @@ const solved = labs.filter((l) => l.solved).length;
       <span class="s">{L.lec.ahoraTuB}</span>
     </div>
 
-    <script type="application/json" id="lab-txt" is:inline set:html={JSON.stringify({
+    <script type="application/json" id="lab-txt" is:inline set:html={jsonSafe({
       ...L.lab,
       logroEb: L.logros.eb, logroTitulo: L.logros.titulo, logroSub: L.logros.sub,
       logroCerrar: L.logros.cerrar, logroSeguir: L.logros.seguir, logroParada: L.logros.parada,
@@ -108,7 +121,7 @@ const solved = labs.filter((l) => l.solved).length;
       db: L.logros.db,
     })}></script>
 
-    <script type="application/json" id="narra-txt" is:inline set:html={JSON.stringify({ ...L.narra, lang })}></script>
+    <script type="application/json" id="narra-txt" is:inline set:html={jsonSafe({ ...L.narra, lang })}></script>
 
     {labs.map((lab) => (
       <div class="card" data-lab={lab.draft ? undefined : lab.id} style="border-color:var(--hair);display:flex;flex-direction:column;gap:18px">
@@ -139,7 +152,7 @@ const solved = labs.filter((l) => l.solved).length;
               <button class="btn ghost" data-reset>{L.deNuevo}</button>
             </div>
             <div data-out></div>
-            <script type="application/json" set:html={JSON.stringify({ id: lab.id, kind: lab.kind, payload: lab.payload, solved: lab.solved, draft: lab.draft })} />
+            <script type="application/json" set:html={jsonSafe({ id: lab.id, kind: lab.kind, payload: lab.payload, solved: lab.solved, draft: lab.draft })} />
           </Fragment>
         )}
       </div>
@@ -159,10 +172,16 @@ const solved = labs.filter((l) => l.solved).length;
     import { mountLabs } from '../../lib/labs-client';
     mountLabs();
 
+    // Example scenes: one per lesson concept, parameterised by the example's own
+    // data. Mounted BEFORE the narrator: it hides the two static lines, and the
+    // narrator still reads them because display:none does not remove textContent.
+    import { mountExampleScenes } from '../../lib/scenes/mount';
+    mountExampleScenes();
+
     // Narrador: la barra se monta DENTRO de #lectura, así queda pegada al pie
     // mientras lees y desaparece al llegar a los labs. Pegada a toda la página
     // taparía el botón Comprobar de cada lab.
-    import { montarNarrador } from '../../lib/narrador';
+    import { montarNarrador } from '../../lib/narrator';
     const lectura = document.getElementById('lectura');
     const nt = document.getElementById('narra-txt');
     if (lectura && nt) {

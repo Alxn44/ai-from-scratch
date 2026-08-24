@@ -68,7 +68,32 @@ export async function preguntarIA(historial: { role: 'user' | 'assistant'; conte
     body: JSON.stringify({ mensajes: historial, lang }),
   });
   const d = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, ...d } as {
-    ok: boolean; status: number; respuesta?: string; proveedor?: string; modelo?: string; traza?: Traza[]; error?: string; msg?: string;
-  };
+  return { ok: res.ok, status: res.status, ...d } as RespuestaIA;
+}
+
+/**
+ * What POST /api/chat answers with. The 429 fields are part of it.
+ *
+ * `limite`, `esperaS` and `tope` are the sliding-window brake's payload
+ * (api/src/server.ts, `interface Brake`), whose comment says "keys read by
+ * web/src/lib/chat-client.ts". They were not declared here, so nothing read them:
+ * a rate-limited caller saw the Spanish `msg` and had no idea how long to wait,
+ * which is exactly the shape that makes a client retry into a limiter. Declared,
+ * the panel can wait the amount of time the server asked for.
+ */
+export interface RespuestaIA {
+  ok: boolean;
+  status: number;
+  respuesta?: string;
+  proveedor?: string;
+  modelo?: string;
+  traza?: Traza[];
+  /** sin_ia | sin_proveedor | demasiadas_preguntas | sin_mensaje | sin_sesion */
+  error?: string;
+  msg?: string;
+  /** minuto | dia | dia_global — which of the three ceilings was hit. */
+  limite?: string;
+  /** Seconds to wait. Same number the `retry-after` header carries. */
+  esperaS?: number;
+  tope?: number;
 }

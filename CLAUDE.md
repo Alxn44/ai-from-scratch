@@ -1,8 +1,26 @@
+# What is in this repository
+
+More than one project. Work out which one you are in before reading further —
+this file used to describe the carousel as if it were the whole repository, and
+the paths it gave stopped existing when the carousel moved into a subdirectory.
+
+| Directory | Project | Its own instructions |
+|---|---|---|
+| `app_ai_from_scratch/` | **The course platform.** api (TypeScript) · ai (Python) · web (Astro) · queue (Go). This is the large, active one. | `app_ai_from_scratch/CLAUDE.md`, and `RUNBOOK.md` beside it for what command to run |
+| `design_handoff_ai_carousel_hig/reference/` | The Instagram carousel documented in the rest of this file | this file, below |
+| `iot/` | ESP32 and Raspberry Pi experiments (karaoke lyrics, sensor faces) | — |
+
+For anything under `app_ai_from_scratch/`, read that directory's own `CLAUDE.md`
+first; it carries the house rules that matter there, and `RUNBOOK.md` maps a task
+to its command. The single command worth knowing: `pnpm verify`.
+
+---
+
 # AI Basics Carousel — 12 slides, bilingual, dual-theme
 
 Single-file HTML system rendering 12 Instagram carousel slides (1080×1350) that teach AI fundamentals to absolute beginners. Exports PNGs at 2× (2160×2700) via html2canvas. Two languages (ES/EN) × two themes (dark/light) = 4 variants per slide, **48 PNGs total**.
 
-Repo root: `index.html` (single source of truth) · `validate.py` · this file.
+Lives in `design_handoff_ai_carousel_hig/reference/`: `index.html` (single source of truth) · `validate.py`.
 No build step. Only external deps: Google Fonts (Inter) + html2canvas CDN.
 
 ---
@@ -85,6 +103,7 @@ Note the light theme is hand-calibrated (status colors darkened for contrast on 
 Run after **any** content change:
 
 ```bash
+cd design_handoff_ai_carousel_hig/reference
 python3 validate.py            # defaults to ./index.html
 ```
 
@@ -109,6 +128,8 @@ Checks: every `data-t` key exists in both dictionaries, no orphan dictionary key
 ## Commands
 
 ```bash
+cd design_handoff_ai_carousel_hig/reference
+
 # preview
 open index.html          # no server needed
 

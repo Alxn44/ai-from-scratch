@@ -1,0 +1,21 @@
+# Without this file the build context was 59 MB, 57 MB of which is .venv — a
+# virtualenv built on the host, for the host's architecture, uploaded to the
+# daemon on every build and then ignored because the Dockerfile runs its own
+# `uv sync`. Slow, and a trap: any COPY broad enough to catch it would bake a
+# wrong-architecture venv with stale dependencies into the image.
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+
+# Secrets never belong in a build context. Under compose these arrive through
+# `environment:`, and there is no file to copy.
+.env
+.env.*
+
+# Tests are not shipped. The isolation proof runs at build time from src/, and
+# the suite runs in CI, not in the image.
+tests
+
+*.log

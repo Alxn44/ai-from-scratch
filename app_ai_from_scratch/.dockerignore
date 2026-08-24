@@ -1,0 +1,46 @@
+# The build context for defense/Dockerfile is this directory, not defense/,
+# because that image compiles two module trees: defense imports the bus envelope
+# and the broker from queue through a replace directive, and Docker cannot COPY
+# from outside its context.
+#
+# Without this file that context is the whole monorepo -- node_modules alone is
+# hundreds of megabytes -- uploaded to the daemon on every build and then almost
+# entirely ignored. api/ and ai/ already learned this lesson in their own
+# .dockerignore files; ai/'s context was 59 MB, 57 MB of it a host-built venv.
+#
+# An ALLOWLIST rather than a deny list, for the same reason queue/.dockerignore
+# is one: a new top-level directory should not silently join every build context.
+#
+# The other services are unaffected. Compose gives api, ai, web and queue their
+# own context (`build: ./api`), so this file applies only to the root-context
+# build.
+*
+
+!defense/go.mod
+!defense/go.sum
+!defense/binding/
+!defense/internal/
+!defense/cmd/
+
+!queue/go.mod
+!queue/go.sum
+!queue/bus/
+!queue/broker/
+
+# data/ builds from this context too, and it is the one image that needs a file
+# from a SIBLING service: api/src/ontologia.json, the generated ontology
+# artefact. It is baked into the image rather than mounted so that the running
+# service checks against the same bytes the build proved.
+!data/go.mod
+!data/go.sum
+!data/internal/
+!data/cmd/
+!api/src/ontologia.json
+
+# Never, under any allowlist. Listed explicitly because a future `!something`
+# broad enough to catch them would be a secret baked into an image layer, which
+# survives deletion of the file.
+.env
+.env.*
+**/.env
+**/.env.*

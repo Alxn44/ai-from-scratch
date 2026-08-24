@@ -1,0 +1,98 @@
+# Production overlay. Use it WITH the base file, never instead of it:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+#
+# WHY AN OVERLAY AND NOT A SECOND COMPOSE FILE
+# The base file holds the environment, the healthchecks and the dependency order,
+# and those are the parts that are easy to get subtly wrong — `init` must complete
+# before `api` starts, `api` must wait for `ia` to be HEALTHY and not merely
+# started, `/api/health` touches the labs table so a green answer proves the seed
+# finished. A full production copy would fork all of that, and the copy would
+# drift silently until an incident. This file changes exactly one thing per
+# service: where the image comes from.
+#
+# `--no-build` matters. With both `build` and `image` present, compose will build
+# a missing image rather than fail, and a production host quietly compiling from
+# source is not a deploy — it is a different artefact from the one that passed CI.
+#
+# Required in the environment (no defaults, on purpose — a default here is a
+# production box running something nobody chose):
+#   IMAGE_REPO   e.g. ghcr.io/alxn44/ai-from-scratch
+#   TAG          the commit sha that CI published. NEVER `latest`: during an
+#                incident the first question is which commit is live, and
+#                `latest` cannot answer it.
+#   WEB_ORIGIN   the real public origin, for CORS and cookies
+#   plus every secret the base file already demands: POSTGRES_PASSWORD,
+#   RABBITMQ_PASSWORD, JWT_SECRET, IA_SECRETO.
+
+services:
+  init:
+    # The migrate stage of the api image, published separately because the
+    # runtime stage prunes the Prisma CLI it needs.
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/api-migrate:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+
+  # The credential holder. Pinned to the same sha as everything else: a `data`
+  # from one commit against a schema from another is the one drift that produces
+  # a column-not-found on a live request rather than at build time.
+  data:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/data:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+    restart: unless-stopped
+
+  api:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/api:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+    environment:
+      # The base file's value is http://localhost:4321, which is correct for a
+      # laptop and wrong for a server: a cookie scoped to localhost never
+      # arrives, so every request looks unauthenticated.
+      WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN to the public origin}
+    restart: unless-stopped
+
+  ia:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/ai:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+    restart: unless-stopped
+
+  api-worker:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/api:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+
+  ai-worker:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/ai:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+
+  queue:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/queue:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+    restart: unless-stopped
+
+  web:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/web:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+    restart: unless-stopped
+
+  # The five lines of defence. One image, five commands; the base file picks the
+  # binary per service, so only the source of the image changes here.
+  #
+  # DEFENSE_MODE is NOT set here on purpose. Enforcement is a per-deployment
+  # decision made by a human who has watched the escalations first, so it comes
+  # from the environment on the box -- putting `enforce` in a committed file is
+  # how a fortress starts closing its gate on its own residents.
+  morpheus:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+  trinity:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+  smith:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+  oracle:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+  neo:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always

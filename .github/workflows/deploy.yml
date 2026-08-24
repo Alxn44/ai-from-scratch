@@ -1,0 +1,218 @@
+# The normal road: a pull request into main, then main deploys.
+#
+# Nothing here duplicates ci.yml. It CALLS it, so the gates that guard a pull
+# request are the same objects that guard a deploy — a deploy pipeline with its
+# own slightly different copy of the checks is a pipeline that will eventually
+# ship something the PR gate would have caught.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why are you deploying by hand?
+        required: true
+
+# One deploy at a time, and never cancel one in flight. Cancelling a half-pushed
+# set of images leaves the registry holding a mix of two commits.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  gates:
+    name: gates
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: publish images
+    needs: gates
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The immutable tag is the commit. `latest` is a convenience that moves;
+      # the sha is what you roll back to, so it is the one that must always exist.
+      - name: Tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      # PLATFORMS: linux/amd64 AND linux/arm64, on every image below.
+      #
+      # The deploy target is a Raspberry Pi 4B, which is arm64. Every one of these
+      # steps used to build on ubuntu-latest and publish amd64 only, so
+      # `docker compose pull && up` on the Pi would have failed every service with
+      # `exec format error` -- after CI went green, after the images were pushed,
+      # at the last possible moment.
+      #
+      # The cost is honest and unequal:
+      #   - queue and defense are Go and CROSS-compile (see their Dockerfiles),
+      #     so arm64 costs them almost nothing.
+      #   - api, ai and web install dependencies for the target architecture, so
+      #     their arm64 halves run under QEMU and take materially longer. The gha
+      #     cache below is what keeps that bearable; the first build after a
+      #     lockfile change is the slow one.
+      #
+      # amd64 is kept alongside it rather than dropped: CI's `images` job builds
+      # on amd64, and developer machines are a mix. A single-arch arm64 publish
+      # would make every local `docker compose pull` fail instead.
+      - name: api
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/api
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/api:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      # The migrate stage, published as its own image. The runtime stage installs
+      # with --prod and prunes the Prisma CLI, so the container that applies
+      # migrations cannot be the container that serves traffic.
+      - name: api-migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/api
+          target: migrate
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/api-migrate:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/api-migrate:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api-migrate,mode=max
+
+      - name: ai
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/ai
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/ai:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/ai:latest
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,scope=ai,mode=max
+
+      - name: web
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/web
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/web:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: Is there a queue service yet?
+        id: queue
+        run: |
+          if [ -f app_ai_from_scratch/queue/Dockerfile ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: queue
+        if: steps.queue.outputs.found == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/queue
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/queue:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/queue:latest
+          cache-from: type=gha,scope=queue
+          cache-to: type=gha,scope=queue,mode=max
+
+      - name: Is there a defense service yet?
+        id: defense
+        run: |
+          if [ -f app_ai_from_scratch/defense/Dockerfile ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ONE image, five agents. The context is app_ai_from_scratch and not
+      # app_ai_from_scratch/defense, because defense imports the bus envelope and
+      # the broker from queue through a replace directive and Docker cannot COPY
+      # from outside its context. app_ai_from_scratch/.dockerignore is an
+      # allowlist that keeps that context to the four directories involved.
+      - name: defense
+        if: steps.defense.outputs.found == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch
+          file: app_ai_from_scratch/defense/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/defense:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/defense:latest
+          cache-from: type=gha,scope=defense
+          cache-to: type=gha,scope=defense,mode=max
+
+      - name: Is there a data service yet?
+        id: data
+        run: |
+          if [ -f app_ai_from_scratch/data/Dockerfile ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Context is app_ai_from_scratch, not app_ai_from_scratch/data: this image
+      # bakes in api/src/ontologia.json -- the generated forbidden-column list --
+      # and Docker cannot COPY from outside its context. Baked rather than mounted
+      # so the running service checks against the same bytes the build proved.
+      #
+      # The Dockerfile runs `go test ./...` in a stage of its own, on the
+      # BUILDER's architecture, because a cross-compiled arm64 test binary cannot
+      # execute on an amd64 runner. That is why the arm64 leg is cross-compiled
+      # rather than emulated: QEMU costs tens of minutes to reach the same answer.
+      - name: data
+        if: steps.data.outputs.found == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch
+          file: app_ai_from_scratch/data/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}/data:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ github.repository }}/data:latest
+          cache-from: type=gha,scope=data
+          cache-to: type=gha,scope=data,mode=max
+
+  release:
+    name: release
+    needs: publish
+    # One deploy script, in release.yml, called by both this and hotfix.yml.
+    # Two copies would drift, and the hotfix copy is the one that runs while
+    # production is already broken and nobody is reading it carefully.
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+    secrets: inherit

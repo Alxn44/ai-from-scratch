@@ -11,7 +11,8 @@
     "check": "tsgo -p tsconfig.tsgo.json && astro check",
     "i18n": "node --experimental-strip-types scripts/i18n-check.mjs",
     "check:ts": "tsgo -p tsconfig.tsgo.json",
-    "check:astro": "astro check"
+    "check:astro": "astro check",
+    "scenes:check": "node scripts/scenes-check.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.4",

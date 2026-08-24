@@ -8,7 +8,7 @@ lecciones, labs corregidos en servidor, ontología de conceptos y pagos (Mercado
 - **web/** — Astro. Frontend del curso (lecciones, labs, checkout).
 - **api/** — Fastify 5 + Node 22. Sin ORM, `pg` directo a Postgres 17. Auth con
   `node:crypto` (scrypt + HMAC). Corrección de labs vive en el servidor
-  (`api/src/grade.js`), nunca en el cliente.
+  (`api/src/grading.ts`), nunca en el cliente.
 - **db** — Postgres 17 (contenedor `db` en `docker-compose.yml`).
 - **scripts/** — orquestación de dev (`dev.mjs`) y generación de ontología.
 
@@ -65,7 +65,7 @@ pnpm stop                 # apaga web local + contenedores docker
 - **Borrado de cuenta = soft delete.** Se conserva la fila (los intentos siguen
   contando para la cohorte), se marca `deleted_at`, se anonimiza el nombre y se
   rota el correo a `borrado+{id}@alpadev.local`.
-- Ver `PLATAFORMA.md`, `ONTOLOGIA.md`, `ESTADO.md` y `REGIONES.md` para contexto
+- Ver `docs/PLATFORM.md`, `ONTOLOGY.md` y `docs/REGIONS.md` para contexto
   de producto, estado actual y decisiones de contenido.
 
 ## Estructura

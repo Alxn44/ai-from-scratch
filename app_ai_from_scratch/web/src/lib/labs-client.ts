@@ -1,8 +1,8 @@
 // Labs interactivos. La corrección la hace el servidor: aquí solo se recoge la respuesta.
 import { exito, fallo } from './fx';
-import { sonar, prepararSonido } from './sonido';
-import { asomarGato } from './gato';
-import { desbloquear } from './desbloqueo';
+import { sonar, prepararSonido } from './sound';
+import { asomarGato } from './cat';
+import { desbloquear } from './unlock';
 import { abrirRoadmap, type RoadmapTxt } from './roadmap';
 
 type Payload = Record<string, any>;
@@ -233,7 +233,15 @@ export function mountLabs() {
         if (!seq.length) mine.append(el('div', 'border:1px dashed var(--hair);padding:16px;text-align:center', '<p class="s">Haz clic en un paso para empezar.</p>'));
         seq.forEach((id, i) => {
           const s = steps.find((x) => x.id === id)!;
-          const color = root.dataset.result ? (steps[i].id === id ? 'var(--ok)' : 'var(--rd)') : 'var(--hair)';
+          // This used to compare steps[i].id against the placed id, i.e. against
+          // the PAYLOAD's own order. That only looked right while seeding stored
+          // the steps in solution order; the payload is now shuffled precisely so
+          // it stops leaking the answer, and the client never receives
+          // solution.order, so there is nothing here to self-check against.
+          // The server returns one verdict for the whole sequence, so every row
+          // shows that overall verdict instead of a made-up per-row one.
+          const color = !root.dataset.result ? 'var(--hair)'
+                      : root.dataset.result === 'ok' ? 'var(--ok)' : 'var(--rd)';
           mine.append(el('div', `display:flex;align-items:center;gap:12px;border:1px solid ${color};background:rgba(120,120,128,.10);padding:12px 14px;min-height:52px`,
             `<span class="num" style="font:600 13px/1 var(--m);color:${color}">${i + 1}</span><span style="font:400 15px/1.4 var(--f)">${s.text}</span>`));
         });

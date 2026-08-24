@@ -4,6 +4,7 @@ import App from '../layouts/App.astro';
 import { gate, apiFetch } from '../lib/session';
 import { icon } from '../lib/icons';
 import { t, resolveLang } from '../lib/i18n';
+import { jsonSafe } from '../lib/json-safe';
 
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
@@ -105,9 +106,9 @@ const STATE = (l: Lesson) => {
     </div>
   </div>
 
-  <script type="application/json" id="ui-txt" is:inline set:html={JSON.stringify({ ...L.ui, lang })}></script>
+  <script type="application/json" id="ui-txt" is:inline set:html={jsonSafe({ ...L.ui, lang })}></script>
   {subida && (
-    <script type="application/json" id="subida-txt" is:inline set:html={JSON.stringify({
+    <script type="application/json" id="subida-txt" is:inline set:html={jsonSafe({
       de: subida.de, a: subida.a, semana: liga?.semana?.lunes ?? subida.semana,
       eb: L.logros.db.liga, titulo: L.ligas.subiste,
       cuerpo: L.ligas.subisteB.replace('{de}', L.ligas[subida.de as 'bronce']).replace('{a}', L.ligas[subida.a as 'bronce']),
@@ -116,8 +117,8 @@ const STATE = (l: Lesson) => {
   )}
 
   <script>
-    import { desbloquear } from '../lib/desbloqueo';
-    import { sonar, prepararSonido } from '../lib/sonido';
+    import { desbloquear } from '../lib/unlock';
+    import { sonar, prepararSonido } from '../lib/sound';
     const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);
 
     // Una vez por semana y por navegador. La MISMA clave que usa /ligas, para

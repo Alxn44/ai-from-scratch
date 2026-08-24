@@ -16,6 +16,11 @@ export const TOKENS = `
   --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
   --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
   --btn-bg:#fff;--btn-fg:#000;
+  /* Text on top of an accent fill. White in BOTH themes — --btn-fg cannot stand
+     in for it, that one is black in dark — and until now it was written as a
+     literal #fff in .btn:hover and .segb[aria-pressed]. Paper does not redefine
+     it: the value is the same there. */
+  --on-ac:#fff;
 }
 /* papel: calibrado a mano sobre #F2F2F2, >=4.5:1 medido en texto de 10px */
 html[data-theme="paper"]{${PAPER}}

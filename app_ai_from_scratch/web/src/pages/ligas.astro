@@ -3,7 +3,7 @@ export const prerender = false;
 import App from '../layouts/App.astro';
 import { gate, apiFetch } from '../lib/session';
 import { t, resolveLang } from '../lib/i18n';
-import { medalla, type MetalLiga } from '../lib/insignias';
+import { medalla, type MetalLiga } from '../lib/badges';
 
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
@@ -123,7 +123,7 @@ const fecha = (iso?: string) =>
     // El sonido de ascenso suena UNA vez por semana, no en cada recarga: la marca
     // va por semana en el equipo. Sin eso, cada F5 te felicita otra vez y la
     // recompensa deja de significar nada.
-    import { sonar, prepararSonido } from '../lib/sonido';
+    import { sonar, prepararSonido } from '../lib/sound';
     prepararSonido();
     const s = document.getElementById('subida');
     if (s) {

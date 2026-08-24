@@ -4,6 +4,7 @@ import App from '../layouts/App.astro';
 import { gate, apiFetch } from '../lib/session';
 import { icon } from '../lib/icons';
 import { t, resolveLang } from '../lib/i18n';
+import { jsonSafe } from '../lib/json-safe';
 
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
@@ -44,6 +45,9 @@ const FAMILIAS: [string, string][] = [
 const grupos = FAMILIAS
   .map(([clave, titulo]) => ({ titulo, nombres: estado?.familias?.[clave] ?? [] }))
   .filter((g) => g.nombres.length);
+
+// The JSON blob below carries `datos`, which includes the viewer's own display
+// name, so it goes through the shared serializer in lib/json-safe.ts.
 ---
 <App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.chat}>
   <div slot="topbar" class="seg" role="group" aria-label={C.modoAria}>
@@ -120,11 +124,11 @@ const grupos = FAMILIAS
     </div>
   </div>
 
-  <script type="application/json" id="chat-datos" is:inline set:html={JSON.stringify({ datos, hayIA, lang })}></script>
+  <script type="application/json" id="chat-datos" is:inline set:html={jsonSafe({ datos, hayIA, lang })}></script>
 
   <script>
     import { responderLocal, preguntarIA, type Traza } from '../lib/chat-client';
-    import { montarCampo } from '../lib/campo';
+    import { montarCampo } from '../lib/field';
 
     const cfg = JSON.parse(document.getElementById('chat-datos')!.textContent!);
     const T = cfg.datos.txt;
@@ -159,8 +163,10 @@ const grupos = FAMILIAS
 
     const pintaTraza = (traza: Traza[]) => {
       const filas = traza.map((t) => {
-        if (t.paso === 'modelo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none">${T.trazaModelo}</span><span class="s">${t.proveedor} · ${t.modelo} · ${t.ms}ms${t.herramientas?.length ? ` → ${t.herramientas.join(', ')}` : ''}</span></div>`;
-        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${t.nombre} · ${t.ms}ms${t.memo ? ` · ${T.trazaMemo}` : ''}</span></div>`;
+        // Every field below is model output (tool names it emitted, provider and
+        // model ids it echoed back), so it goes through esc() like t.error does.
+        if (t.paso === 'modelo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none">${T.trazaModelo}</span><span class="s">${esc(String(t.proveedor ?? ''))} · ${esc(String(t.modelo ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.herramientas?.length ? ` → ${esc(t.herramientas.join(', '))}` : ''}</span></div>`;
+        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${esc(String(t.nombre ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.memo ? ` · ${T.trazaMemo}` : ''}</span></div>`;
         if (t.paso === 'fallo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:var(--rd)">${T.trazaFallo}</span><span class="s">${esc(String(t.error ?? ''))}</span></div>`;
         return '';
       }).join('');
@@ -194,7 +200,13 @@ const grupos = FAMILIAS
           return;
         }
         historial.push({ role: 'assistant', content: d.respuesta });
-        const pie = `<p class="s" style="margin-top:10px">${T.proveedorPie.replace('{p}', d.proveedor ?? '').replace('{m}', d.modelo ?? '')}</p>`;
+        // `d.proveedor` / `d.modelo` are echoed back by the AI service, same as
+        // every field in pintaTraza: they go through esc(). The replacements use
+        // a function so a value containing `$&` is inserted verbatim instead of
+        // being read as a replacement pattern.
+        const pie = `<p class="s" style="margin-top:10px">${T.proveedorPie
+          .replace('{p}', () => esc(String(d.proveedor ?? '')))
+          .replace('{m}', () => esc(String(d.modelo ?? '')))}</p>`;
         burbuja('bot', `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(d.respuesta)}</p>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
       } catch {
         espera.remove();

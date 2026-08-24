@@ -1,10 +1,9 @@
 {
-  "aviso": "ARTEFACTO GENERADO. No editar a mano: se regenera con `uv run ia-exporta`.",
+  "aviso": "ARTEFACTO GENERADO. No editar a mano: se regenera con `uv run ai-export`.",
   "ciclo_fk": [],
   "clases": {
-    "achievements.at": "propio",
     "achievements.code": "propio",
-    "achievements.id": "jamas",
+    "achievements.earned_at": "propio",
     "achievements.kind": "propio",
     "achievements.lesson_n": "propio",
     "achievements.user_id": "jamas",
@@ -14,6 +13,17 @@
     "attempts.id": "jamas",
     "attempts.lab_id": "propio",
     "attempts.user_id": "jamas",
+    "jobs.acabado_en": "jamas",
+    "jobs.clave": "jamas",
+    "jobs.corre_en": "jamas",
+    "jobs.creado_en": "jamas",
+    "jobs.datos": "jamas",
+    "jobs.error": "jamas",
+    "jobs.estado": "jamas",
+    "jobs.id": "jamas",
+    "jobs.intentos": "jamas",
+    "jobs.tipo": "jamas",
+    "jobs.tomado_en": "jamas",
     "labs.draft": "publico",
     "labs.explanation": "publico",
     "labs.id": "publico",
@@ -31,6 +41,11 @@
     "league_week.puesto": "agregado",
     "league_week.user_id": "jamas",
     "league_week.week": "agregado",
+    "lesson_text.analogy": "publico",
+    "lesson_text.examples": "publico",
+    "lesson_text.lang": "publico",
+    "lesson_text.lesson_n": "publico",
+    "lesson_text.technical": "publico",
     "lessons.analogy": "publico",
     "lessons.eyebrow": "publico",
     "lessons.math": "publico",
@@ -51,6 +66,12 @@
     "ranking_optin.alias": "agregado",
     "ranking_optin.joined_at": "agregado",
     "ranking_optin.user_id": "jamas",
+    "reset_tokens.created_at": "jamas",
+    "reset_tokens.expires_at": "jamas",
+    "reset_tokens.id": "jamas",
+    "reset_tokens.token_hash": "jamas",
+    "reset_tokens.used_at": "jamas",
+    "reset_tokens.user_id": "jamas",
     "role_audit.actor_id": "jamas",
     "role_audit.at": "jamas",
     "role_audit.from_role": "jamas",
@@ -69,13 +90,166 @@
     "users.paid": "propio",
     "users.pass_hash": "jamas",
     "users.role": "propio",
-    "users.theme": "propio"
+    "users.theme": "propio",
+    "users.token_version": "jamas"
   },
-  "generado_por": "ai/src/ia/ontologia/exporta.py",
+  "de_pago": {
+    "achievements": [],
+    "attempts": [],
+    "jobs": [],
+    "labs": [
+      "prompt",
+      "payload",
+      "explanation"
+    ],
+    "league_week": [],
+    "lesson_text": [
+      "technical",
+      "analogy",
+      "examples"
+    ],
+    "lessons": [
+      "technical",
+      "analogy"
+    ],
+    "payments": [],
+    "ranking_optin": [],
+    "reset_tokens": [],
+    "role_audit": [],
+    "users": []
+  },
+  "generado_por": "ai/src/course_ai/ontology/export.py",
   "herramientas": {
+    "ajustes": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "users.lang",
+        "users.theme"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users"
+      ]
+    },
+    "ampliar_consulta": {
+      "alcance": "publico",
+      "args": [
+        "consulta",
+        "idioma"
+      ],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "python",
+      "usa": []
+    },
+    "bus_diagnostico": {
+      "alcance": "publico",
+      "args": [],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "buscar_en_curso": {
+      "alcance": "sesion",
+      "args": [
+        "consulta"
+      ],
+      "compone": [],
+      "devuelve": [
+        "lessons.n",
+        "lessons.eyebrow",
+        "lessons.title",
+        "lessons.summary",
+        "lessons.math_cap",
+        "lessons.technical",
+        "lessons.analogy",
+        "lesson_text.lesson_n",
+        "lesson_text.technical",
+        "lesson_text.analogy",
+        "labs.id",
+        "labs.lesson_n",
+        "labs.prompt"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "lessons",
+        "lesson_text",
+        "labs",
+        "users"
+      ]
+    },
+    "cola_encolar": {
+      "alcance": "publico",
+      "args": [
+        "tipo",
+        "ref",
+        "motivo"
+      ],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "cola_estado": {
+      "alcance": "publico",
+      "args": [],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "cola_siguiente": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "labs.id",
+        "labs.lesson_n",
+        "labs.idx",
+        "labs.level",
+        "labs.kind",
+        "labs.prompt",
+        "labs.payload",
+        "labs.draft",
+        "labs.explanation",
+        "attempts.answer",
+        "attempts.correct",
+        "attempts.at",
+        "lessons.n",
+        "lessons.eyebrow",
+        "lessons.title",
+        "lessons.summary",
+        "lessons.math",
+        "lessons.math_cap",
+        "lesson_text.lang",
+        "lesson_text.technical",
+        "lesson_text.analogy",
+        "lesson_text.examples"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "labs",
+        "attempts",
+        "lessons",
+        "lesson_text",
+        "users"
+      ]
+    },
+    "como_funciona": {
+      "alcance": "publico",
+      "args": [],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
     "curso_indice": {
       "alcance": "publico",
       "args": [],
+      "compone": [],
       "devuelve": [
         "lessons.n",
         "lessons.eyebrow",
@@ -84,15 +258,106 @@
         "lessons.math",
         "lessons.math_cap"
       ],
+      "ejecutor": "node",
       "usa": [
         "lessons"
       ]
     },
-    "leccion": {
+    "descargar_pdf": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "users.paid"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users"
+      ]
+    },
+    "donde_encuentro": {
       "alcance": "publico",
+      "args": [
+        "consulta"
+      ],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "entender_pregunta": {
+      "alcance": "publico",
+      "args": [
+        "pregunta",
+        "idioma"
+      ],
+      "compone": [
+        "curso_indice"
+      ],
+      "devuelve": [],
+      "ejecutor": "python",
+      "usa": []
+    },
+    "foco_apilar": {
+      "alcance": "publico",
+      "args": [
+        "tipo",
+        "ref",
+        "nota"
+      ],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "foco_volver": {
+      "alcance": "publico",
+      "args": [],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "glosario": {
+      "alcance": "publico",
+      "args": [
+        "termino"
+      ],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
+    "lab_ficha": {
+      "alcance": "sesion",
+      "args": [
+        "lab_id"
+      ],
+      "compone": [],
+      "devuelve": [
+        "labs.id",
+        "labs.lesson_n",
+        "labs.idx",
+        "labs.level",
+        "labs.kind",
+        "labs.prompt",
+        "labs.payload",
+        "labs.draft",
+        "attempts.correct"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "labs",
+        "users",
+        "attempts"
+      ]
+    },
+    "leccion": {
+      "alcance": "sesion",
       "args": [
         "n"
       ],
+      "compone": [],
       "devuelve": [
         "lessons.n",
         "lessons.eyebrow",
@@ -111,14 +376,160 @@
         "labs.payload",
         "labs.draft"
       ],
+      "ejecutor": "node",
       "usa": [
         "lessons",
+        "labs",
+        "users"
+      ]
+    },
+    "leccion_texto": {
+      "alcance": "sesion",
+      "args": [
+        "n",
+        "idioma"
+      ],
+      "compone": [],
+      "devuelve": [
+        "lessons.n",
+        "lessons.eyebrow",
+        "lessons.title",
+        "lessons.summary",
+        "lessons.math",
+        "lessons.math_cap",
+        "lesson_text.lang",
+        "lesson_text.technical",
+        "lesson_text.analogy",
+        "lesson_text.examples"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "lessons",
+        "lesson_text",
+        "users"
+      ]
+    },
+    "ligas_tabla": {
+      "alcance": "agregado",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "ranking_optin.alias"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "ranking_optin",
+        "users",
+        "attempts"
+      ]
+    },
+    "logros_faltantes": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "labs.lesson_n",
+        "attempts.correct"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "labs",
+        "attempts",
+        "achievements"
+      ]
+    },
+    "mapa_de_conceptos": {
+      "alcance": "publico",
+      "args": [
+        "concepto"
+      ],
+      "compone": [
+        "curso_indice"
+      ],
+      "devuelve": [],
+      "ejecutor": "python",
+      "usa": []
+    },
+    "mi_acceso": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "users.paid",
+        "users.role",
+        "lessons.n"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "lessons"
+      ]
+    },
+    "mi_historial": {
+      "alcance": "sesion",
+      "args": [
+        "dias"
+      ],
+      "compone": [],
+      "devuelve": [
+        "attempts.lab_id",
+        "attempts.correct",
+        "attempts.at",
+        "labs.lesson_n"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "attempts",
         "labs"
+      ]
+    },
+    "mi_liga": {
+      "alcance": "agregado",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "ranking_optin.alias"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "ranking_optin",
+        "attempts"
+      ]
+    },
+    "mi_panorama": {
+      "alcance": "agregado",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "users.name",
+        "users.role",
+        "users.lang",
+        "users.paid",
+        "users.cohort",
+        "users.created_at",
+        "labs.id",
+        "labs.lesson_n",
+        "labs.level",
+        "labs.kind",
+        "attempts.correct",
+        "attempts.at",
+        "lessons.title",
+        "ranking_optin.alias"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "labs",
+        "attempts",
+        "lessons",
+        "ranking_optin"
       ]
     },
     "mi_perfil": {
       "alcance": "sesion",
       "args": [],
+      "compone": [],
       "devuelve": [
         "users.name",
         "users.role",
@@ -127,6 +538,7 @@
         "users.cohort",
         "users.created_at"
       ],
+      "ejecutor": "node",
       "usa": [
         "users"
       ]
@@ -134,13 +546,99 @@
     "mi_progreso": {
       "alcance": "sesion",
       "args": [],
+      "compone": [],
       "devuelve": [
         "labs.lesson_n",
         "attempts.correct"
       ],
+      "ejecutor": "node",
       "usa": [
         "labs",
         "attempts"
+      ]
+    },
+    "mi_racha": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "attempts.at"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "attempts"
+      ]
+    },
+    "mi_ritmo": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "attempts.at",
+        "attempts.correct"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "attempts"
+      ]
+    },
+    "mi_siguiente_paso": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "labs.id",
+        "labs.lesson_n",
+        "labs.level",
+        "labs.kind",
+        "lessons.title"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "labs",
+        "lessons",
+        "attempts"
+      ]
+    },
+    "mis_datos_y_privacidad": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "users.name",
+        "users.role",
+        "users.lang",
+        "users.theme",
+        "users.paid",
+        "users.created_at",
+        "ranking_optin.alias"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "attempts",
+        "achievements",
+        "ranking_optin"
+      ]
+    },
+    "mis_errores": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "attempts.lab_id",
+        "attempts.answer",
+        "attempts.at",
+        "labs.lesson_n",
+        "labs.level",
+        "labs.kind",
+        "labs.prompt"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "attempts",
+        "labs"
       ]
     },
     "mis_intentos": {
@@ -148,6 +646,7 @@
       "args": [
         "lab_id"
       ],
+      "compone": [],
       "devuelve": [
         "attempts.lab_id",
         "attempts.answer",
@@ -163,57 +662,263 @@
         "labs.draft",
         "labs.explanation"
       ],
+      "ejecutor": "node",
       "usa": [
         "attempts",
-        "labs"
+        "labs",
+        "users"
       ]
     },
     "mis_logros": {
       "alcance": "sesion",
       "args": [],
+      "compone": [],
       "devuelve": [
         "labs.lesson_n",
-        "attempts.correct"
+        "attempts.correct",
+        "achievements.code",
+        "achievements.kind",
+        "achievements.lesson_n",
+        "achievements.earned_at"
       ],
+      "ejecutor": "node",
       "usa": [
         "labs",
+        "attempts",
+        "achievements"
+      ]
+    },
+    "mis_pendientes": {
+      "alcance": "sesion",
+      "args": [
+        "n"
+      ],
+      "compone": [],
+      "devuelve": [
+        "labs.id",
+        "labs.lesson_n",
+        "labs.idx",
+        "labs.level",
+        "labs.kind",
+        "labs.draft",
+        "lessons.title"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "labs",
+        "lessons",
         "attempts"
+      ]
+    },
+    "plan_estudio": {
+      "alcance": "sesion",
+      "args": [
+        "sesiones"
+      ],
+      "compone": [],
+      "devuelve": [
+        "labs.id",
+        "labs.lesson_n",
+        "labs.level",
+        "labs.kind",
+        "lessons.title"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "labs",
+        "lessons",
+        "attempts"
+      ]
+    },
+    "precio_y_compra": {
+      "alcance": "sesion",
+      "args": [],
+      "compone": [],
+      "devuelve": [
+        "users.paid"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users"
       ]
     },
     "ranking_publico": {
       "alcance": "agregado",
       "args": [],
+      "compone": [],
       "devuelve": [
         "ranking_optin.alias",
         "ranking_optin.joined_at",
         "labs.lesson_n"
       ],
+      "ejecutor": "node",
       "usa": [
         "ranking_optin",
         "attempts",
         "labs"
       ]
+    },
+    "requisitos_leccion": {
+      "alcance": "sesion",
+      "args": [
+        "n"
+      ],
+      "compone": [],
+      "devuelve": [
+        "lessons.n",
+        "lessons.eyebrow",
+        "lessons.title",
+        "lessons.summary",
+        "labs.lesson_n",
+        "attempts.correct"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "labs",
+        "attempts",
+        "lessons"
+      ]
+    },
+    "soporte": {
+      "alcance": "publico",
+      "args": [
+        "tema"
+      ],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
     }
   },
+  "muros": {
+    "achievements.code": "gratis",
+    "achievements.earned_at": "gratis",
+    "achievements.kind": "gratis",
+    "achievements.lesson_n": "gratis",
+    "achievements.user_id": "gratis",
+    "attempts.answer": "gratis",
+    "attempts.at": "gratis",
+    "attempts.correct": "gratis",
+    "attempts.id": "gratis",
+    "attempts.lab_id": "gratis",
+    "attempts.user_id": "gratis",
+    "jobs.acabado_en": "gratis",
+    "jobs.clave": "gratis",
+    "jobs.corre_en": "gratis",
+    "jobs.creado_en": "gratis",
+    "jobs.datos": "gratis",
+    "jobs.error": "gratis",
+    "jobs.estado": "gratis",
+    "jobs.id": "gratis",
+    "jobs.intentos": "gratis",
+    "jobs.tipo": "gratis",
+    "jobs.tomado_en": "gratis",
+    "labs.draft": "gratis",
+    "labs.explanation": "de_pago",
+    "labs.id": "gratis",
+    "labs.idx": "gratis",
+    "labs.kind": "gratis",
+    "labs.lesson_n": "gratis",
+    "labs.level": "gratis",
+    "labs.payload": "de_pago",
+    "labs.prompt": "de_pago",
+    "labs.solution": "gratis",
+    "league_week.caudal": "gratis",
+    "league_week.cerrada": "gratis",
+    "league_week.estado": "gratis",
+    "league_week.metal": "gratis",
+    "league_week.puesto": "gratis",
+    "league_week.user_id": "gratis",
+    "league_week.week": "gratis",
+    "lesson_text.analogy": "de_pago",
+    "lesson_text.examples": "de_pago",
+    "lesson_text.lang": "gratis",
+    "lesson_text.lesson_n": "gratis",
+    "lesson_text.technical": "de_pago",
+    "lessons.analogy": "de_pago",
+    "lessons.eyebrow": "gratis",
+    "lessons.math": "gratis",
+    "lessons.math_cap": "gratis",
+    "lessons.n": "gratis",
+    "lessons.summary": "gratis",
+    "lessons.technical": "de_pago",
+    "lessons.title": "gratis",
+    "payments.amount": "gratis",
+    "payments.at": "gratis",
+    "payments.currency": "gratis",
+    "payments.ext_id": "gratis",
+    "payments.id": "gratis",
+    "payments.provider": "gratis",
+    "payments.raw": "gratis",
+    "payments.status": "gratis",
+    "payments.user_id": "gratis",
+    "ranking_optin.alias": "gratis",
+    "ranking_optin.joined_at": "gratis",
+    "ranking_optin.user_id": "gratis",
+    "reset_tokens.created_at": "gratis",
+    "reset_tokens.expires_at": "gratis",
+    "reset_tokens.id": "gratis",
+    "reset_tokens.token_hash": "gratis",
+    "reset_tokens.used_at": "gratis",
+    "reset_tokens.user_id": "gratis",
+    "role_audit.actor_id": "gratis",
+    "role_audit.at": "gratis",
+    "role_audit.from_role": "gratis",
+    "role_audit.id": "gratis",
+    "role_audit.to_role": "gratis",
+    "role_audit.user_id": "gratis",
+    "users.cohort": "gratis",
+    "users.created_at": "gratis",
+    "users.deleted_at": "gratis",
+    "users.email": "gratis",
+    "users.failed": "gratis",
+    "users.id": "gratis",
+    "users.lang": "gratis",
+    "users.locked_until": "gratis",
+    "users.name": "gratis",
+    "users.paid": "gratis",
+    "users.pass_hash": "gratis",
+    "users.role": "gratis",
+    "users.theme": "gratis",
+    "users.token_version": "gratis"
+  },
   "orden_borrado": [
-    "attempts",
     "role_audit",
+    "reset_tokens",
     "ranking_optin",
     "payments",
     "league_week",
+    "attempts",
     "achievements",
-    "labs",
     "users",
-    "lessons"
+    "lesson_text",
+    "labs",
+    "lessons",
+    "jobs"
   ],
   "prohibidas": {
     "achievements": [
-      "id",
       "user_id"
     ],
     "attempts": [
       "id",
       "user_id"
+    ],
+    "jobs": [
+      "id",
+      "tipo",
+      "clave",
+      "datos",
+      "estado",
+      "intentos",
+      "error",
+      "corre_en",
+      "tomado_en",
+      "acabado_en",
+      "creado_en"
     ],
     "labs": [
       "solution"
@@ -222,6 +927,7 @@
       "user_id",
       "cerrada"
     ],
+    "lesson_text": [],
     "lessons": [],
     "payments": [
       "id",
@@ -237,6 +943,14 @@
     "ranking_optin": [
       "user_id"
     ],
+    "reset_tokens": [
+      "id",
+      "user_id",
+      "token_hash",
+      "created_at",
+      "expires_at",
+      "used_at"
+    ],
     "role_audit": [
       "id",
       "actor_id",
@@ -251,14 +965,15 @@
       "pass_hash",
       "failed",
       "locked_until",
-      "deleted_at"
+      "deleted_at",
+      "token_version"
     ]
   },
   "prompt_sha": {
-    "en": "236fa8aff967",
-    "es": "769f809949d3"
+    "en": "b62cadbc684b",
+    "es": "0e9645292cfd"
   },
-  "sha": "67550b68c55e59eb",
+  "sha": "b0d12f462ec36297",
   "version": 3,
   "violaciones": []
 }
