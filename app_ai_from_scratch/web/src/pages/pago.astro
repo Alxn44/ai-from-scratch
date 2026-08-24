@@ -1,0 +1,160 @@
+---
+export const prerender = false;
+import { getUser } from '../lib/session';
+import { publicPrefs } from '../lib/prefs';
+import { t, resolveLang } from '../lib/i18n';
+import { grafo, org, curso } from '../lib/seo';
+import { mercadoDe } from '../lib/region';
+import { narrativaDe } from '../lib/narrative';
+import { SITE, MARCA } from '../lib/site';
+import { TOKENS, PUBLIC_BASE } from '../lib/theme-css';
+import { icon } from '../lib/icons';
+import PrefToggles from '../components/PrefToggles.astro';
+
+const user = await getUser(Astro.request);
+const mpKey = import.meta.env.MP_PUBLIC_KEY ?? process.env.MP_PUBLIC_KEY ?? null;
+
+// Con sesión manda la preferencia de la cuenta; sin sesión, la cookie del dispositivo.
+const dev = publicPrefs(Astro.request);
+const langPref = user ? user.lang : dev.langPref;
+const theme = user ? user.theme : dev.theme;
+const lang = user ? resolveLang(user.lang, Astro.request) : dev.lang;
+const L = t(lang);
+const P = L.pub.pay;
+const canonical = new URL(Astro.url.pathname, SITE).href;
+// Narrativa según de dónde se conecta: en Colombia hay PSE y efectivo, en la UE
+// manda el retracto de 14 días, y prometer un medio que no existe es peor que callar.
+const { mercado, pais } = mercadoDe(Astro.request);
+const N = narrativaDe(mercado, lang);
+const jsonld = grafo(org(), curso(lang));
+---
+<!doctype html>
+<html lang={lang} data-theme={theme}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{P.eb} · IA desde cero</title>
+  <link rel="canonical" href={canonical}>
+  <meta property="og:site_name" content={MARCA}>
+  <meta property="og:type" content="website">
+  <meta property="og:url" content={canonical}>
+  <script type="application/ld+json" is:inline set:html={jsonld}></script>
+  <style is:global set:html={TOKENS + PUBLIC_BASE}></style>
+  <style is:global>
+    .h1{font-size:38px}
+    .btn.pay{height:52px;width:100%}
+    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--hair2)}
+  </style>
+</head>
+<body>
+  <header style="height:64px;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;padding:0 32px;gap:20px">
+    <a href="/" style="display:flex;align-items:center;gap:11px;color:var(--l1)">
+      <span class="mark">IA</span>
+      <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
+      <span class="lbl" style="margin-left:8px">{P.seguro}</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:20px">
+      <div style="display:flex;align-items:center;gap:10px"><Fragment set:html={icon('lock', 16, 'var(--ok)')} /><span class="s">{P.noSales}</span></div>
+      <PrefToggles lang={langPref} theme={theme} sync={!!user} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
+    </div>
+  </header>
+
+  <div style="display:grid;grid-template-columns:1fr 560px;min-height:calc(100vh - 64px)">
+    <section style="padding:44px 48px;display:flex;flex-direction:column;gap:26px;border-right:1px solid var(--hair2)">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <p class="eb">{P.eb}</p>
+        <h1 class="h1">{P.h1}</h1>
+        <p class="p" style="max-width:460px">{P.pitch}</p>
+        <p class="eb" style="margin-top:4px">{N.eyebrow}</p>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:2px">
+          {N.prueba.map((x) => (
+            <div style="display:flex;gap:9px;align-items:flex-start">
+              <Fragment set:html={icon('check', 14, 'var(--ok)')} />
+              <span class="s" style="color:var(--l2)">{x}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--hair);padding-top:18px">
+        <div class="row"><span class="s" style="color:var(--l2)">{P.curso}</span><span class="num" style="font:500 15px/1 var(--m)">USD 9.99</span></div>
+        <div class="row"><span class="s" style="color:var(--l2)">{P.antes}</span><span class="num s" style="text-decoration:line-through">USD 49.00</span></div>
+        <div class="row"><span class="s" style="color:var(--l2)">{P.comision}</span><span class="s">{P.comisionV}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 0"><span class="lbl">{P.totalHoy}</span><span class="num" style="font:700 30px/1 var(--f);letter-spacing:-.035em">USD 9.99</span></div>
+      </div>
+      <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:2px solid var(--ok)">
+        <Fragment set:html={icon('check', 18, 'var(--ok)')} />
+        <div><div class="h3">{N.garantiaTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{N.garantiaTxt}</p></div>
+      </div>
+      <div style="margin-top:auto;border-top:1px solid var(--hair2);padding-top:18px">
+        <p class="lbl">{N.pagoTit}</p>
+        <p class="s" style="color:var(--l2);max-width:460px;margin-top:8px">{N.pagoTxt}</p>
+        <p class="s" style="color:var(--l2);max-width:460px;margin-top:8px">{P.comoCobraB}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
+          {N.medios.map((m) => (
+            <span class="lbl" style="border:1px solid var(--hair2);padding:6px 9px;color:var(--l2)">{m}</span>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section style="padding:44px 40px;background:var(--panel);display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <p class="lbl">{P.metodo}</p>
+        <span class="lbl" style="color:var(--ac)">MERCADO PAGO</span>
+      </div>
+
+      {!user && (
+        <div class="card" style="border-color:var(--or);display:flex;gap:12px;align-items:flex-start">
+          <Fragment set:html={icon('alert', 18, 'var(--or)')} />
+          <div><div class="h3">{P.cuentaPrimero}</div><p class="s" style="color:var(--l2);margin-top:4px"><a href="/registro">{P.registrarme}</a> — {P.cuentaPrimeroB}</p></div>
+        </div>
+      )}
+
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+        <button class="chip" data-m="card" data-on>{P.tarjeta}</button>
+        {mercado !== 'us' && mercado !== 'eu' && <button class="chip" data-m="wallet">{P.wallet}</button>}
+        {mercado === 'co' && <button class="chip" data-m="pse">{P.pse}</button>}
+        {mercado === 'co' && <button class="chip" data-m="cash">{P.efectivo}</button>}
+      </div>
+
+      <div id="brick" style="border:1px solid var(--hair);padding:20px;min-height:220px;display:flex;flex-direction:column;gap:12px">
+        <span class="lbl">{P.datos}</span>
+        <p class="s" style="color:var(--l2)">{P.brickNota}</p>
+      </div>
+
+      <div id="pse-note" hidden class="card" style="border-color:var(--or)">
+        <p class="s" style="color:var(--l2)">{P.pseNota}</p>
+      </div>
+
+      <button class="btn pay" id="pay" style="margin-top:auto">{P.pagar}</button>
+      <p class="s" style="text-align:center">{P.terminos}</p>
+    </section>
+  </div>
+  <div id="toasts"></div>
+
+  <script define:vars={{ P, mpKey, logged: !!user }}>
+    const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
+    const box = document.getElementById('toasts');
+    const toast = (k, tt, b) => {
+      box.innerHTML = `<div class="toast" style="border-color:${COLOR[k]}"><div style="flex:1">
+        <div class="h3" style="color:${COLOR[k]}">${tt}</div><p class="s" style="color:var(--l2);margin-top:4px">${b}</p></div></div>`;
+    };
+    document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('[data-m]').forEach((x) => x.removeAttribute('data-on'));
+      b.setAttribute('data-on', '');
+      document.getElementById('pse-note').hidden = b.dataset.m !== 'pse';
+      document.getElementById('pay').textContent = b.dataset.m === 'cash' ? P.cupon : P.pagar;
+    }));
+    document.getElementById('pay').addEventListener('click', async () => {
+      if (!logged) { toast('warn', P.sinCuenta, P.sinCuentaB); return; }
+      const res = await fetch('/api/payments/mercadopago/preference', { method: 'POST' });
+      if (res.status === 501) { toast('warn', P.sinCred, P.sinCredB); return; }
+      if (!res.ok) { toast('bad', P.mpErr, P.mpErrB); return; }
+      const { preferenceId, publicKey } = await res.json();
+      if (!(publicKey ?? mpKey)) { toast('warn', P.sinKey, P.sinKeyB); return; }
+      toast('info', P.prefOk, preferenceId);
+      // El SDK de Mercado Pago se carga aquí y monta el Payment Brick sobre #brick.
+    });
+  </script>
+</body>
+</html>

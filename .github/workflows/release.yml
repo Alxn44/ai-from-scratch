@@ -1,0 +1,187 @@
+# The deploy itself, called by both deploy.yml and hotfix.yml.
+#
+# It lives here so there is exactly ONE deploy script. Two copies — one for the
+# normal road, one for hotfixes — would drift, and they would drift in the worst
+# possible place: the hotfix copy is the one that runs while production is
+# already broken and nobody is reading it carefully.
+#
+# WHY SSH AND COMPOSE, rather than a managed-host API. The stack is eight
+# containers with a dependency order that matters: `init` must finish migrating
+# before `api` starts, and `api` waits for `ia` to be HEALTHY rather than merely
+# started. That ordering already exists, tested, in docker-compose.yml. A managed
+# host running one container per service with no such ordering would need it
+# re-expressed in another vocabulary, or lose it. This works unchanged on a VPS
+# or a Raspberry Pi.
+#
+# THE HOST NEVER BUILDS. `--no-build` is not decoration: with both `build` and
+# `image` set, compose silently builds a missing image, and a box compiling from
+# source is running a different artefact than the one CI approved.
+name: release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The published image tag to deploy. A commit sha, never `latest`.
+        required: true
+        type: string
+      environment:
+        description: The GitHub Environment holding the host credentials.
+        required: false
+        type: string
+        default: production
+
+jobs:
+  release:
+    name: release ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    # Add a required reviewer here if you ever want a human gate — that setting
+    # lives in the Environment, not in this file, so tightening it is not a code
+    # change.
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse to deploy without a configured target
+        if: vars.DEPLOY_TARGET == ''
+        run: |
+          echo "::error::No deploy target configured, so nothing was released."
+          echo
+          echo "Images ARE published and ready to pull, pinned to this commit:"
+          echo "  ghcr.io/${{ github.repository }}/{api,api-migrate,ai,web,queue}:${{ inputs.tag }}"
+          echo
+          echo "To turn the deploy on, set the repository VARIABLE DEPLOY_TARGET to"
+          echo "the host's name, and add these Environment secrets on '${{ inputs.environment }}':"
+          echo "  DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH"
+          echo "  WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO"
+          echo "Optional: DEPLOY_PORT, MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, MP_PUBLIC_KEY"
+          echo
+          echo "This fails on purpose. A release job that exits 0 without releasing"
+          echo "is the worst outcome available: main goes green, everyone believes"
+          echo "the deploy happened, and the running version silently stops"
+          echo "matching the repository."
+          exit 1
+
+      - name: Check the deploy secrets are all present
+        if: vars.DEPLOY_TARGET != ''
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          WEB_ORIGIN: ${{ secrets.WEB_ORIGIN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          IA_SECRETO: ${{ secrets.IA_SECRETO }}
+        run: |
+          # Checked here, before any ssh, and named one at a time so the log says
+          # WHICH one is missing. Discovering a missing secret halfway through the
+          # session is how a host ends up half-restarted.
+          missing=""
+          for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH \
+                   WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO; do
+            eval "val=\${$v}"
+            [ -n "$val" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::DEPLOY_TARGET is set but these secrets are missing:$missing"
+            exit 1
+          fi
+          echo "all deploy secrets present"
+
+      - name: Deploy
+        if: vars.DEPLOY_TARGET != ''
+        env:
+          TAG: ${{ inputs.tag }}
+          IMAGE_REPO: ghcr.io/${{ github.repository }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          WEB_ORIGIN: ${{ secrets.WEB_ORIGIN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          IA_SECRETO: ${{ secrets.IA_SECRETO }}
+          MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
+          MP_WEBHOOK_SECRET: ${{ secrets.MP_WEBHOOK_SECRET }}
+          MP_PUBLIC_KEY: ${{ secrets.MP_PUBLIC_KEY }}
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          umask 077
+          key=$(mktemp)
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$key"
+          trap 'rm -f "$key"' EXIT
+
+          ssh_run() {
+            ssh -i "$key" -p "$DEPLOY_PORT" \
+                -o StrictHostKeyChecking=accept-new \
+                -o ConnectTimeout=15 \
+                "$DEPLOY_USER@$DEPLOY_HOST" "$@"
+          }
+
+          # The compose files travel with the deploy, so the host's copy always
+          # matches the images being started. Relying on somebody to `git pull`
+          # there is how a host ends up running new images under old wiring.
+          scp -i "$key" -P "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new \
+            app_ai_from_scratch/docker-compose.yml \
+            app_ai_from_scratch/docker-compose.prod.yml \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+          # Read what is running BEFORE changing anything, so the rollback below
+          # has a real tag to return to.
+          previous=$(ssh_run "cat '$DEPLOY_PATH/.deployed-tag' 2>/dev/null || echo none")
+          echo "currently deployed: $previous"
+          echo "deploying:          $TAG"
+
+          # Written 600 by the umask on the remote side, and never echoed.
+          ssh_run "umask 077 && cat > '$DEPLOY_PATH/.env'" <<EOF
+          IMAGE_REPO=$IMAGE_REPO
+          TAG=$TAG
+          WEB_ORIGIN=$WEB_ORIGIN
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          RABBITMQ_PASSWORD=$RABBITMQ_PASSWORD
+          JWT_SECRET=$JWT_SECRET
+          IA_SECRETO=$IA_SECRETO
+          MP_ACCESS_TOKEN=$MP_ACCESS_TOKEN
+          MP_WEBHOOK_SECRET=$MP_WEBHOOK_SECRET
+          MP_PUBLIC_KEY=$MP_PUBLIC_KEY
+          SEED_DEMO_USERS=0
+          EOF
+
+          echo "$REGISTRY_TOKEN" | ssh_run "docker login ghcr.io -u '$REGISTRY_USER' --password-stdin"
+
+          COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+          # Pull as its own step. A tag missing from the registry stops the deploy
+          # here, with nothing torn down.
+          ssh_run "cd '$DEPLOY_PATH' && $COMPOSE pull"
+
+          # --wait blocks on the healthchecks the base compose file already
+          # defines. /api/health touches the labs table, so a green api proves
+          # migrations applied, the seed finished, and the pool works.
+          if ssh_run "cd '$DEPLOY_PATH' && $COMPOSE up -d --no-build --remove-orphans --wait --wait-timeout 180"; then
+            ssh_run "printf '%s' '$TAG' > '$DEPLOY_PATH/.deployed-tag'"
+            echo "deployed $TAG"
+          else
+            echo "::error::$TAG did not become healthy within 180s."
+            ssh_run "cd '$DEPLOY_PATH' && $COMPOSE ps" || true
+            ssh_run "cd '$DEPLOY_PATH' && $COMPOSE logs --tail 80 api ia web" || true
+
+            if [ "$previous" = "none" ]; then
+              echo "::error::No previous tag recorded, so there is nothing to roll back to."
+              echo "The stack is left exactly as it is, deliberately: tearing it down"
+              echo "would turn a failed first deploy into an outage with no way back."
+              exit 1
+            fi
+
+            echo "::warning::rolling back to $previous"
+            ssh_run "cd '$DEPLOY_PATH' && sed -i 's/^TAG=.*/TAG=$previous/' .env && $COMPOSE pull && $COMPOSE up -d --no-build --wait --wait-timeout 180"
+            echo "::error::deploy of $TAG failed; rolled back to $previous"
+            exit 1
+          fi

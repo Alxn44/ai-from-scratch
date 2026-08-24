@@ -1,0 +1,165 @@
+datasource db {
+  provider = "postgresql"
+}
+
+model achievements {
+  user_id   Int
+  code      String
+  kind      String
+  lesson_n  Int?
+  earned_at DateTime @default(now()) @db.Timestamptz(6)
+  users     users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, code])
+  @@index([user_id, earned_at(sort: Desc)], map: "logro_user")
+}
+
+model attempts {
+  id      Int      @id @default(autoincrement())
+  user_id Int
+  lab_id  String
+  answer  String
+  correct Int      @db.SmallInt
+  at      DateTime @default(now()) @db.Timestamptz(6)
+  labs    labs     @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users   users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, lab_id], map: "attempts_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model jobs {
+  id         Int       @id @default(autoincrement())
+  tipo       String
+  clave      String
+  datos      Json      @default("{}")
+  estado     String    @default("pendiente")
+  intentos   Int       @default(0) @db.SmallInt
+  error      String?
+  corre_en   DateTime  @default(now()) @db.Timestamptz(6)
+  tomado_en  DateTime? @db.Timestamptz(6)
+  acabado_en DateTime? @db.Timestamptz(6)
+  creado_en  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([tipo, clave])
+  @@index([estado, corre_en], map: "jobs_listos", where: raw("(estado = 'pendiente'::text)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model labs {
+  id          String     @id
+  lesson_n    Int
+  idx         Int        @db.SmallInt
+  level       String
+  kind        String
+  prompt      String
+  payload     String
+  solution    String
+  explanation String
+  draft       Int        @default(0) @db.SmallInt
+  attempts    attempts[]
+  lessons     lessons    @relation(fields: [lesson_n], references: [n], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model league_week {
+  user_id Int
+  week    DateTime @db.Date
+  metal   String
+  caudal  Int      @default(0)
+  puesto  Int?
+  estado  String   @default("activo")
+  cerrada Int      @default(0) @db.SmallInt
+  users   users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, week])
+  @@index([week, metal, caudal(sort: Desc)], map: "liga_semana")
+}
+
+model lesson_text {
+  lesson_n  Int
+  lang      String
+  technical String
+  analogy   String
+  examples  Json    @default("[]")
+  lessons   lessons @relation(fields: [lesson_n], references: [n], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([lesson_n, lang])
+}
+
+model lessons {
+  n           Int           @id
+  eyebrow     String
+  title       String
+  summary     String
+  math        String
+  math_cap    String
+  technical   String        @default("")
+  analogy     String        @default("")
+  labs        labs[]
+  lesson_text lesson_text[]
+}
+
+model payments {
+  id       Int      @id @default(autoincrement())
+  user_id  Int?
+  provider String   @default("mercadopago")
+  ext_id   String?  @unique
+  status   String
+  amount   Float
+  currency String   @default("USD")
+  raw      String?
+  at       DateTime @default(now()) @db.Timestamptz(6)
+  users    users?   @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+}
+
+model ranking_optin {
+  user_id   Int      @id
+  alias     String   @unique
+  joined_at DateTime @default(now()) @db.Timestamptz(6)
+  users     users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model reset_tokens {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  token_hash String    @unique
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, created_at], map: "reset_user")
+}
+
+model role_audit {
+  id        Int      @id @default(autoincrement())
+  actor_id  Int
+  user_id   Int
+  from_role String
+  to_role   String
+  at        DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  name          String
+  pass_hash     String
+  role          String         @default("student")
+  lang          String         @default("auto")
+  theme         String         @default("auto")
+  paid          Int            @default(0) @db.SmallInt
+  cohort        String?
+  created_at    DateTime       @default(now()) @db.Timestamptz(6)
+  failed        Int            @default(0) @db.SmallInt
+  locked_until  DateTime?      @db.Timestamptz(6)
+  deleted_at    DateTime?      @db.Timestamptz(6)
+  token_version Int            @default(0)
+  achievements  achievements[]
+  attempts      attempts[]
+  league_week   league_week[]
+  payments      payments[]
+  ranking_optin ranking_optin?
+  reset_tokens  reset_tokens[]
+}

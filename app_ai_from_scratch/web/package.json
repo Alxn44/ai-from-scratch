@@ -1,0 +1,28 @@
+{
+  "name": "ia-desde-cero-web",
+  "type": "module",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.15.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "tsgo -p tsconfig.tsgo.json && astro check",
+    "i18n": "node --experimental-strip-types scripts/i18n-check.mjs",
+    "check:ts": "tsgo -p tsconfig.tsgo.json",
+    "check:astro": "astro check",
+    "scenes:check": "node scripts/scenes-check.mjs"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.1.4",
+    "astro": "^7.2.2",
+    "gsap": "^3.12.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.2.0",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "typescript": "^6.0.3"
+  }
+}

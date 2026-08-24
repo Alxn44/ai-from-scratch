@@ -1,0 +1,193 @@
+---
+export const prerender = false;
+import App from '../../layouts/App.astro';
+import { gate, apiTry } from '../../lib/session';
+import LeccionCerrada from '../../components/LeccionCerrada.astro';
+import { icon } from '../../lib/icons';
+import { t, resolveLang } from '../../lib/i18n';
+import { jsonSafe } from '../../lib/json-safe';
+
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+
+const n = Number(Astro.params.n);
+type Lab = { id: string; idx: number; level: string; kind: string; prompt: string; payload: any; draft: boolean; solved: boolean; attempts: number };
+type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string };
+type Ejemplo = { titulo: string; entrada: string; salida: string; nota: string };
+type Texto = { technical: string; analogy: string; examples: Ejemplo[] };
+const lang0 = resolveLang(user!.lang, Astro.request);
+const r = await apiTry<{ lesson: Lesson; labs: Lab[]; texto: Texto | null; textoIdioma: string | null }>(`/api/lessons/${n}?lang=${lang0}`, Astro.request);
+if (r.status === 401 || r.status === 403) return Astro.redirect('/login');
+// Cualquier otra cosa (404, 500) no tiene ficha que pintar: al índice del curso.
+if ((r.status !== 200 && r.status !== 402) || !r.data?.lesson) return Astro.redirect('/curso');
+// 402: la lección existe pero está detrás del muro de pago -> vitrina, no rebote.
+const cerrada = r.status === 402;
+const { lesson, labs } = r.data;
+const texto = r.data.texto;
+const textoIdioma = r.data.textoIdioma;
+const LEVEL: Record<string, [string, string]> = { facil: ['FÁCIL', 'var(--ok)'], medio: ['MEDIO', 'var(--or)'], dificil: ['DIFÍCIL', 'var(--rd)'] };
+const lang = lang0;
+const L = t(lang);
+const solved = labs.filter((l) => l.solved).length;
+---
+{cerrada ? <LeccionCerrada user={user!} lang={lang} lesson={lesson} labs={labs} /> : (
+<App user={user!} title={lesson.title} crumb={`CURSO / LECCIÓN ${String(n).padStart(2, '0')} DE 12`} active="Curso">
+  <span slot="topbar" class="lbl num">{solved} / {labs.length} LABS DE ESTA LECCIÓN</span>
+
+  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:30px;max-width:1180px">
+
+    {textoIdioma && textoIdioma !== lang && (
+      <div class="card" style="border-color:var(--or);border-left:2px solid var(--or);display:flex;gap:12px;align-items:flex-start">
+        <Fragment set:html={icon('alert', 18, 'var(--or)')} />
+        <p class="s" style="color:var(--l2)">{L.tradPendiente}</p>
+      </div>
+    )}
+
+    <div id="lectura" style="display:flex;flex-direction:column;gap:30px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--hair);padding-bottom:22px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <p class="eb">{String(n).padStart(2, '0')} · {lesson.eyebrow}</p>
+        <h1 class="h1" style="font-size:40px" data-narra>{lesson.title}</h1>
+        <p class="p" style="max-width:620px" data-narra>{lesson.summary}</p>
+      </div>
+      <div class="card" style="width:280px;flex:none;border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:10px">
+        <p class="lbl">{L.laMatematica}</p>
+        <div class="num" style="font:700 26px/1.1 var(--f);letter-spacing:-.03em">{lesson.math}</div>
+        <p class="s" style="color:var(--l2)">{lesson.math_cap}</p>
+      </div>
+    </div>
+
+    {texto && (
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start">
+        <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair)">
+          <p class="eb">{L.lec.comoFunciona}</p>
+          <p class="p" data-narra>{texto.technical}</p>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;gap:12px;border-left:2px solid var(--ac)">
+          <p class="lbl">{L.lec.comoSiFuera}</p>
+          <p class="p" data-narra>{texto.analogy}</p>
+        </div>
+      </div>
+    )}
+
+    {texto && texto.examples.length > 0 && (
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <p class="lbl">{L.lec.ejemplos}</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+          {/* Card anatomy: title, scene, the two text lines, note.
+              scenes/mount.ts builds the scene and, once it has, hides [data-example-io]:
+              the scene is already saying those two sentences with the example's own words.
+              With no JS, or on a lesson with no scene, the static card stays exactly as it was.
+              data-narra sits on each TEXT block rather than on the card, because the narrator
+              reads everything inside a marked block and must not read the scene's furniture. */}
+          {texto.examples.map((e) => (
+            <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair2)" data-example-card>
+              <div class="h3" data-narra>{e.titulo}</div>
+              <div
+                style="display:flex;flex-direction:column;gap:10px"
+                data-scene-example={JSON.stringify(e)}
+                data-scene-lesson={n}
+                data-scene-lang={lang}
+              ></div>
+              <div style="display:flex;flex-direction:column;gap:9px" data-example-io data-narra>
+                <div style="display:flex;gap:10px;align-items:flex-start">
+                  <span class="lbl" style="width:74px;flex:none;padding-top:3px">{L.lec.pides}</span>
+                  <p class="p" style="font-size:14px">{e.entrada}</p>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-start">
+                  <span class="lbl" style="width:74px;flex:none;padding-top:3px;color:var(--ac)">{L.lec.pasa}</span>
+                  <p class="p" style="font-size:14px">{e.salida}</p>
+                </div>
+              </div>
+              <p class="s" style="border-top:1px solid var(--hair2);padding-top:10px" data-narra>{e.nota}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;border-top:1px solid var(--hair);padding-top:22px">
+      <p class="lbl">{L.lec.ahoraTu}</p>
+      <span class="s">{L.lec.ahoraTuB}</span>
+    </div>
+
+    <script type="application/json" id="lab-txt" is:inline set:html={jsonSafe({
+      ...L.lab,
+      logroEb: L.logros.eb, logroTitulo: L.logros.titulo, logroSub: L.logros.sub,
+      logroCerrar: L.logros.cerrar, logroSeguir: L.logros.seguir, logroParada: L.logros.parada,
+      rangos: L.logros.rangos, grados: L.logros.grados,
+      db: L.logros.db,
+    })}></script>
+
+    <script type="application/json" id="narra-txt" is:inline set:html={jsonSafe({ ...L.narra, lang })}></script>
+
+    {labs.map((lab) => (
+      <div class="card" data-lab={lab.draft ? undefined : lab.id} style="border-color:var(--hair);display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:inline-flex;align-items:center;gap:9px;height:30px;padding:0 12px;border:1px solid var(--hair)">
+              <Fragment set:html={icon('lab', 15, 'var(--ac)')} />
+              <span class="num" style="font:600 11px/1 var(--m);letter-spacing:.1em">LAB {lab.id}</span>
+            </span>
+            <span class="lbl" style={`color:${LEVEL[lab.level][1]}`}>{LEVEL[lab.level][0]}</span>
+            {lab.solved && <span class="lbl" style="color:var(--ok)">{L.resuelto.toUpperCase()}</span>}
+          </div>
+          <span class="lbl">{lab.attempts > 0 ? `${lab.attempts} ${L.intentos}` : L.sinIntentos}</span>
+        </div>
+
+        <h2 class="h2">{lab.prompt}</h2>
+
+        {lab.draft ? (
+          <div style="border:1px dashed var(--hair);padding:18px;display:flex;gap:12px;align-items:flex-start">
+            <Fragment set:html={icon('alert', 18, 'var(--or)')} />
+            <p class="s" style="color:var(--l2)">Este lab está en borrador: la mecánica ya está definida ({lab.kind}) pero el enunciado y la explicación no se han escrito. No se puede responder todavía.</p>
+          </div>
+        ) : (
+          <Fragment>
+            <div data-stage></div>
+            <div style="display:flex;gap:12px;align-items:center">
+              <button class="btn" data-check>{L.comprobar}</button>
+              <button class="btn ghost" data-reset>{L.deNuevo}</button>
+            </div>
+            <div data-out></div>
+            <script type="application/json" set:html={jsonSafe({ id: lab.id, kind: lab.kind, payload: lab.payload, solved: lab.solved, draft: lab.draft })} />
+          </Fragment>
+        )}
+      </div>
+    ))}
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid var(--hair);padding-top:22px">
+      {n > 1 ? <a class="btn ghost" style="text-decoration:none" href={`/leccion/${n - 1}`}>{L.leccionAnterior} · {String(n - 1).padStart(2, '0')}</a> : <span></span>}
+      {n < 12 && <a class="btn" style="text-decoration:none" href={`/leccion/${n + 1}`}>{L.siguienteLeccion} · {String(n + 1).padStart(2, '0')}</a>}
+    </div>
+  </div>
+
+  <script>
+    // GSAP para las animaciones de acierto/fallo y el roadmap. Si no cargara,
+    // fx.ts y roadmap.ts caen a la Web Animations API del navegador.
+    import { gsap } from 'gsap';
+    (window as any).gsap = gsap;
+    import { mountLabs } from '../../lib/labs-client';
+    mountLabs();
+
+    // Example scenes: one per lesson concept, parameterised by the example's own
+    // data. Mounted BEFORE the narrator: it hides the two static lines, and the
+    // narrator still reads them because display:none does not remove textContent.
+    import { mountExampleScenes } from '../../lib/scenes/mount';
+    mountExampleScenes();
+
+    // Narrador: la barra se monta DENTRO de #lectura, así queda pegada al pie
+    // mientras lees y desaparece al llegar a los labs. Pegada a toda la página
+    // taparía el botón Comprobar de cada lab.
+    import { montarNarrador } from '../../lib/narrator';
+    const lectura = document.getElementById('lectura');
+    const nt = document.getElementById('narra-txt');
+    if (lectura && nt) {
+      const T = JSON.parse(nt.textContent!);
+      montarNarrador(lectura, lectura, T.lang, T);
+    }
+  </script>
+</App>
+)}

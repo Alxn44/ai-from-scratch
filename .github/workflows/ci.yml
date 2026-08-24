@@ -1,0 +1,338 @@
+# Every gate that must pass before code reaches main.
+#
+# One rule governs this file: a check that cannot run must FAIL, never skip. This
+# repository has been bitten three separate times by a guard that silently
+# inspected nothing and reported success — a column guard that returned an empty
+# list for unknown tables, a catalogue reader that compared against a registry it
+# could no longer find, and an integration suite that printed "skipped: no server"
+# and exited 0. A skipped check reads exactly like a passing one in a green tick.
+# So: the bridge suite gets a real server, the ontology gets a real regenerate,
+# and nothing here is allowed to opt out of itself.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The working tree lives one level down; the git root is the repository root.
+  DIR: app_ai_from_scratch
+  PNPM_VERSION: 10.15.0
+  NODE_VERSION: 22.13.1
+
+jobs:
+  node:
+    name: api + web
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: curso
+          POSTGRES_PASSWORD: curso
+          POSTGRES_DB: curso
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U curso -d curso"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso
+      # A 48-char ephemeral value. The guard in auth.ts rejects known placeholders
+      # and anything under 32 chars, so this cannot be a friendly short string.
+      JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
+      IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: |
+            ${{ env.DIR }}/api/pnpm-lock.yaml
+            ${{ env.DIR }}/web/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: ${{ env.DIR }}
+        run: |
+          pnpm --dir api install --frozen-lockfile
+          pnpm --dir web install --frozen-lockfile
+
+      # The schema is applied by migrations, never by the server at boot. Twenty
+      # DDL statements running on startup is how two instances race each other.
+      - name: Migrate
+        working-directory: ${{ env.DIR }}
+        run: pnpm --dir api db:deploy
+
+      - name: Schema drift (migrations vs schema.prisma)
+        working-directory: ${{ env.DIR }}
+        run: pnpm --dir api db:drift
+
+      - name: Seed
+        working-directory: ${{ env.DIR }}
+        run: pnpm --dir api seed
+
+      - name: Types (api, pinned baseline)
+        working-directory: ${{ env.DIR }}
+        run: pnpm --dir api check
+
+      # The registry is read by IMPORT, not by regex. A regex reader broke twice —
+      # once on a rename, once on a file split — and each time the catalogue guard
+      # went dark while every test stayed green.
+      - name: Tool catalogue
+        working-directory: ${{ env.DIR }}
+        run: node --experimental-strip-types scripts/emit-tool-catalog.mjs
+
+      - name: Ontology vs schema
+        working-directory: ${{ env.DIR }}
+        run: node scripts/check-ontology-drift.mjs
+
+      # The bridge suite needs a live server. It no longer SKIPS without one --
+      # it starts one in-process and fails closed if it cannot -- so this step is
+      # now an optimisation rather than the thing standing between us and a
+      # silent pass: it gives the suite a server that is already migrated and
+      # seeded, via API_TEST_URL, instead of booting a second one.
+      # nohup + disown, not a bare `&`. A background child of a step's shell is
+      # not guaranteed to outlive that shell, and if it dies the suite reports
+      # "skipped" and exits 0 — a silent pass, which is the one outcome this
+      # workflow refuses. The log is captured so a boot failure is diagnosable
+      # instead of just absent.
+      - name: Start api for the integration suite
+        working-directory: ${{ env.DIR }}
+        run: |
+          nohup env PORT=8791 node --experimental-strip-types api/src/server.ts \
+            > /tmp/api.log 2>&1 &
+          disown || true
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8791/api/health >/dev/null; then
+              echo "api up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "api never answered /api/health in 40s. Its log:"
+          cat /tmp/api.log
+          exit 1
+
+      - name: Tests (7 suites, none skipped)
+        working-directory: ${{ env.DIR }}
+        env:
+          API_TEST_URL: http://127.0.0.1:8791
+        run: pnpm --dir api test
+
+      - name: Web
+        working-directory: ${{ env.DIR }}
+        run: |
+          pnpm --dir web exec astro check
+          pnpm --dir web exec tsgo -p tsconfig.tsgo.json
+          # Type checking passes happily when a lesson has no animation at all:
+          # the page falls back to the static rows and nothing errors.
+          node web/scripts/scenes-check.mjs
+
+  python:
+    name: ai
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.DIR }}/ai/uv.lock
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install
+        working-directory: ${{ env.DIR }}/ai
+        run: uv sync --extra dev --frozen
+
+      - name: Lint
+        working-directory: ${{ env.DIR }}/ai
+        run: uv run ruff check .
+
+      - name: Tests
+        working-directory: ${{ env.DIR }}/ai
+        run: uv run pytest -q
+
+      # The ontology is data and a graph proves over it that no `jamas` column is
+      # reachable. This is the theorem, not a smoke test.
+      - name: Isolation proof (P1..P4)
+        working-directory: ${{ env.DIR }}/ai
+        run: uv run ai-prove-isolation
+
+      # The committed artefact must be what data.py currently generates. A stale
+      # artefact means the runtime guard is running on yesterday's declaration
+      # while the proof passes on today's.
+      - name: The committed artefact is current
+        working-directory: ${{ env.DIR }}
+        run: |
+          pnpm --dir api install --frozen-lockfile --ignore-scripts
+          uv --directory ai run ai-export
+          if ! git diff --exit-code -- api/src/ontologia.json; then
+            echo
+            echo "api/src/ontologia.json is stale: regenerating it changed the file."
+            echo "Run 'uv --directory ai run ai-export' and commit the result."
+            exit 1
+          fi
+
+  queue:
+    name: queue
+    runs-on: ubuntu-latest
+
+    # A real broker, because the alternative is a gate that passes while checking
+    # nothing. `queue-verify` without a reachable broker prints "SKIPPED (nothing
+    # was checked here): topology-declare, topology-verify" and still exits 0 —
+    # honest output, dishonest exit code. `--require-broker` below turns those
+    # skips into failures, and this service container is what makes that possible.
+    services:
+      broker:
+        image: rabbitmq:4-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: app
+          RABBITMQ_DEFAULT_PASS: ci-broker-password
+        ports: ['5672:5672']
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is there a queue service yet?
+        id: exists
+        run: |
+          if [ -f "${{ env.DIR }}/queue/go.mod" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No ${{ env.DIR }}/queue/go.mod — skipping. This is the ONE"
+            echo "conditional skip in this file: the service is being built, and"
+            echo "the condition is the file's existence, not a failure to run."
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.exists.outputs.found == 'true'
+        with:
+          go-version-file: ${{ env.DIR }}/queue/go.mod
+          cache-dependency-path: ${{ env.DIR }}/queue/go.sum
+
+      - name: Build, vet, format, test
+        if: steps.exists.outputs.found == 'true'
+        working-directory: ${{ env.DIR }}/queue
+        run: |
+          go build ./...
+          go vet ./...
+          # gofmt -l prints the files it would change. Any output is a failure.
+          test -z "$(gofmt -l .)" || { echo "gofmt would change:"; gofmt -l .; exit 1; }
+          go test ./... -race
+
+      # The whole gate, with the broker steps made mandatory. This is the only
+      # place the topology is actually declared and verified against a real
+      # RabbitMQ — the unit tests use fakes, and AMQP is deliberately unpublished
+      # in compose, so without this the topology is never proved anywhere.
+      - name: Gate against a real broker
+        if: steps.exists.outputs.found == 'true'
+        working-directory: ${{ env.DIR }}/queue
+        env:
+          AMQP_URL: amqp://app:ci-broker-password@127.0.0.1:5672/
+          IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+        run: go run ./cmd/queue-verify --require-broker
+
+  defense:
+    name: defense
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is there a defense service yet?
+        id: exists
+        run: |
+          if [ -f "${{ env.DIR }}/defense/go.mod" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No ${{ env.DIR }}/defense/go.mod -- skipping. Same single exception as the"
+            echo "queue job: the condition is the file's existence, not a failure to run."
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.exists.outputs.found == 'true'
+        with:
+          go-version-file: ${{ env.DIR }}/defense/go.mod
+          cache-dependency-path: ${{ env.DIR }}/defense/go.sum
+
+      - name: Build, vet, format, test
+        if: steps.exists.outputs.found == 'true'
+        working-directory: ${{ env.DIR }}/defense
+        run: |
+          go build ./...
+          go vet ./...
+          test -z "$(gofmt -l .)" || { echo "gofmt would change:"; gofmt -l .; exit 1; }
+          go test ./... -race
+
+      # THE GATE THAT MATTERS. `defense verify` asserts, over the real tables:
+      #   - every action in the allowlist expires (no permanent effects);
+      #   - an irreversible action requires a human;
+      #   - no action's argv is an interpreter;
+      #   - exactly one of the five agents may act;
+      #   - the detector cannot emit actions and the responder cannot read raw
+      #     signals, so "is this an attack" is decided in one place and it is not
+      #     the place holding the power.
+      #
+      # It runs SEPARATELY from `go test` even though the tests cover the same
+      # tables, because this is the command an operator runs on the box and a gate
+      # nobody can reproduce by hand is a gate nobody trusts.
+      - name: defense verify
+        if: steps.exists.outputs.found == 'true'
+        working-directory: ${{ env.DIR }}/defense
+        run: go run ./cmd/defense verify
+
+      # The audit log is the only record of what this system did to itself, and
+      # its tamper-evidence is the thing most likely to rot silently: a reordered
+      # struct field or a changed hash input breaks the chain for every existing
+      # record. Proving it end to end here is cheap.
+      - name: The audit chain is tamper-evident
+        if: steps.exists.outputs.found == 'true'
+        working-directory: ${{ env.DIR }}/defense
+        run: go test ./internal/audit/ -run 'Caught|Truncating' -v -count=1
+
+  images:
+    name: images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Building proves the Dockerfiles and the lockfiles agree. `init` is the
+      # one that caught ERR_PNPM_OUTDATED_LOCKFILE when amqplib was added without
+      # regenerating api/pnpm-lock.yaml.
+      - name: Build every image
+        working-directory: ${{ env.DIR }}
+        env:
+          POSTGRES_PASSWORD: ci-build-only
+          RABBITMQ_PASSWORD: ci-build-only
+          JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
+          IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+        run: docker compose build

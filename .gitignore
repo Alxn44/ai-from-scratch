@@ -1,11 +1,89 @@
+# Patrones SIN anclar a proposito: el proyecto se movio a app_ai_from_scratch/ y
+# las rutas ancladas (ai/.venv/, api/data/) dejaron de coincidir en silencio —
+# `ai/.venv` volvio a ser rastreable, 55 MB. Sin anclar sobreviven a la siguiente
+# mudanza.
+
+# --- Dependencias y compilados ---
 node_modules/
 dist/
-.DS_Store
+.astro/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# --- Datos locales ---
+pgdata/
+# `data/` SIN ANCLAR estaba aqui, y se tragaba codigo:
+#   app_ai_from_scratch/data/            el servicio de datos entero (Go, 15 ficheros)
+#   app_ai_from_scratch/data/cmd/data/   su main.go
+#   app_ai_from_scratch/web/src/data/    landing.ts -- se salvo porque ya estaba
+#                                        trackeado, y gitignore no des-trackea
+# El servicio nunca llego a estar en el repositorio y nada aviso: `git status` no
+# lista lo que ignora.
+#
+# Lo unico que habia que ignorar era api/data/, el SQLite anterior a Postgres. Se
+# nombra por FICHERO y no por directorio, porque un patron de directorio con un
+# nombre tan comun se vuelve a tragar codigo en la siguiente carpeta que se llame
+# igual, y lo hace en silencio.
+app.db
+app.db-*
+*.sqlite
+*.dump
+
+# --- Binarios Go compilados ---
+# `go build ./cmd/oracle` sin -o deja el ejecutable con el nombre del paquete,
+# junto al codigo. 8,8 MB de Mach-O de mi maquina, inutil en cualquier otra e
+# invisible en una lista de 243 ficheros. Se nombran uno por uno porque un
+# patron por extension no existe: un binario Go no tiene extension, y un patron
+# amplio se llevaria por delante scripts sin sufijo.
+app_ai_from_scratch/defense/morpheus
+app_ai_from_scratch/defense/trinity
+app_ai_from_scratch/defense/smith
+app_ai_from_scratch/defense/oracle
+app_ai_from_scratch/defense/neo
+app_ai_from_scratch/defense/defense
+app_ai_from_scratch/queue/queue
+app_ai_from_scratch/queue/queue-topology
+app_ai_from_scratch/data/data
+
+# --- Canvas de diseno sembrados ---
+# El .html que publica /design es el payload del editor: ~2,2 MB de codigo
+# minificado, regenerable desde los .dc.html y el canvas.json que estan al lado.
+# Se versiona la fuente, no el empaquetado.
+#
+# El patron lleva ** delante A PROPOSITO: un patron con barra se ancla a la
+# carpeta de este .gitignore, asi que `design/**/x` NO coincide con
+# app_ai_from_scratch/design/**/x. Cada canvas nuevo necesita su linea aqui.
+**/design/**/cornelius-mascota.html
+
+# --- Secretos: los escribe scripts/claves.sh, nunca se suben ---
 .env
 .env.*
 !.env.example
+claves/
+*.pem
+*.key
+
+# --- Sistema y herramientas ---
+.DS_Store
 *.log
 .gstack/
 .playwright-mcp/
-pgdata/
-api/data/
+
+# --- Fuera del proyecto del curso: material pesado que vive en esta carpeta ---
+# (el proyecto es app_ai_from_scratch/; lo de abajo es de otras cosas)
+/iot/
+/music/
+/design_handoff_ai_carousel_hig/
+/CLAUDE.md
+*.mp3
+*.mp4
+*.mov
+*.wav
+*.pdf
+*.zip
+/landing-full.png
+/registro-en-oscuro.png
+/cotizacion-*.html

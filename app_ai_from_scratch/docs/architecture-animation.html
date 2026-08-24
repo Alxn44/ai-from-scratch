@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IA desde cero — arquitectura animada</title>
+<style>
+  :root{
+    --bg:#070B14; --panel:#0E1420; --border:#232B3E;
+    --blue:#3355FF; --hi:#5C7BFF; --ok:#2ED47A; --warn:#FFB03A; --bad:#FF6B6B;
+    --ink:#E8ECF5; --dim:#8A93A8; --faint:#4A5470;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:28px 24px 40px}
+  .wrap{max-width:1600px;margin:0 auto}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  h1 b{color:var(--hi)}
+  .sub{color:var(--dim);margin:6px 0 18px;font-size:15px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .pill{border:1px solid var(--border);background:var(--panel);color:var(--ink);
+        border-radius:999px;padding:8px 16px;font-size:14px;cursor:pointer;transition:.15s}
+  .pill:hover{border-color:var(--hi)}
+  .pill.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+  .pill.atk.on{background:var(--bad);border-color:var(--bad)}
+  .ctl{margin-left:auto;display:flex;gap:8px}
+  .ctl button{border:1px solid var(--border);background:var(--panel);color:var(--ink);
+        border-radius:10px;padding:8px 14px;font-size:14px;cursor:pointer}
+  .ctl button:hover{border-color:var(--hi)}
+  .stage{border:1px solid var(--border);border-radius:18px;background:
+        radial-gradient(1200px 500px at 70% -10%,#0D1730 0%,var(--bg) 60%);overflow:hidden}
+  svg{display:block;width:100%;height:auto}
+  .note{margin-top:14px;border:1px solid var(--border);border-radius:14px;background:var(--panel);
+        padding:16px 18px;min-height:76px;display:flex;gap:16px;align-items:baseline}
+  #counter{color:var(--hi);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #noteTxt{font-size:17px}
+  #noteTxt b{color:#fff}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;color:var(--dim);font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor;background:currentColor}
+  .foot{margin-top:18px;color:var(--faint);font-size:13px;text-align:center}
+
+  /* ---- SVG ---- */
+  .zone{fill:none;stroke:var(--border);stroke-dasharray:3 7;rx:18}
+  .zlbl{fill:var(--faint);font-size:13px;font-weight:700;letter-spacing:.14em}
+  .node rect.body{fill:var(--panel);stroke:var(--border);stroke-width:1.5}
+  .node text{fill:var(--ink)}
+  .node .t{font-size:19px;font-weight:800}
+  .node .s{font-size:13px;fill:var(--dim)}
+  .node.on rect.body{stroke:var(--hi);filter:drop-shadow(0 0 14px rgba(92,123,255,.55))}
+  .node.bad rect.body{stroke:var(--bad);filter:drop-shadow(0 0 14px rgba(255,107,107,.6))}
+  .node{transition:filter .2s}
+  .wire{fill:none;stroke:#3A4souh}
+  .wire{stroke:#3A4560;stroke-width:1.6;stroke-dasharray:5 7;opacity:.55}
+  .wire.lit{opacity:1;stroke-width:2.4}
+  .wlbl{fill:var(--faint);font-size:11.5px;font-style:italic}
+  .sub{fill:none}
+  .subbox{fill:#0A1020;stroke:var(--border)}
+  .subbox.dlq{stroke:#5A2B2B}
+  .subbox text{font-size:12px;fill:var(--dim)}
+  .xline{stroke:var(--bad);stroke-width:1.6;stroke-dasharray:4 6;opacity:.45}
+  .xlbl{fill:var(--bad);font-size:13px;font-weight:700;opacity:.85}
+  .pkt{filter:drop-shadow(0 0 7px currentColor)}
+  .plbl{font-size:12px;font-weight:700;paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+  .boom text{font-size:26px;font-weight:900;fill:var(--bad)}
+  .boom circle{fill:none;stroke:var(--bad);stroke-width:2}
+  .boom{animation:boom .8s ease-out forwards;transform-origin:center;transform-box:fill-box}
+  @keyframes boom{0%{opacity:1;transform:scale(.4)}70%{opacity:1}100%{opacity:0;transform:scale(1.5)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>IA desde cero — <b>arquitectura animada</b></h1>
+  <p class="sub">Cómo fluye cada escenario por la plataforma y dónde se bloquean los ataques. Referencia visual de <code>docs/ARCHITECTURE.md</code>.</p>
+
+  <div class="bar" id="scenarios"></div>
+
+  <div class="stage">
+  <svg viewBox="0 0 1600 1000" role="img" aria-label="Diagrama animado de la arquitectura">
+    <defs></defs>
+
+    <!-- zonas -->
+    <rect class="zone" x="30"  y="70"  width="490" height="170" rx="18"/>
+    <text class="zlbl" x="52" y="98">USUARIO</text>
+    <rect class="zone" x="540" y="70"  width="620" height="170" rx="18"/>
+    <text class="zlbl" x="562" y="98">SÍNCRONO · HTTP — ALGUIEN ESPERA</text>
+    <rect class="zone" x="30"  y="340" width="1160" height="560" rx="18"/>
+    <text class="zlbl" x="52" y="368">ASÍNCRONO · NADIE ESPERA · COLAS Y DATOS</text>
+
+    <!-- cables -->
+    <path class="wire" id="P1"  d="M280,155 L300,155"/>
+    <path class="wire" id="P2"  d="M520,155 L560,155"/>
+    <path class="wire" id="P3"  d="M780,155 L900,155"/>
+    <path class="wire" id="P4"  d="M900,183 Q840,214 780,183"/>
+    <path class="wire" id="P5"  d="M660,200 L660,620"/>
+    <path class="wire" id="P6"  d="M520,620 L520,540 L410,540 L410,470"/>
+    <path class="wire" id="P7"  d="M780,178 L1180,178 L1180,700 L1160,700"/>
+    <path class="wire" id="P8"  d="M1030,620 L1030,470"/>
+    <path class="wire" id="P9"  d="M1030,790 L1030,850 L410,850 L410,470"/>
+    <path class="wire" id="P10" d="M280,695 L340,695 L340,260 L540,260 L540,178 L560,178"/>
+    <path class="wire" id="PDLQ" d="M1010,690 L1010,728"/>
+
+    <!-- la línea que NO existe: ai nunca toca la db -->
+    <path class="xline" d="M900,192 L858,192 L858,705 L680,705"/>
+    <text class="xlbl" transform="rotate(-90 846 470)" x="846" y="470" text-anchor="middle">✕ ai nunca toca la DB</text>
+
+    <!-- etiquetas de cable -->
+    <text class="wlbl" x="528" y="140">HTTP</text>
+    <text class="wlbl" x="796" y="140">HTTP</text>
+    <text class="wlbl" x="812" y="222">tool call</text>
+    <text class="wlbl" x="668" y="420">SQL</text>
+    <text class="wlbl" x="1188" y="440">AMQP</text>
+    <text class="wlbl" x="640" y="862">AMQP</text>
+    <text class="wlbl" x="348" y="252">webhook</text>
+
+    <!-- nodos -->
+    <g class="node" id="n-browser">
+      <rect class="body" x="60" y="110" width="220" height="90" rx="14"/>
+      <text class="t" x="170" y="150" text-anchor="middle">navegador</text>
+      <text class="s" x="170" y="176" text-anchor="middle">el estudiante</text>
+    </g>
+    <g class="node" id="n-web">
+      <rect class="body" x="300" y="110" width="220" height="90" rx="14"/>
+      <text class="t" x="410" y="150" text-anchor="middle">web · Astro</text>
+      <text class="s" x="410" y="176" text-anchor="middle">SSR + islands</text>
+    </g>
+    <g class="node" id="n-api">
+      <rect class="body" x="560" y="110" width="220" height="90" rx="14"/>
+      <text class="t" x="670" y="150" text-anchor="middle">api · TypeScript</text>
+      <text class="s" x="670" y="176" text-anchor="middle">sesiones · 37 tools · guard</text>
+    </g>
+    <g class="node" id="n-ai">
+      <rect class="body" x="900" y="110" width="220" height="90" rx="14"/>
+      <text class="t" x="1010" y="150" text-anchor="middle">ai · Python</text>
+      <text class="s" x="1010" y="176" text-anchor="middle">loop · providers · ontología</text>
+    </g>
+    <g class="node" id="n-apiw">
+      <rect class="body" x="300" y="380" width="220" height="90" rx="14"/>
+      <text class="t" x="410" y="420" text-anchor="middle">api-worker</text>
+      <text class="s" x="410" y="446" text-anchor="middle">misma imagen que api</text>
+    </g>
+    <g class="node" id="n-aiw">
+      <rect class="body" x="900" y="380" width="220" height="90" rx="14"/>
+      <text class="t" x="1010" y="420" text-anchor="middle">ai-worker</text>
+      <text class="s" x="1010" y="446" text-anchor="middle">embeddings · grading</text>
+    </g>
+    <g class="node" id="n-db">
+      <rect class="body" x="420" y="620" width="260" height="170" rx="14"/>
+      <text class="t" x="550" y="664" text-anchor="middle">db · Postgres 17</text>
+      <text class="s" x="550" y="688" text-anchor="middle">Prisma = schema · pg = queries</text>
+      <rect class="subbox" x="440" y="730" width="220" height="44" rx="8"/>
+      <text x="550" y="757" text-anchor="middle" style="font-size:12px;fill:var(--dim)">jobs · SKIP LOCKED</text>
+    </g>
+    <g class="node" id="n-broker">
+      <rect class="body" x="900" y="620" width="260" height="170" rx="14"/>
+      <text class="t" x="1030" y="664" text-anchor="middle">broker · RabbitMQ</text>
+      <text class="s" x="1030" y="688" text-anchor="middle">topic exchange — ES el orquestador</text>
+      <rect class="subbox dlq" x="920" y="730" width="220" height="44" rx="8"/>
+      <text x="1030" y="757" text-anchor="middle" style="font-size:12px;fill:var(--bad)">DLQ · dead-letter</text>
+    </g>
+    <g class="node" id="n-mp">
+      <rect class="body" x="60" y="650" width="220" height="90" rx="14"/>
+      <text class="t" x="170" y="690" text-anchor="middle">Mercado Pago</text>
+      <text class="s" x="170" y="716" text-anchor="middle">externo</text>
+    </g>
+
+    <!-- paquete animado -->
+    <g id="pktG" style="display:none">
+      <circle id="pkt" class="pkt" r="8" fill="currentColor"/>
+      <text id="pktLbl" class="plbl" y="-16" text-anchor="middle"></text>
+    </g>
+    <g id="fx"></g>
+  </svg>
+  </div>
+
+  <div class="note">
+    <span id="counter">– / –</span>
+    <span id="noteTxt">Elige un escenario arriba para ver el flujo paso a paso.</span>
+  </div>
+
+  <div class="legend">
+    <span class="chip" style="color:var(--hi)"><span class="dot"></span>HTTP síncrono</span>
+    <span class="chip" style="color:var(--warn)"><span class="dot"></span>asíncrono · broker</span>
+    <span class="chip" style="color:var(--ok)"><span class="dot"></span>base de datos</span>
+    <span class="chip" style="color:var(--bad)"><span class="dot"></span>ataque bloqueado</span>
+  </div>
+
+  <p class="foot">Regla de transporte: HTTP en el camino que un humano espera · el broker para todo lo demás.</p>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const C={http:"#5C7BFF",async:"#FFB03A",db:"#2ED47A",bad:"#FF6B6B"};
+const S={token:0,paused:false,speed:1,playing:false};
+
+/* ---------- primitivas de animación ---------- */
+function wire(id){return $(id);}
+function lit(id,on){wire(id).classList.toggle("lit",on);}
+function flash(nodeId,bad){
+  const n=$(nodeId); n.classList.remove("on","bad"); void n.getBBox();
+  n.classList.add(bad?"bad":"on");
+  setTimeout(()=>n.classList.remove("on","bad"),1000);
+}
+function showPkt(color,label){
+  const g=$("pktG"); g.style.display="block";
+  g.style.color=color; $("pkt").setAttribute("fill",color);
+  const l=$("pktLbl"); l.textContent=label||""; l.setAttribute("fill",color);
+}
+function hidePkt(){$("pktG").style.display="none";}
+function movePkt(pt){$("pktG").setAttribute("transform",`translate(${pt.x},${pt.y})`);}
+
+async function travel(pathId,opts={},tok){
+  const p=wire(pathId), len=p.getTotalLength();
+  const dur=(opts.dur||950)/S.speed/(RM?8:1);
+  const from=opts.from??0, to=opts.to??1;
+  showPkt(opts.color||C.http,opts.label);
+  lit(pathId,true);
+  let acc=0,last=performance.now();
+  while(acc<dur){
+    if(tok!==S.token){hidePkt();lit(pathId,false);return false;}
+    if(!S.paused){acc+=performance.now()-last;}
+    last=performance.now();
+    const e=Math.min(1,acc/dur), ease=e<.5?2*e*e:1-Math.pow(-2*e+2,2)/2;
+    movePkt(p.getPointAtLength((from+(to-from)*ease)*len));
+    await sleep(16);
+  }
+  lit(pathId,false);
+  if(!opts.keep)hidePkt();
+  return tok===S.token;
+}
+function boom(pathId,frac,tok){
+  const p=wire(pathId),pt=p.getPointAtLength(p.getTotalLength()*frac);
+  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.setAttribute("class","boom");
+  g.setAttribute("transform",`translate(${pt.x},${pt.y})`);
+  g.innerHTML=`<circle r="14"/><text text-anchor="middle" y="9">✕</text>`;
+  $("fx").appendChild(g);
+  setTimeout(()=>g.remove(),900);
+}
+async function note(html,k,n){
+  $("counter").textContent=`${k} / ${n}`;
+  $("noteTxt").innerHTML=html;
+  await sleep((650)/S.speed);
+}
+async function pulse(nodeId,bad,tok){
+  flash(nodeId,bad); await sleep(420/S.speed);
+  if(tok!==S.token)return false;
+  flash(nodeId,bad); await sleep(420/S.speed);
+  return tok===S.token;
+}
+
+/* ---------- escenarios ---------- */
+const SCENARIOS=[
+{id:"chat",name:"1 · Chat síncrono",steps:[
+ async t=>{await note("El estudiante escribe en el chat. <b>Un humano está esperando</b> → esto va por HTTP síncrono.",1,8);
+   if(!await travel("P1",{color:C.http,label:"escribe"},t))return 0;flash("n-web");return 1},
+ async t=>{await note("La petición llega a <b>api</b> con la cookie de sesión. La identidad vive en la cookie — nunca un userId suelto.",2,8);
+   if(!await travel("P2",{color:C.http,label:"POST /api/chat"},t))return 0;flash("n-api");return 1},
+ async t=>{await note("api llama al servicio de IA: <b>POST /agente/turno</b> con la cookie opaca.",3,8);
+   if(!await travel("P3",{color:C.http},t))return 0;flash("n-ai");return 1},
+ async t=>{await note("El modelo pide una herramienta: <b>mi_progreso</b>. Pero ai <b>no tiene base de datos</b> — tiene que pedirle a api.",4,8);
+   if(!await travel("P4",{color:C.http,label:"tool call"},t))return 0;flash("n-api");return 1},
+ async t=>{await note("api ejecuta la tool y devuelve <b>solo los datos de ESTE usuario</b>. La prueba P1–P4 lo garantiza.",5,8);
+   if(!await travel("P4",{color:C.db,from:1,to:0},t))return 0;flash("n-ai");return 1},
+ async t=>{await note("El modelo termina su respuesta y la devuelve a api.",6,8);
+   if(!await travel("P3",{color:C.http,from:1,to:0},t))return 0;flash("n-api");return 1},
+ async t=>{await note("api → web.",7,8);
+   if(!await travel("P2",{color:C.http,from:1,to:0},t))return 0;flash("n-web");return 1},
+ async t=>{await note("Se pinta la respuesta. <b>Todo el turno fue HTTP</b>: alguien esperaba en cada salto.",8,8);
+   if(!await travel("P1",{color:C.http,from:1,to:0},t))return 0;flash("n-browser");return 1},
+],end:"Regla de transporte: <b>HTTP en el camino del humano</b>. Meter un broker aquí sería latencia y maquinaria gratis."},
+
+{id:"pago",name:"2 · Webhook de pago",steps:[
+ async t=>{await note("Mercado Pago notifica: <b>pago aprobado</b>.",1,6);
+   if(!await travel("P10",{color:C.async,label:"webhook"},t))return 0;flash("n-api");return 1},
+ async t=>{await note("api <b>verifica la firma HMAC antes de tocar nada</b>. Sin firma válida, ni se encola.",2,6);
+   if(!await pulse("n-api",false,t))return 0;return 1},
+ async t=>{await note("<b>Verificar → encolar → 200</b>. El job cae en la tabla jobs de Postgres (idempotente por key).",3,6);
+   if(!await travel("P5",{color:C.db,label:"enqueue"},t))return 0;flash("n-db");return 1},
+ async t=>{await note("api responde <b>200 en milisegundos</b>. MP deja de reintentar. El trabajo pesado ya no depende de su retry policy.",4,6);
+   if(!await travel("P10",{color:C.async,from:1,to:0,label:"200 OK"},t))return 0;flash("n-mp");return 1},
+ async t=>{await note("api-worker toma el job con <b>FOR UPDATE SKIP LOCKED</b> — solo los tipos que sabe correr.",5,6);
+   if(!await travel("P6",{color:C.async},t))return 0;flash("n-apiw");return 1},
+ async t=>{await note("Escribe <b>paid = 1</b>. Backoff exponencial con techo; tras 6 intentos el job queda <b>muerto — visible, nunca borrado</b>.",6,6);
+   if(!await travel("P6",{color:C.db,from:1,to:0},t))return 0;flash("n-db");return 1},
+],end:"El webhook <b>nunca</b> hace el trabajo en la respuesta. Un pago perdido sin rastro es peor que uno visible en estado muerto."},
+
+{id:"broker",name:"3 · RabbitMQ entre servicios",steps:[
+ async t=>{await note("api publica en el topic: <b>embeddings.reindex</b>. Nadie espera la respuesta.",1,5);
+   if(!await travel("P7",{color:C.async,label:"publish"},t))return 0;flash("n-broker");return 1},
+ async t=>{await note("<b>ai-worker consume</b>. Es otro contenedor, en otro lenguaje, <b>sin credenciales de la DB</b> — por eso va por broker y no por tabla.",2,5);
+   if(!await travel("P8",{color:C.async},t))return 0;flash("n-aiw");return 1},
+ async t=>{await note("Supón que el job <b>falla</b> y agota sus reintentos…",3,5);
+   if(!await travel("P8",{color:C.bad,to:.45,label:"error"},t))return 0;
+   boom("P8",.45,t);await sleep(500/S.speed);return 1},
+ async t=>{await note("El mensaje no se pierde: va a la <b>DLQ</b> y queda visible para intervenir.",4,5);
+   if(!await travel("PDLQ",{color:C.bad},t))return 0;flash("n-broker");return 1},
+ async t=>{await note("api-worker consume <b>sus propios tipos</b> de job. Un tipo que nadie conoce queda pendiente y se cuenta como <b>huérfano</b> — un job que nadie toma y nadie cuenta es un job perdido en silencio.",5,5);
+   if(!await travel("P9",{color:C.async},t))return 0;flash("n-apiw");return 1},
+],end:"<b>No hay contenedor orquestador</b>: RabbitMQ ES el orquestador (routing durable, DLQ, back-pressure). La política vive como librería en cada servicio."},
+
+{id:"paywall",name:"4 · Paywall (P4)",steps:[
+ async t=>{await note("Sin haber comprado, el estudiante intenta abrir la <b>lección 2</b> — contenido <b>de_pago</b>.",1,5);
+   if(!await travel("P1",{color:C.http},t))return 0;flash("n-web");return 1},
+ async t=>{await note("web pide el contenido a api.",2,5);
+   if(!await travel("P2",{color:C.http},t))return 0;flash("n-api");return 1},
+ async t=>{await note("api verifica la compra: <b>verifica_compra</b>. Sin ella, ninguna herramienta puede devolver columnas de_pago — eso es <b>P4</b>.",3,5);
+   if(!await travel("P5",{color:C.db},t))return 0;flash("n-db");return 1},
+ async t=>{await note("<b>402 Payment Required</b>. El paywall no es UI: está en la herramienta y en la ontología.",4,5);
+   if(!await travel("P2",{color:C.bad,from:1,to:0,label:"402"},t))return 0;flash("n-web",true);return 1},
+ async t=>{await note("La web muestra el paywall. Dos ejes ortogonales: <b>clase</b> (¿de quién es el dato?) × <b>muro</b> (¿quién pagó?). Colapsarlos fue el bug real — el corpus de pago se salió con la prueba en verde.",5,5);
+   if(!await travel("P1",{color:C.http,from:1,to:0},t))return 0;flash("n-browser");return 1},
+],end:"<b>gratis|de_pago</b> es ortogonal a <b>publico|propio|agregado|jamas</b>. P4 existe porque ese bug ya pasó una vez."},
+
+{id:"atk",name:"5 · Ataques",atk:true,steps:[
+ async t=>{await note("<b>Ataque 1</b> · El modelo intenta pasar <b>{user_id: 42}</b> en la tool call para espiar a otro usuario.",1,4);
+   if(!await travel("P4",{color:C.bad,to:.55,label:"{user_id:42}"},t))return 0;
+   boom("P4",.55,t);flash("n-api",true);await sleep(500/S.speed);
+   await note("<b>BLOQUEADO · P3</b> — el bridge descarta el argumento y lo anota en el log. Ninguna tool acepta la identidad de otra persona. (Antes se devolvía como _ignorado: confirmarle al modelo qué campo rechazaste es enseñarle a insistir.)",1,4);return 1},
+ async t=>{await note("<b>Ataque 2</b> · Una tool intenta devolver <b>labs.solution</b> — columna de clase <b>jamas</b>.",2,4);
+   if(!await travel("P5",{color:C.bad,to:.5,label:"solution"},t))return 0;
+   boom("P5",.5,t);flash("n-db",true);await sleep(500/S.speed);
+   await note("<b>BLOQUEADO · P1</b> — forbiddenColumns bloquea toda columna jamas, y <b>falla cerrado</b>: una tabla sin declarar lanza error en vez de devolver [].",2,4);return 1},
+ async t=>{await note("<b>Ataque 3</b> · Webhook con <b>firma falsa</b> (replay de un evento viejo).",3,4);
+   if(!await travel("P10",{color:C.bad,to:.4,label:"firma ✗"},t))return 0;
+   boom("P10",.4,t);flash("n-api",true);await sleep(500/S.speed);
+   await note("<b>BLOQUEADO · 401</b> — HMAC inválido. Ni siquiera se encola. Verificar la firma es lo primero que pasa.",3,4);return 1},
+ async t=>{await note("<b>Ataque 4</b> · Una contraseña filtrada en un breach intenta entrar por login.",4,4);
+   if(!await pulse("n-db",true,t))return 0;
+   await note("<b>DEFENDIDO</b> — <b>pnpm audit:passwords</b> prueba cada contraseña que este repo publicó alguna vez contra cada cuenta viva, con el mismo scrypt del login, y sale 1 si hay match. Corre contra cualquier DB que despliegues.",4,4);return 1},
+],end:"Defensa en profundidad: la prueba P1–P4 corre en los tests, en <b>ai-verify</b> y <b>en el docker build</b>. Una imagen con una fuga declarada no se construye."},
+];
+
+/* ---------- motor ---------- */
+async function play(i){
+  const tok=++S.token;
+  document.querySelectorAll(".pill").forEach((b,j)=>b.classList.toggle("on",j===i));
+  $("fx").innerHTML=""; hidePkt(); S.playing=true; $("btnPlay").textContent="⏸ pausa"; S.paused=false;
+  const sc=SCENARIOS[i];
+  for(let k=0;k<sc.steps.length;k++){
+    if(tok!==S.token)return;
+    if(!await sc.steps[k](t=>t===tok?1:0)&&tok===S.token){}
+    if(tok!==S.token)return;
+    await sleep(500/S.speed);
+  }
+  if(tok!==S.token)return;
+  $("counter").textContent="fin";
+  $("noteTxt").innerHTML=sc.end;
+  S.playing=false; $("btnPlay").textContent="▶ repetir";
+}
+
+/* ---------- UI ---------- */
+const bar=$("scenarios");
+SCENARIOS.forEach((sc,i)=>{
+  const b=document.createElement("button");
+  b.className="pill"+(sc.atk?" atk":""); b.textContent=sc.name;
+  b.onclick=()=>play(i); bar.appendChild(b);
+});
+const ctl=document.createElement("div"); ctl.className="ctl";
+ctl.innerHTML=`<button id="btnPlay">⏸ pausa</button><button id="btnRe">⟲ reiniciar</button><button id="btnSpd">1×</button>`;
+bar.appendChild(ctl);
+let cur=0;
+$("btnPlay").onclick=()=>{
+  if(S.playing){S.paused=!S.paused;$("btnPlay").textContent=S.paused?"▶ seguir":"⏸ pausa";}
+  else play(cur);
+};
+$("btnRe").onclick=()=>play(cur);
+$("btnSpd").onclick=e=>{S.speed=S.speed===1?2:1;e.target.textContent=S.speed+"×";};
+document.querySelectorAll(".pill").forEach((b,i)=>b.addEventListener("click",()=>cur=i));
+addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();$("btnPlay").click();}});
+
+play(0);
+</script>
+</body>
+</html>

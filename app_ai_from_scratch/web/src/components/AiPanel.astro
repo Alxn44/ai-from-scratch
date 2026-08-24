@@ -1,0 +1,530 @@
+---
+/**
+ * The AI layer: a floating panel plus a proactive assistant, mounted by the app
+ * layout so it is present on EVERY sidebar tab.
+ *
+ * WHY IT IS NOT A PAGE. It replaced the «Chat» entry in the sidebar. Going to a
+ * page to ask a question means leaving the lesson the question is about, and
+ * coming back means finding your place again. AI mode stays on while you move
+ * between tabs and the panel floats over whatever you are reading. The full page
+ * still exists at /chat — bookmarks keep working and the panel links to it —
+ * because a 392px panel is the wrong place to read a long answer with a trace.
+ *
+ * WHY BOTTOM LEFT AND NOT BOTTOM RIGHT. The bottom-right corner already has two
+ * occupants: #toasts and the unlock notices, which deliberately share one rail
+ * (lib/unlock.ts says why). A third one would overlap, and the loser of that
+ * overlap would be an error notice. This column sits against the sidebar instead,
+ * next to the toggle that opens it.
+ *
+ * TWO SWITCHES, NOT ONE, and this is the decision most worth understanding:
+ *
+ *   AI MODE   (sidebar toggle)  · shows the panel and its launcher. Default OFF:
+ *                                opening a chat window for somebody who never
+ *                                asked is what this feature is meant to beat.
+ *   NUDGES    (switch inside the panel, or /silencio in its input) · lets the
+ *                                assistant speak first. Default ON, and it works
+ *                                even with AI mode off — a proactive assistant
+ *                                that only speaks after you opt in is not
+ *                                proactive, it is a chat window. A nudge always
+ *                                carries its own «No more nudges», so nobody has
+ *                                to go looking for the setting.
+ *
+ * WHAT IT COSTS. One GET /api/coach per page view, deferred to idle, and only
+ * when something is going to read it. No model call until the student types.
+ * The nudges never call a model at all: lib/coach.ts picks the sentence from
+ * counted facts.
+ */
+import { icon } from '../lib/icons';
+import { jsonSafe } from '../lib/json-safe';
+import { t } from '../lib/i18n';
+import type { Lang } from '../lib/i18n';
+import type { AiFlags } from '../lib/ai-mode';
+
+interface Props { lang: Lang; flags: AiFlags; nombre: string }
+const { lang, flags, nombre } = Astro.props;
+const L = t(lang);
+const I = L.ia;
+const open = flags.mode && flags.open;
+---
+
+<div id="ia-capa">
+
+  <!-- The proactive nudge. Written by lib/coach.ts, never by a model. -->
+  <div id="ia-aviso" class="ia-card" hidden>
+    <div class="ia-row">
+      <p class="eb">{I.aviso}</p>
+      <button id="ia-aviso-x" class="ia-x" aria-label={I.descartar} type="button">
+        <Fragment set:html={icon('x', 15)} />
+      </button>
+    </div>
+    <button id="ia-aviso-txt" class="ia-say" type="button"></button>
+    <div class="ia-row">
+      <a id="ia-aviso-ir" class="btn ghost ia-mini" href="/panel"></a>
+      <button id="ia-aviso-mute" class="ia-link" type="button">{I.silenciar}</button>
+    </div>
+  </div>
+
+  <!-- The panel. Non-modal on purpose: the page underneath stays usable. -->
+  <section id="ia-panel" class="ia-card" role="dialog" aria-modal="false"
+           aria-labelledby="ia-titulo" hidden={!open}>
+    <div class="ia-row">
+      <div>
+        <p class="eb" id="ia-titulo">{I.titulo}</p>
+        <p class="s ia-sub">{I.sub}</p>
+      </div>
+      <button id="ia-cerrar" class="ia-x" aria-label={I.cerrar} type="button">
+        <Fragment set:html={icon('x', 16)} />
+      </button>
+    </div>
+
+    <div id="ia-hilo" aria-live="polite"></div>
+
+    <div class="ia-form">
+      <input class="input" id="ia-q" placeholder={I.ph} autocomplete="off" aria-label={I.ph}>
+      <button class="btn ia-send" id="ia-go" type="button">{I.enviar}</button>
+    </div>
+    <p class="s ia-priv">{I.priv}</p>
+
+    <div class="ia-foot">
+      <button id="ia-avisos" class="ia-switch" type="button" role="switch"
+              aria-checked={flags.nudges ? 'true' : 'false'} aria-label={I.avisosAria}>
+        <span class="ia-track" aria-hidden="true"><span class="ia-knob"></span></span>
+        <span>{I.avisos}</span>
+      </button>
+      <a class="ia-link" href="/chat">{I.verChat}</a>
+    </div>
+  </section>
+
+  <button id="ia-lanzador" class="btn ia-launch" type="button"
+          aria-expanded={open ? 'true' : 'false'} aria-controls="ia-panel"
+          hidden={!(flags.mode && !flags.open)}>
+    <Fragment set:html={icon('spark', 16)} />
+    <span>{I.abrir}</span>
+  </button>
+</div>
+
+<style is:global>
+  /* Every selector is prefixed `ia-`: these rules are global (the bubbles are
+     created by script and would not carry Astro's scope attribute) so they must
+     not be able to reach anything else. Colour comes only from the theme tokens.
+     The column itself is click-through — with everything in it hidden it is still
+     392px of fixed box, and it must not swallow clicks on the page underneath. */
+  #ia-capa{position:fixed;left:264px;bottom:24px;z-index:60;width:392px;
+    max-width:calc(100vw - 288px);display:flex;flex-direction:column;align-items:stretch;gap:10px;
+    pointer-events:none}
+  #ia-capa > *{pointer-events:auto}
+  .ia-card{border:1px solid var(--hair);background:var(--panel);padding:14px 16px;
+    display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+  .ia-card[hidden]{display:none}
+  .ia-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .ia-sub{margin-top:5px}
+  /* The nudge text is a button: clicking it continues the conversation in the
+     panel, so it has to be reachable by keyboard like any other control. */
+  .ia-say{background:none;border:0;padding:0;margin:0;text-align:left;cursor:pointer;
+    font:400 14px/1.45 var(--f);color:var(--l1)}
+  .ia-say:hover{color:var(--ac)}
+  .ia-x{background:none;border:0;color:var(--l3);cursor:pointer;padding:4px;line-height:0}
+  .ia-x:hover{color:var(--l1)}
+  .ia-mini{height:32px;font-size:10px;padding:0 12px;text-decoration:none}
+  .ia-mini[hidden]{display:none}
+  .ia-link{background:none;border:0;padding:0;color:var(--ac);cursor:pointer;
+    font:500 11px/1.2 var(--m);letter-spacing:.06em;text-decoration:none}
+  .ia-link:hover{text-decoration:underline}
+  #ia-hilo{display:flex;flex-direction:column;gap:9px;max-height:min(44vh,340px);overflow-y:auto}
+  #ia-hilo:empty{display:none}
+  .ia-b{border:1px solid var(--hair2);padding:10px 12px;font:400 14px/1.45 var(--f)}
+  .ia-b.yo{align-self:flex-end;max-width:86%;border-color:var(--ac);background:var(--fill);color:var(--l1)}
+  .ia-b.bot{align-self:stretch;color:var(--l2)}
+  .ia-b.bad{border-color:var(--rd);color:var(--rd)}
+  .ia-b .lbl{width:70px;flex:none}
+  .ia-form{display:flex;gap:8px}
+  .ia-send{height:44px;flex:none;font-size:10px;padding:0 14px}
+  .ia-priv{font-size:11px}
+  .ia-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border-top:1px solid var(--hair2);padding-top:10px}
+  .ia-launch{align-self:flex-start;height:40px;font-size:10px}
+  .ia-launch[hidden]{display:none}
+  /* The nudge switch and the sidebar toggle are real buttons with role=switch, so
+     they are reachable and announced instead of being styled divs. */
+  .ia-switch{display:inline-flex;align-items:center;gap:9px;background:none;border:0;padding:0;
+    cursor:pointer;color:var(--l3);font:500 10px/1 var(--m);letter-spacing:.14em;text-transform:uppercase}
+  .ia-switch[aria-checked="true"]{color:var(--l1)}
+  .ia-track{width:32px;height:18px;flex:none;border:1px solid var(--hair);background:var(--fill);
+    display:inline-flex;align-items:center;padding:2px}
+  [aria-checked="true"] > .ia-track{border-color:var(--ac);background:rgba(10,132,255,.22)}
+  .ia-knob{width:12px;height:12px;background:var(--l3);display:block}
+  [aria-checked="true"] .ia-knob{background:var(--ac);transform:translateX(14px)}
+  /* The sidebar toggle lives in the layout; its skin lives here with the rest of
+     the AI-mode chrome, so there is one place to change how AI mode looks. */
+  .ia-nav{width:100%;height:44px;display:flex;align-items:center;gap:11px;padding:0 16px;
+    background:none;border:0;border-left:2px solid transparent;cursor:pointer;color:var(--l3);
+    font:500 11px/1 var(--m);letter-spacing:.14em;text-transform:uppercase;text-align:left}
+  .ia-nav:hover{color:var(--l1);background:var(--fill)}
+  .ia-nav[aria-checked="true"]{color:var(--l1);background:var(--fill);border-left-color:var(--ac)}
+  .ia-nav .ia-track{margin-left:auto}
+  /* Visible keyboard focus everywhere in the layer, including the sidebar toggle.
+     The app's .input clears its outline on :focus, so :focus-visible is restored
+     here explicitly rather than relying on the browser default. */
+  #ia-capa :focus-visible, .ia-nav:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+  /* Motion is opt-in. With reduced motion the knob and the cards still change
+     state, they just do it instantly — no STATE ever depends on an animation. */
+  @media (prefers-reduced-motion: no-preference){
+    .ia-knob{transition:transform .16s ease-out,background .16s}
+    .ia-card{animation:ia-in .16s ease-out}
+  }
+  @keyframes ia-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (max-width:900px){
+    #ia-capa{left:16px;right:16px;width:auto;max-width:none;bottom:16px}
+  }
+</style>
+
+<script type="application/json" id="ia-cfg" is:inline set:html={jsonSafe({ lang, nombre, txt: I, flags })}></script>
+
+<script>
+  import { COOKIE_MODE, COOKIE_NUDGES, COOKIE_OPEN, readFlags, writeFlag } from '../lib/ai-mode';
+  import type { AiFlags } from '../lib/ai-mode';
+  import { preguntarIA } from '../lib/chat-client';
+  import type { Traza } from '../lib/chat-client';
+  import { EMPTY_BUDGET, QUIET_AFTER_KEY_MS, candidates, noted, pickNudge, spend } from '../lib/coach';
+  import type { CoachState, Nudge, NudgeBudget, NudgeText } from '../lib/coach';
+
+  const cfg = JSON.parse(document.getElementById('ia-cfg')!.textContent!) as
+    { lang: string; nombre: string; txt: Record<string, string>; flags: AiFlags };
+  const T = cfg.txt;
+  // The nudge sentences are a subset of the same dictionary; naming that subset
+  // is what keeps lib/coach.ts free of every other string in the panel.
+  const TN = cfg.txt as unknown as NudgeText;
+
+  const capa = document.getElementById('ia-capa') as HTMLElement;
+  const panel = document.getElementById('ia-panel') as HTMLElement;
+  const lanzador = document.getElementById('ia-lanzador') as HTMLButtonElement;
+  const hilo = document.getElementById('ia-hilo') as HTMLElement;
+  const campo = document.getElementById('ia-q') as HTMLInputElement;
+  const enviarBtn = document.getElementById('ia-go') as HTMLButtonElement;
+  const swAvisos = document.getElementById('ia-avisos') as HTMLButtonElement;
+  const caja = document.getElementById('ia-aviso') as HTMLElement;
+  const cajaTxt = document.getElementById('ia-aviso-txt') as HTMLButtonElement;
+  const cajaIr = document.getElementById('ia-aviso-ir') as HTMLAnchorElement;
+  // Rendered by the layout, in the sidebar. The layer must not throw if a page
+  // ever ships without it.
+  const toggle = document.getElementById('ia-toggle');
+
+  let flags: AiFlags = readFlags();
+  let estado: CoachState | null = null;
+  let saludado = false;
+  /** 0 = no brake. Set from the 429 payload's `esperaS`, so the panel waits as
+   *  long as the server asked instead of hammering it. */
+  let frenoHasta = 0;
+  let ultimaTecla = 0;
+  let ocultarEn = 0;
+  const cargado = Date.now();
+  const historial: { role: 'user' | 'assistant'; content: string }[] = [];
+
+  const aviso = (kind: string, titulo: string, cuerpo: string): void => {
+    if (typeof window.toast === 'function') window.toast(kind, titulo, cuerpo, 'ia');
+  };
+
+  // ---------------------------------------------------------------------------
+  // THE NUDGE BUDGET, PERSISTED
+  //
+  // Split on purpose. `shown` goes to sessionStorage because "at most two per
+  // visit" is about this visit. The cooldowns go to localStorage because "not
+  // this same nudge again for 20 hours" has to survive closing the tab — which is
+  // exactly what somebody does between two attempts at studying.
+  // ---------------------------------------------------------------------------
+  const K_SESSION = 'ai.nudges.session';
+  const K_DEVICE = 'ai.nudges.device';
+
+  let presupuesto: NudgeBudget = (() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem(K_SESSION) ?? '{}') as { shown?: number };
+      const d = JSON.parse(localStorage.getItem(K_DEVICE) ?? '{}') as Partial<NudgeBudget>;
+      return {
+        shown: Number(s.shown ?? 0),
+        lastId: typeof d.lastId === 'string' ? d.lastId : null,
+        lastAt: Number(d.lastAt ?? 0),
+        seen: d.seen && typeof d.seen === 'object' ? d.seen : {},
+      };
+    } catch { return { ...EMPTY_BUDGET }; }
+  })();
+
+  const guardarBudget = (b: NudgeBudget): void => {
+    presupuesto = b;
+    try {
+      sessionStorage.setItem(K_SESSION, JSON.stringify({ shown: b.shown }));
+      localStorage.setItem(K_DEVICE, JSON.stringify({ lastId: b.lastId, lastAt: b.lastAt, seen: b.seen }));
+    } catch { /* private mode: the budget degrades to per-page, never to unlimited */ }
+  };
+
+  // ---------------------------------------------------------------------------
+  // BUBBLES. Everything that is not this file's own markup goes through esc().
+  // ---------------------------------------------------------------------------
+  const esc = (s: string): string =>
+    s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] ?? c));
+
+  const burbuja = (quien: 'yo' | 'bot' | 'bad', html: string): HTMLElement => {
+    const d = document.createElement('div');
+    d.className = quien === 'yo' ? 'ia-b yo' : quien === 'bad' ? 'ia-b bot bad' : 'ia-b bot';
+    d.innerHTML = html;
+    hilo.append(d);
+    hilo.scrollTop = hilo.scrollHeight;
+    return d;
+  };
+  const dice = (quien: 'yo' | 'bot' | 'bad', texto: string): HTMLElement =>
+    burbuja(quien, `<span>${esc(texto)}</span>`);
+
+  const conAccion = (texto: string, accion: { txt: string; href: string } | null): HTMLElement =>
+    burbuja('bot', `<span>${esc(texto)}</span>${accion
+      ? `<a class="btn ghost ia-mini" style="margin-top:10px" href="${esc(accion.href)}">${esc(accion.txt)}</a>`
+      : ''}`);
+
+  // The same trace the chat page paints, and the same rule: every field is model
+  // output or a value the AI service echoed back, so all of it is escaped.
+  const pintaTraza = (traza: Traza[]): string => {
+    const filas = traza.map((t) => {
+      if (t.paso === 'modelo') {
+        return `<div style="display:flex;gap:8px"><span class="lbl">${T.trazaModelo}</span><span class="s">${esc(String(t.proveedor ?? ''))} · ${esc(String(t.modelo ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.herramientas?.length ? ` → ${esc(t.herramientas.join(', '))}` : ''}</span></div>`;
+      }
+      if (t.paso === 'herramienta') {
+        return `<div style="display:flex;gap:8px"><span class="lbl" style="color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${esc(String(t.nombre ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.memo ? ` · ${T.trazaMemo}` : ''}</span></div>`;
+      }
+      if (t.paso === 'fallo') {
+        return `<div style="display:flex;gap:8px"><span class="lbl" style="color:var(--rd)">${T.trazaFallo}</span><span class="s">${esc(String(t.error ?? ''))}</span></div>`;
+      }
+      return '';
+    }).join('');
+    return `<details style="margin-top:9px;border-top:1px solid var(--hair2);padding-top:8px">
+      <summary class="lbl" style="cursor:pointer">${T.traza}</summary>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">${filas}</div></details>`;
+  };
+
+  // ---------------------------------------------------------------------------
+  // THE COACH READ. One request, deferred to idle, cached for this page.
+  // ---------------------------------------------------------------------------
+  let pedido: Promise<CoachState | null> | null = null;
+  const cargarEstado = (): Promise<CoachState | null> => {
+    if (estado) return Promise.resolve(estado);
+    pedido ??= fetch('/api/coach', { headers: { accept: 'application/json' } })
+      .then((r) => (r.ok ? (r.json() as Promise<CoachState>) : null))
+      .then((s) => { estado = s; return s; })
+      .catch(() => null);
+    return pedido;
+  };
+  const enReposo = (fn: () => void): void => {
+    const w = window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void };
+    if (w.requestIdleCallback) w.requestIdleCallback(fn, { timeout: 3000 });
+    else setTimeout(fn, 1200);
+  };
+
+  // ---------------------------------------------------------------------------
+  // STATE → SCREEN. One function, so the panel, the launcher and the two
+  // switches can never disagree about which of them is showing.
+  // ---------------------------------------------------------------------------
+  const pintar = (): void => {
+    const abierto = flags.mode && flags.open;
+    panel.hidden = !abierto;
+    lanzador.hidden = !(flags.mode && !flags.open);
+    lanzador.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    toggle?.setAttribute('aria-checked', flags.mode ? 'true' : 'false');
+    swAvisos.setAttribute('aria-checked', flags.nudges ? 'true' : 'false');
+  };
+  const bandera = (name: string, on: boolean): void => { writeFlag(name, on); flags = readFlags(); };
+
+  /**
+   * The panel's first words.
+   *
+   * `traido` is the nudge the student clicked to get here. When there is one it
+   * IS the useful sentence, so the greeting does not go and pick a candidate as
+   * well — saying the same thing twice in a row is the one thing this whole
+   * feature is trying not to do.
+   */
+  const saludar = async (traido?: Nudge | null): Promise<void> => {
+    if (saludado) {
+      if (traido) conAccion(traido.texto, traido.accion);
+      return;
+    }
+    saludado = true;
+    dice('bot', `${T.hola.replace('{n}', cfg.nombre)} ${T.holaB}`);
+    if (traido) { conAccion(traido.texto, traido.accion); return; }
+    const s = await cargarEstado();
+    if (!s) return;
+    // The panel was opened, so this is an answer and not an interruption: the
+    // budget does not apply and the best candidate is simply shown.
+    const primero = candidates(s, TN)[0];
+    if (!primero) return;
+    conAccion(primero.texto, primero.accion);
+    // Answered, not interrupted: it costs no allowance, but it does start this
+    // line's cooldown so the nudge card cannot repeat it a minute later.
+    guardarBudget(noted(presupuesto, primero.id, Date.now()));
+  };
+
+  const ocultarAviso = (): void => { caja.hidden = true; ocultarEn = 0; };
+
+  const abrir = (traido?: Nudge | null): void => {
+    bandera(COOKIE_MODE, true);
+    bandera(COOKIE_OPEN, true);
+    pintar();
+    ocultarAviso();
+    void saludar(traido);
+    campo.focus();
+  };
+  const cerrar = (): void => {
+    bandera(COOKIE_OPEN, false);
+    pintar();
+    lanzador.focus();
+  };
+  const ponerModo = (on: boolean): void => {
+    bandera(COOKIE_MODE, on);
+    pintar();
+    if (!on) { aviso('info', T.apagado, T.apagadoB); return; }
+    if (flags.open) { void saludar(); campo.focus(); } else lanzador.focus();
+  };
+  const ponerAvisos = (on: boolean): void => {
+    bandera(COOKIE_NUDGES, on);
+    pintar();
+    if (!on) ocultarAviso();
+    dice('bot', on ? T.avisosOn : T.avisosOff);
+  };
+
+  // ---------------------------------------------------------------------------
+  // THE PROACTIVE PART
+  // ---------------------------------------------------------------------------
+  /** The nudge currently on screen, so clicking it can carry it into the panel. */
+  let enPantalla: Nudge | null = null;
+
+  const mostrarAviso = (n: Nudge): void => {
+    enPantalla = n;
+    cajaTxt.textContent = n.texto;
+    if (n.accion) { cajaIr.hidden = false; cajaIr.href = n.accion.href; cajaIr.textContent = n.accion.txt; }
+    else cajaIr.hidden = true;
+    caja.hidden = false;
+    // 45 seconds: long enough to read two lines and decide, short enough that a
+    // card the student ignored does not sit there for the rest of the visit.
+    ocultarEn = Date.now() + 45_000;
+  };
+
+  const tic = (): void => {
+    if (ocultarEn && Date.now() > ocultarEn) ocultarAviso();
+    if (!flags.nudges) return;
+    if (document.hidden) return;                                    // not to an empty chair
+    if (!panel.hidden) return;                                      // already in the panel
+    if (!caja.hidden) return;                                       // one at a time
+    if (Date.now() - ultimaTecla < QUIET_AFTER_KEY_MS) return;      // never while typing
+    if (!estado) return;
+    const n = pickNudge(estado, TN, presupuesto, Date.now(), cargado);
+    if (!n) return;
+    mostrarAviso(n);
+    guardarBudget(spend(presupuesto, n.id, Date.now()));
+  };
+
+  // ---------------------------------------------------------------------------
+  // SEND
+  // ---------------------------------------------------------------------------
+  const enviar = async (texto: string): Promise<void> => {
+    const q = texto.trim();
+    if (!q) return;
+    campo.value = '';
+
+    // Slash commands are answered HERE and never reach a provider. This is the
+    // "turn it off from inside the chat" path that the panel switch also offers,
+    // and it is the one somebody who lives on the keyboard will find.
+    const cmd = q.toLowerCase();
+    if (cmd === '/silencio' || cmd === '/mute') { dice('yo', q); ponerAvisos(false); return; }
+    if (cmd === '/avisos' || cmd === '/nudges') { dice('yo', q); ponerAvisos(true); return; }
+    if (cmd === '/ayuda' || cmd === '/help') { dice('yo', q); dice('bot', T.ayuda); return; }
+
+    dice('yo', q);
+
+    const resto = Math.ceil((frenoHasta - Date.now()) / 1000);
+    if (resto > 0) { dice('bad', T.frenoB.replace('{s}', String(resto))); return; }
+
+    historial.push({ role: 'user', content: q });
+    enviarBtn.disabled = true;
+    const pensando = dice('bot', T.pensando);
+    try {
+      const d = await preguntarIA(historial, cfg.lang);
+      pensando.remove();
+      // 429 is not a failure to hide. The server said WHEN to come back, so the
+      // panel says it out loud and refuses to send again until then — swallowing
+      // it is how a client ends up hammering a rate limiter.
+      if (d.status === 429) {
+        const s = Math.max(1, Number(d.esperaS ?? 60));
+        frenoHasta = Date.now() + s * 1000;
+        historial.pop();
+        dice('bad', d.msg ?? T.frenoB.replace('{s}', String(s)));
+        aviso('warn', T.freno, T.frenoB.replace('{s}', String(s)));
+        return;
+      }
+      if (d.status === 501) {
+        historial.pop();
+        dice('bad', d.msg ?? T.sinProveedorB);
+        aviso('warn', T.sinProveedor, T.sinProveedorB);
+        return;
+      }
+      if (!d.ok || !d.respuesta) {
+        historial.pop();
+        burbuja('bad', `<span>${esc(d.msg ?? T.falloB)}</span>${d.traza ? pintaTraza(d.traza) : ''}`);
+        aviso('bad', T.fallo, d.msg ?? T.falloB);
+        return;
+      }
+      historial.push({ role: 'assistant', content: d.respuesta });
+      const pie = `<p class="s" style="margin-top:8px">${T.proveedorPie
+        .replace('{p}', () => esc(String(d.proveedor ?? '')))
+        .replace('{m}', () => esc(String(d.modelo ?? '')))}</p>`;
+      burbuja('bot', `<span style="white-space:pre-wrap;color:var(--l1)">${esc(d.respuesta)}</span>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+    } catch {
+      pensando.remove();
+      historial.pop();
+      dice('bad', T.falloB);
+    } finally {
+      enviarBtn.disabled = false;
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // WIRING
+  // ---------------------------------------------------------------------------
+  toggle?.addEventListener('click', () => ponerModo(toggle.getAttribute('aria-checked') !== 'true'));
+  lanzador.addEventListener('click', () => abrir());
+  document.getElementById('ia-cerrar')!.addEventListener('click', cerrar);
+  enviarBtn.addEventListener('click', () => void enviar(campo.value));
+  campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') void enviar(campo.value); });
+  swAvisos.addEventListener('click', () => ponerAvisos(swAvisos.getAttribute('aria-checked') !== 'true'));
+  document.getElementById('ia-aviso-x')!.addEventListener('click', ocultarAviso);
+  document.getElementById('ia-aviso-mute')!.addEventListener('click', () => {
+    ponerAvisos(false);
+    aviso('info', T.avisos, T.avisosOff);
+  });
+  // The nudge text opens the panel: the card is the invitation, the panel is the
+  // conversation. The nudge travels along with its action so nothing is lost on
+  // the way in, and opening it this way turns AI mode on — accepting the
+  // invitation IS the opt-in.
+  cajaTxt.addEventListener('click', () => { const n = enPantalla; ocultarAviso(); abrir(n); });
+
+  // Escape dismisses, and only from inside the layer: it must not steal the key
+  // from the rest of the app. Panel first, then the nudge card.
+  capa.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!panel.hidden) { e.stopPropagation(); cerrar(); return; }
+    if (!caja.hidden) { e.stopPropagation(); ocultarAviso(); }
+  });
+
+  // «Never while the student is typing» is measured over the WHOLE document, not
+  // just this panel: the field that matters most is the lab answer on the page
+  // underneath.
+  document.addEventListener('keydown', (e) => {
+    const el = e.target as HTMLElement | null;
+    if (!el) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
+      ultimaTecla = Date.now();
+    }
+  }, { capture: true });
+
+  pintar();
+  // Fetch the facts only if something is going to read them.
+  if (flags.mode || flags.nudges) enReposo(() => void cargarEstado());
+  if (flags.mode && flags.open) void saludar();
+  // One 15s tick rather than a timer per rule: the checks are comparisons, and a
+  // single interval cannot drift out of step with itself the way three timers can.
+  setInterval(tic, 15_000);
+</script>

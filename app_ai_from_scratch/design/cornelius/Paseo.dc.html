@@ -1,0 +1,424 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    .stage{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --cx-fur:#000;--cx-mark:#fff;--cx-eye:#FFD60A;
+    }
+    .stage.paper{
+      --bg:#F2F2F2;--panel:#fff;
+      --l1:#000;--l2:rgba(0,0,0,.66);--l3:rgba(0,0,0,.58);
+      --hair:rgba(0,0,0,.22);--hair2:rgba(0,0,0,.08);--fill:rgba(120,120,128,.20);
+      --ac:#0A5AD6;--ac-solid:#0A5AD6;--ok:#0C6B3E;--or:#8A5000;--rd:#C21B12;
+    }
+    body{margin:0;background:#000;font-family:-apple-system,system-ui,sans-serif}
+    a{color:var(--ac);text-decoration:none}
+    a:hover{color:#409CFF}
+    .h1{font:700 34px/1.06 var(--f);letter-spacing:-.035em;margin:0;color:var(--l1)}
+    .h2{font:700 21px/1.16 var(--f);letter-spacing:-.028em;margin:0;color:var(--l1)}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0;color:var(--l1)}
+    .p{font:400 16px/1.5 var(--f);color:var(--l2);margin:0}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .mono{font:400 11px/1.5 var(--m);color:var(--l3);margin:0}
+
+    /* ---------------------------------------------------- Cornelius de perfil */
+    .sx{display:block;overflow:visible}
+    .sx .fur{fill:var(--cx-fur)}
+    .sx .mark{fill:var(--cx-mark)}
+    .sx .eye{fill:var(--cx-eye)}
+    .sx .pupil{fill:#000}
+    .sx .contour{fill:none;stroke:var(--hair);stroke-width:1.1}
+    .sx .earline{fill:none;stroke:var(--hair);stroke-width:1.1;stroke-linejoin:miter}
+    .sx .tail{fill:none;stroke:var(--cx-fur);stroke-width:5.2;stroke-linecap:round}
+    .sx .tailc{fill:none;stroke:var(--hair);stroke-width:6.6;stroke-linecap:round}
+    .sx .tailtip{fill:none;stroke:var(--cx-mark);stroke-width:5.2;stroke-linecap:round}
+    .sx .whisker{fill:none;stroke:var(--cx-mark);stroke-width:1;stroke-linecap:round;opacity:.9}
+    .sx .fur-in{fill:none;stroke:var(--cx-mark);stroke-width:.9;stroke-linecap:round;opacity:.62}
+    .sx .fur-out{fill:none;stroke:var(--hair);stroke-width:1;stroke-linecap:round}
+    .sx .leg{transform-box:fill-box;transform-origin:50% 0}
+
+    /* El paso. Pares diagonales, como un trote: es la lectura que la gente
+       acepta como «camina» con cuatro patas y dos fases. Un ciclo lateral real
+       necesita cuatro fases y a 64 px de alto no se distingue. */
+    @keyframes sx-a{0%,100%{transform:rotate(15deg)}50%{transform:rotate(-15deg)}}
+    @keyframes sx-b{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}
+    @keyframes sx-bob{0%,100%{transform:translateY(0)}25%,75%{transform:translateY(-.9px)}}
+    @keyframes sx-tailsway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(6deg)}}
+    .sx.anda .leg.a{animation:sx-a .62s ease-in-out infinite}
+    .sx.anda .leg.b{animation:sx-b .62s ease-in-out infinite}
+    .sx.anda .torso{transform-box:fill-box;transform-origin:center;animation:sx-bob .31s ease-in-out infinite}
+    .sx.anda .tailg{transform-box:fill-box;transform-origin:100% 100%;animation:sx-tailsway 1.24s ease-in-out infinite}
+
+    /* Las patas paradas apuntan a la misma rotacion 0: el ciclo se apaga y se
+       queda de pie, no en mitad de una zancada. */
+    @media (prefers-reduced-motion: reduce){
+      .sx .leg,.sx .torso,.sx .tailg{animation:none !important}
+    }
+
+    /* ------------------------------------------------------------- la pista */
+    .pista{position:relative;height:120px;border:1px solid var(--hair2);background:var(--panel);
+      overflow:hidden}
+    .suelo{position:absolute;left:0;right:0;bottom:26px;height:1px;background:var(--hair2)}
+    .andante{position:absolute;bottom:14px;left:0;width:150px}
+    /* «De vez en cuando», en CSS: el cruce ocupa el 22 % de un ciclo de 34 s, y
+       el resto del tiempo no esta. En la app de verdad esto es un temporizador en
+       JS -- el panel no siempre esta montado y una animacion infinita gastaria
+       compositor por nada. Aqui es CSS para que se vea sin tocar nada. */
+    @keyframes cruza{
+      0%,76%   {transform:translateX(-170px);opacity:0}
+      77%      {transform:translateX(-170px);opacity:1}
+      99%      {transform:translateX(940px);opacity:1}
+      100%     {transform:translateX(940px);opacity:0}
+    }
+    .andante.va{animation:cruza 34s linear infinite}
+    .andante.ya{animation:cruza 9s linear infinite}
+    @media (prefers-reduced-motion: reduce){.andante{animation:none !important;opacity:1;transform:none}}
+
+    /* ------------------------------------------------------------- retrato */
+    .cx{display:block;overflow:visible}
+    .cx .contour{fill:none;stroke:var(--hair);stroke-width:1.1}
+    /* Contorno de las orejas. Faltaba, y era un defecto medible: las orejas son
+       #000 puro y la cabeza si llevaba .contour, ellas no. Sobre --panel #0B0B0C
+       eso da 1,07:1 -- invisible. En papel el panel es #fff y salen a 21:1, asi
+       que el fallo estaba solo en el tema por defecto, que es el que ve todo el
+       mundo.
+       Es una POLILINEA ABIERTA, no el triangulo cerrado: la base de la oreja cae
+       dentro de la cabeza, y cerrarla dibujaria una raya cruzando el craneo. Se
+       pinta ANTES del relleno de la cabeza, asi que la union queda tapada.
+       No se esconde en ningun nivel de detalle: a 16 px la oreja es justo lo que
+       distingue la silueta de un circulo. */
+    .earline{fill:none;stroke:var(--hair);stroke-width:1.1;stroke-linejoin:miter}
+    .cx .fur{fill:var(--cx-fur)}
+    .cx .mark{fill:var(--cx-mark)}
+    .cx .inner{fill:rgba(255,255,255,.14)}
+    .cx .eye{fill:var(--cx-eye)}
+    .cx .pupil{fill:#000}
+    .cx .lids{fill:none;stroke:var(--cx-eye);stroke-width:1.6;stroke-linecap:round;opacity:0}
+    .cx .fur-in{fill:none;stroke:var(--cx-mark);stroke-width:.9;stroke-linecap:round;opacity:.62}
+    .cx .fur-out{fill:none;stroke:var(--hair);stroke-width:1;stroke-linecap:round}
+    .cx .whisker{fill:none;stroke:var(--cx-mark);stroke-width:1;stroke-linecap:round;opacity:.9}
+    /* gestos del retrato */
+    .cx.g-tilt{transform:rotate(7deg)}
+    .cx.g-happy .eye,.cx.g-happy .pupil{opacity:0}
+    .cx.g-happy .lids{opacity:1;transform:scaleY(-1);transform-box:fill-box;transform-origin:center}
+    .cx.g-alert .ears{transform-box:fill-box;transform-origin:center bottom;transform:scaleY(1.14)}
+    .cx.g-alert .pupil{transform-box:fill-box;transform-origin:center;transform:scale(1.9,1.05)}
+    @keyframes cx-look{0%,44%{transform:translateX(0)}56%,100%{transform:translateX(2.2px)}}
+    .cx.g-look .pupil{animation:cx-look 2.6s ease-in-out infinite}
+    @media (prefers-reduced-motion: reduce){.cx .pupil{animation:none !important}}
+
+    /* ---------------------------------------------------------------- layout */
+    .stage{background:var(--bg);padding:52px 60px 64px;display:flex;flex-direction:column;gap:52px}
+    .sec{display:flex;flex-direction:column;gap:20px}
+    .col{display:flex;flex-direction:column;gap:14px}
+    .row{display:flex;gap:28px;align-items:flex-start}
+    .hair{height:1px;background:var(--hair2);border:0;margin:0}
+    .poses{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+    .pose{border:1px solid var(--hair2);background:var(--panel);padding:18px 16px;
+      display:flex;flex-direction:column;gap:14px}
+    .gests{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+    .gest{border:1px solid var(--hair2);background:var(--panel);padding:18px 16px;
+      display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+    .frames{display:flex;gap:0;border:1px solid var(--hair2);background:var(--panel)}
+    .frame{flex:1;border-right:1px solid var(--hair2);padding:14px 10px 10px;
+      display:flex;flex-direction:column;align-items:center;gap:8px}
+    .frame:last-child{border-right:0}
+    .tbtn{height:30px;padding:0 10px;background:transparent;border:1px solid var(--hair2);
+      color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+    .tbtn:hover{color:var(--l1);background:var(--fill)}
+    .tbtn.on{background:var(--ac-solid);color:#fff;border-color:var(--ac-solid)}
+  </style>
+</helmet>
+
+<div class="stage {{themeClass}}">
+
+  <div class="col" style="gap:16px;max-width:640px">
+    <p class="eb">Cornelius · movimiento</p>
+    <h1 class="h1">Camina, y casi nunca</h1>
+    <p class="p">Un gato que cruza la pantalla cada rato deja de ser un gato y se vuelve un
+      banner. El cruce ocupa el 22 % de un ciclo de 34 segundos: el resto del tiempo no está.</p>
+  </div>
+
+  <!-- ---------------------------------------------------------- la travesia -->
+  <div class="sec">
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div class="col" style="gap:6px">
+        <p class="lbl">La travesía</p>
+        <h2 class="h2">Por el borde inferior, por delante de nada</h2>
+      </div>
+      <div style="display:flex;gap:8px">
+        <sc-for list="{{speeds}}" as="sp" hint-placeholder-count="2">
+          <button class="tbtn {{sp.on}}" onClick="{{sp.go}}" type="button">{{sp.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="pista">
+      <div class="suelo"></div>
+      <div class="andante {{crossCls}}">
+        <svg class="sx anda" width="150" height="100" viewBox="0 0 96 64" aria-hidden="true">
+          <g class="tailg">
+            <path class="tailc" d="M25 33 C13 33 8 25 11 15"></path>
+            <path class="tail"  d="M25 33 C13 33 8 25 11 15"></path>
+            <path class="tailtip" d="M11.4 17 C11 15.6 10.9 14.4 11 13"></path>
+          </g>
+          <g class="torso">
+            <!-- patas traseras: el par b va detras del cuerpo -->
+            <g transform="translate(33 41)"><g class="leg b">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g></g>
+            <g transform="translate(60 41)"><g class="leg a">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g></g>
+
+            <rect class="fur" x="24" y="24" width="49" height="22" rx="11"></rect>
+            <path class="mark" d="M31 45.6 C38 40.6 58 40.4 67 44.2 L67 45.8 C56 46.4 40 46.4 31 45.6 Z"></path>
+            <rect class="contour" x="24" y="24" width="49" height="22" rx="11"></rect>
+
+            <!-- patas delanteras: el par a delante -->
+            <g transform="translate(39 41)"><g class="leg a">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g></g>
+            <g transform="translate(66 41)"><g class="leg b">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g></g>
+
+            <!-- cabeza -->
+            <g>
+              <path class="earline" d="M69 19 L70.4 8.6 L77.6 15.4"></path>
+              <path class="earline" d="M85.6 19 L84.6 9 L79 15.6"></path>
+              <path class="fur" d="M69 19 L70.4 8.6 L77.6 15.4 Z"></path>
+              <path class="fur" d="M85.6 19 L84.6 9 L79 15.6 Z"></path>
+              <circle class="fur" cx="77.5" cy="27" r="11.6"></circle>
+              <path class="mark" d="M82 25.4 C86.6 26 88.8 28 88.8 30 C88.8 33.6 84.6 35.8 80.6 35 Z"></path>
+              <g class="fur-in">
+                <path d="M72.2 22.6 L75.6 21.8"></path>
+                <path d="M71.4 26.6 L75 26.2"></path>
+                <path d="M72.6 30.6 L76 30.4"></path>
+              </g>
+              <g class="whisker">
+                <path d="M82.6 29 L91.6 26.4"></path>
+                <path d="M82.6 31.4 L91.2 33.4"></path>
+              </g>
+              <ellipse class="eye" cx="79.4" cy="24.6" rx="4.4" ry="3.6" transform="rotate(-6 79.4 24.6)"></ellipse>
+              <ellipse class="pupil" cx="79.4" cy="24.6" rx="1.3" ry="2.9"></ellipse>
+              <path class="fur" d="M88.6 28.4 L91 30 L88.6 31.6 Z" fill="#1C1C1E"></path>
+              <circle class="contour" cx="77.5" cy="27" r="11.6"></circle>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <p class="mono">ciclo 34 s · cruce 7,5 s · aparece y desaparece con opacidad, no entra
+      deslizándose desde fuera del panel</p>
+  </div>
+
+  <hr class="hair">
+
+  <!-- --------------------------------------------------------- el ciclo -->
+  <div class="sec">
+    <div class="col" style="gap:6px">
+      <p class="lbl">El paso, congelado</p>
+      <h2 class="h2">Dos fases, pares diagonales</h2>
+      <p class="s" style="max-width:600px">Un ciclo lateral real de gato tiene cuatro fases.
+        A 100 px de alto no se distingue de un trote, y el trote se lee como «camina» con la
+        mitad de código.</p>
+    </div>
+    <div class="frames">
+      <sc-for list="{{frames}}" as="fr" hint-placeholder-count="4">
+        <div class="frame">
+          <svg class="sx" width="132" height="88" viewBox="0 0 96 64" aria-hidden="true">
+            <g class="tailg" transform="{{fr.tail}}">
+              <path class="tailc" d="M25 33 C13 33 8 25 11 15"></path>
+              <path class="tail"  d="M25 33 C13 33 8 25 11 15"></path>
+              <path class="tailtip" d="M11.4 17 C11 15.6 10.9 14.4 11 13"></path>
+            </g>
+            <g transform="translate(33 41) {{fr.rb}}">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g>
+            <g transform="translate(60 41) {{fr.ra}}">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g>
+            <rect class="fur" x="24" y="24" width="49" height="22" rx="11"></rect>
+            <path class="mark" d="M31 45.6 C38 40.6 58 40.4 67 44.2 L67 45.8 C56 46.4 40 46.4 31 45.6 Z"></path>
+            <rect class="contour" x="24" y="24" width="49" height="22" rx="11"></rect>
+            <g transform="translate(39 41) {{fr.ra}}">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g>
+            <g transform="translate(66 41) {{fr.rb}}">
+              <path class="fur" d="M-1.7 0 L1.7 0 L1.4 13 L-1.4 13 Z"></path>
+              <path class="mark" d="M-1.5 12 L1.5 12 L1.5 15.2 L-1.5 15.2 Z"></path>
+            </g>
+            <path class="earline" d="M69 19 L70.4 8.6 L77.6 15.4"></path>
+            <path class="earline" d="M85.6 19 L84.6 9 L79 15.6"></path>
+            <path class="fur" d="M69 19 L70.4 8.6 L77.6 15.4 Z"></path>
+            <path class="fur" d="M85.6 19 L84.6 9 L79 15.6 Z"></path>
+            <circle class="fur" cx="77.5" cy="27" r="11.6"></circle>
+            <path class="mark" d="M82 25.4 C86.6 26 88.8 28 88.8 30 C88.8 33.6 84.6 35.8 80.6 35 Z"></path>
+            <g class="whisker">
+              <path d="M82.6 29 L91.6 26.4"></path>
+              <path d="M82.6 31.4 L91.2 33.4"></path>
+            </g>
+            <ellipse class="eye" cx="79.4" cy="24.6" rx="4.4" ry="3.6" transform="rotate(-6 79.4 24.6)"></ellipse>
+            <ellipse class="pupil" cx="79.4" cy="24.6" rx="1.3" ry="2.9"></ellipse>
+            <path d="M88.6 28.4 L91 30 L88.6 31.6 Z" fill="#1C1C1E"></path>
+            <circle class="contour" cx="77.5" cy="27" r="11.6"></circle>
+          </svg>
+          <p class="lbl" style="letter-spacing:.1em">{{fr.name}}</p>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <hr class="hair">
+
+  <!-- ---------------------------------------------------------- gestos -->
+  <div class="sec">
+    <div class="col" style="gap:6px">
+      <p class="lbl">Gestos del retrato</p>
+      <h2 class="h2">Cuatro, y ninguno es una cara nueva</h2>
+      <p class="s" style="max-width:620px">Son transformaciones sobre el mismo dibujo — una
+        rotación, una escala de orejas, un párpado volteado. Ningún trazo nuevo, así que no hay
+        una segunda versión de Cornelius que se pueda desincronizar.</p>
+    </div>
+    <div class="gests">
+      <sc-for list="{{gestures}}" as="g" hint-placeholder-count="4">
+        <div class="gest">
+          <svg class="cx lg {{g.cls}}" width="72" height="72" viewBox="0 0 64 64" aria-hidden="true">
+            <g class="ears">
+              <path class="earline" d="M13 21 L17 3 L31 13"></path>
+              <path class="earline" d="M51 21 L47 3 L33 13"></path>
+              <path class="fur" d="M13 21 L17 3 L31 13 Z"></path>
+              <path class="fur" d="M51 21 L47 3 L33 13 Z"></path>
+              <path class="inner" d="M17.5 18.5 L19.6 8.4 L27 14.2 Z"></path>
+              <path class="inner" d="M46.5 18.5 L44.4 8.4 L37 14.2 Z"></path>
+            </g>
+            <path class="fur" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+            <path class="mark" d="M32 29.5 L39.2 46 C39.2 52 36 55.4 32 55.4 C28 55.4 24.8 52 24.8 46 Z"></path>
+            <g class="fur-in">
+              <path d="M13.2 34.2 L18.4 32.6"></path><path d="M12.6 38.4 L18.2 37.6"></path>
+              <path d="M13.4 42.4 L18.6 42"></path><path d="M50.8 34.2 L45.6 32.6"></path>
+              <path d="M51.4 38.4 L45.8 37.6"></path><path d="M50.6 42.4 L45.4 42"></path>
+              <path d="M16.8 19.6 L19.8 12.4"></path><path d="M18.8 20.2 L22.2 14"></path>
+              <path d="M20.8 20.6 L24.8 15.6"></path><path d="M47.2 19.6 L44.2 12.4"></path>
+              <path d="M45.2 20.2 L41.8 14"></path><path d="M43.2 20.6 L39.2 15.6"></path>
+            </g>
+            <g class="fur-out">
+              <path d="M11.2 33.4 L6.8 31.6"></path><path d="M10.6 37.6 L5.4 37.4"></path>
+              <path d="M11.8 41.8 L6.4 43.6"></path><path d="M52.8 33.4 L57.2 31.6"></path>
+              <path d="M53.4 37.6 L58.6 37.4"></path><path d="M52.2 41.8 L57.6 43.6"></path>
+              <path d="M29.6 11.2 L28.6 7.6"></path><path d="M32 10.9 L32 7"></path>
+              <path d="M34.4 11.2 L35.4 7.6"></path><path d="M27.4 54.4 L26.2 58"></path>
+              <path d="M32 55.4 L32 59"></path><path d="M36.6 54.4 L37.8 58"></path>
+            </g>
+            <g class="whisker">
+              <path d="M25 40.6 L9.2 36.8"></path><path d="M25 43.6 L9.4 46"></path>
+              <path d="M39 40.6 L54.8 36.8"></path><path d="M39 43.6 L54.6 46"></path>
+            </g>
+            <g class="eyes">
+              <ellipse class="eye" cx="23" cy="28" rx="5.3" ry="4.3" transform="rotate(-8 23 28)"></ellipse>
+              <ellipse class="eye" cx="41" cy="28" rx="5.3" ry="4.3" transform="rotate(8 41 28)"></ellipse>
+              <ellipse class="pupil" cx="23" cy="28" rx="1.5" ry="3.5"></ellipse>
+              <ellipse class="pupil" cx="41" cy="28" rx="1.5" ry="3.5"></ellipse>
+              <path class="lids" d="M18.2 28.6 C20.4 31 25.6 31 27.8 28"></path>
+              <path class="lids" d="M36.2 28 C38.4 31 43.6 31 45.8 28.6"></path>
+            </g>
+            <path d="M32 35.4 L34.7 39 L29.3 39 Z" fill="#1C1C1E"></path>
+            <path class="contour" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+          </svg>
+          <div class="col" style="gap:6px">
+            <p class="h3">{{g.name}}</p>
+            <p class="s">{{g.what}}</p>
+            <p class="mono" style="font-size:10px">{{g.hook}}</p>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <hr class="hair">
+
+  <!-- ------------------------------------------------------------- reglas -->
+  <div class="sec">
+    <div class="col" style="gap:6px">
+      <p class="lbl">Reglas del movimiento</p>
+      <h2 class="h2">Cuándo NO se mueve</h2>
+    </div>
+    <div class="poses">
+      <div class="pose">
+        <p class="h3" style="color:var(--rd)">Nunca sobre texto</p>
+        <p class="s">Camina por el borde inferior, por debajo de la línea de contenido. Si tapa
+          una palabra que alguien está leyendo, es un error, no un detalle.</p>
+      </div>
+      <div class="pose">
+        <p class="h3" style="color:var(--rd)">Nunca mientras trabaja</p>
+        <p class="s">Si hay un turno en vuelo, se queda en el panel pensando. Un gato que se va
+          a pasear mientras esperas una respuesta parece que se olvidó.</p>
+      </div>
+      <div class="pose">
+        <p class="h3" style="color:var(--rd)">Nunca con avisos apagados</p>
+        <p class="s">Apagar los avisos significa «no me interrumpas». Cruzar la pantalla es una
+          interrupción, aunque sea bonita.</p>
+      </div>
+    </div>
+    <p class="mono" style="max-width:860px">todo se apaga con prefers-reduced-motion · en la app
+      el cruce lo dispara un temporizador en JS, no una animación infinita: el panel no siempre
+      está montado y un bucle de 34 s gastaría compositor por nada</p>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","paper"],"default":"dark","section":"Tema"},"$preview":{"width":1120,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { fast: false }; }
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const { fast } = this.state;
+    const rot = (d) => `rotate(${d})`;
+    return {
+      themeClass: theme === 'paper' ? 'paper' : '',
+      crossCls: fast ? 'ya' : 'va',
+      speeds: [
+        { label: 'Cada 34 s', on: fast ? '' : 'on', go: () => this.setState({ fast: false }) },
+        { label: 'Verlo ya',  on: fast ? 'on' : '', go: () => this.setState({ fast: true }) },
+      ],
+      // Las cuatro poses del ciclo, con la rotacion de cada par y la de la cola.
+      frames: [
+        { name: 'apoyo',    ra: rot(15),  rb: rot(-15), tail: rot(-5) },
+        { name: 'cruce',    ra: rot(0),   rb: rot(0),   tail: rot(0)  },
+        { name: 'apoyo ii', ra: rot(-15), rb: rot(15),  tail: rot(6)  },
+        { name: 'cruce ii', ra: rot(0),   rb: rot(0),   tail: rot(0)  },
+      ],
+      gestures: [
+        { name: 'Ladeado',  cls: 'g-tilt',  what: 'La cabeza gira 7°. Es lo que hace cuando la pregunta no se entiende y va a repreguntar.', hook: 'respuesta ambigua' },
+        { name: 'Contento', cls: 'g-happy', what: 'Párpados volteados hacia arriba. Sale cuando resuelves un lab, y sólo entonces.',        hook: 'attempt.correct = 1' },
+        { name: 'Alerta',   cls: 'g-alert', what: 'Orejas estiradas y pupilas abiertas. Un aviso nuevo del coach, antes de decir nada.',     hook: 'GET /api/coach' },
+        { name: 'Mirando',  cls: 'g-look',  what: 'Las pupilas se van 2 px a un lado y vuelven. Ocioso, cada 2,6 s.',                        hook: 'reposo' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

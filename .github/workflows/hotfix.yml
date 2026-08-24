@@ -1,0 +1,288 @@
+# The fast road, for when production is broken and main is not the answer yet.
+#
+# WHAT "FAST" IS ALLOWED TO MEAN HERE
+# It buys speed by dropping checks that are SLOW, never checks that are SAFE.
+# Skipped: the full image matrix, the -race pass, the web type check, the
+# artefact-freshness regenerate. Not skipped, ever, at any urgency:
+#
+#   · the isolation proof (P1..P4) — the guarantee that no `jamas` column is
+#     reachable from any tool. A hotfix is exactly when someone is editing a
+#     query under pressure, which is exactly when this catches something.
+#   · the ontology drift check — a column with no declared class can never be
+#     forbidden, so drift silently shrinks the guard.
+#   · the tool catalogue — it has gone dark twice already without anyone noticing.
+#   · the api suites — they include the paywall and the cross-user isolation tests.
+#
+# If that set is too slow to tolerate during an incident, the problem is the
+# suite's speed, not the policy. Shipping an unproven change to production under
+# time pressure is how the incident gets a second cause.
+#
+# It also opens the back-merge PR itself. A hotfix branch that never returns to
+# main gets quietly reverted by the next ordinary release, and then the same
+# outage happens twice.
+name: hotfix
+
+on:
+  push:
+    branches: ['hotfix/**']
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: What is broken in production? (goes in the back-merge PR)
+        required: true
+
+concurrency:
+  group: hotfix-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+env:
+  DIR: app_ai_from_scratch
+  PNPM_VERSION: 10.15.0
+  NODE_VERSION: 22.13.1
+
+jobs:
+  gates:
+    name: gates that never get skipped
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: curso
+          POSTGRES_PASSWORD: curso
+          POSTGRES_DB: curso
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U curso -d curso"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso
+      JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
+      IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: ${{ env.DIR }}/api/pnpm-lock.yaml
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.DIR }}/ai/uv.lock
+
+      - name: Install
+        working-directory: ${{ env.DIR }}
+        run: |
+          pnpm --dir api install --frozen-lockfile
+          uv --directory ai sync --extra dev --frozen
+
+      - name: Isolation proof (P1..P4)
+        working-directory: ${{ env.DIR }}/ai
+        run: uv run ai-prove-isolation
+
+      - name: Ontology vs schema
+        working-directory: ${{ env.DIR }}
+        run: node scripts/check-ontology-drift.mjs
+
+      - name: Tool catalogue
+        working-directory: ${{ env.DIR }}
+        run: node --experimental-strip-types scripts/emit-tool-catalog.mjs
+
+      - name: Python tests
+        working-directory: ${{ env.DIR }}/ai
+        run: uv run pytest -q
+
+      - name: Migrate and seed
+        working-directory: ${{ env.DIR }}
+        run: |
+          pnpm --dir api db:deploy
+          pnpm --dir api seed
+
+      - name: Types
+        working-directory: ${{ env.DIR }}
+        run: pnpm --dir api check
+
+      # See the same step in ci.yml for why this is nohup + disown and not `&`:
+      # a background child that dies makes the suite print "skipped" and exit 0.
+      - name: Start api for the integration suite
+        working-directory: ${{ env.DIR }}
+        run: |
+          nohup env PORT=8791 node --experimental-strip-types api/src/server.ts \
+            > /tmp/api.log 2>&1 &
+          disown || true
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8791/api/health >/dev/null; then
+              echo "api up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "api never answered /api/health in 40s. Its log:"
+          cat /tmp/api.log
+          exit 1
+
+      - name: api suites
+        working-directory: ${{ env.DIR }}
+        env:
+          API_TEST_URL: http://127.0.0.1:8791
+        run: pnpm --dir api test
+
+  publish:
+    name: publish images
+    needs: gates
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tagged `hotfix-<sha>`, never `latest`. A hotfix is by definition not on
+      # main yet, so letting it claim `latest` would make the newest published
+      # image one that no reviewed branch contains.
+      - name: Tag
+        id: meta
+        run: echo "tag=hotfix-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: api
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/api
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=api
+
+      # Needed by docker-compose.prod.yml's `init` service. The runtime stage
+      # prunes the Prisma CLI, so migrations run from their own image — and a
+      # hotfix that publishes api without api-migrate deploys a stack whose
+      # migration container does not exist for this tag.
+      - name: api-migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/api
+          target: migrate
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api-migrate:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=api
+
+      - name: ai
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/ai
+          push: true
+          tags: ghcr.io/${{ github.repository }}/ai:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=ai
+
+      - name: web
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/web
+          push: true
+          tags: ghcr.io/${{ github.repository }}/web:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=web
+
+      - name: Is there a queue service yet?
+        id: queue
+        run: |
+          if [ -f app_ai_from_scratch/queue/Dockerfile ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: queue
+        if: steps.queue.outputs.found == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/queue
+          push: true
+          tags: ghcr.io/${{ github.repository }}/queue:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=queue
+
+  release:
+    name: release
+    needs: publish
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+    secrets: inherit
+
+  back-merge:
+    name: back-merge into main
+    # `always()` with an explicit success check on gates: the PR gets opened even
+    # if the RELEASE step failed, because an unreleased hotfix still has to reach
+    # main. It is not opened if the gates failed — that code should not be queued
+    # for main at all.
+    needs: [gates, publish]
+    if: always() && needs.gates.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Open (or update) the PR into main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          REASON: ${{ github.event.inputs.reason || 'pushed to a hotfix/** branch' }}
+        run: |
+          set -euo pipefail
+
+          if [ "$BRANCH" = "main" ]; then
+            echo "Already on main, nothing to back-merge."
+            exit 0
+          fi
+
+          existing=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing is already open for $BRANCH; leaving it alone."
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "hotfix: back-merge $BRANCH into main" \
+            --body "$(cat <<EOF
+          Opened automatically by \`.github/workflows/hotfix.yml\`.
+
+          **Why the hotfix happened:** $REASON
+
+          This branch was built and published as \`hotfix-${GITHUB_SHA::12}\`. It has
+          passed the gates that a hotfix is never allowed to skip: the P1..P4
+          isolation proof, the ontology drift check, the tool catalogue, the Python
+          suite, the type baseline and all seven api suites.
+
+          **What it has NOT had**, and what review therefore owes it:
+
+          - the full image matrix and \`go test -race\`
+          - the web type check (\`astro check\`, \`tsgo\`)
+          - the artefact-freshness check — if this touched \`data.py\`, run
+            \`uv --directory ai run ai-export\` and commit the result
+
+          Merging this is not optional. A hotfix branch that never returns to main
+          gets reverted by the next ordinary release, and the outage repeats.
+          EOF
+          )"

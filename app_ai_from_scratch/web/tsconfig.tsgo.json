@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "//": "Solo .ts: tsgo no entiende .astro (no hay plugin de plantilla), asi que incluir **/* haria que fallara por sintaxis en cada pagina. El chequeo de .astro lo sigue haciendo `astro check`.",
+  "include": ["src/**/*.ts", "src/**/*.d.ts", ".astro/types.d.ts"],
+  "exclude": ["dist", "node_modules"]
+}

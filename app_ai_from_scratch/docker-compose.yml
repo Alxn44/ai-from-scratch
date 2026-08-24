@@ -1,0 +1,515 @@
+# Cuatro contenedores: base, IA, backend y frontend. Un solo comando:
+#   docker compose up --build
+#
+# La IA es un servicio aparte desde v3: el bucle del agente y la ontologia estan
+# en Python (ai/). Las llaves de modelo las tiene ESE contenedor, no la API — asi
+# el proceso que habla con internet no es el que tiene la base delante.
+# El nombre del proyecto se FIJA. Compose lo deriva del nombre de la carpeta, asi
+# que al mover el proyecto a app_ai_from_scratch/ paso de `aifromscratch` a
+# `app_ai_from_scratch`: creo una base NUEVA Y VACIA e intento bindear 5432, que
+# ya tenia la vieja. `pnpm dev` murio diciendo "¿Esta corriendo Docker?" mientras
+# los datos (11 usuarios, 72 intentos) seguian intactos en el volumen viejo.
+# Con el nombre fijado, mover la carpeta ya no cambia de base.
+name: aifromscratch
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: curso
+      # No default, and never the username again. With password == username,
+      # one connection hands over users.pass_hash, users.email, payments.raw and
+      # labs.solution. Compose refuses to start rather than ship that.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/keys.sh first}
+      POSTGRES_DB: curso
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Loopback only. Publishing on 0.0.0.0 exposed the database to the whole
+      # LAN, and on Linux that cannot be firewalled off after the fact: Docker
+      # writes DNAT rules that are evaluated BEFORE the host INPUT chain, so a
+      # host-level DROP on 5432 never sees the packet. The reason this port is
+      # published at all is psql from this machine, and 127.0.0.1 covers that.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curso -d curso"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # ---------------------------------------------------------------------------
+  # init: applies the schema, then seeds content. Runs ONCE and exits.
+  #
+  # Both used to happen inside the API process — `migrate()` executed twenty
+  # idempotent DDL statements at every boot and the command was
+  # `node dist/src/seed.js && node dist/src/server.js`. With one instance that works. With
+  # two it is two processes running DDL and two processes seeding the same rows,
+  # and "it never broke because we only ever ran one" is not a property to keep
+  # while planning to scale.
+  #
+  # Built from the `migrate` stage because the runtime image installs with --prod
+  # and prunes the Prisma CLI.
+  # ---------------------------------------------------------------------------
+  # broker: the coordination substrate. docs/ARCHITECTURE.md argues at length why there
+  # is no separate `orchestrator` service — RabbitMQ IS the orchestrator, and the
+  # policy on top of it lives as a library inside the services that run the work.
+  #
+  # HTTP carries the path a human is waiting on (the chat turn, api <-> ia).
+  # Everything else — batch grading, embeddings, the weekly league close, email,
+  # exports — goes through here, because nobody is blocked on it and it needs
+  # retries, back-pressure and durability.
+  # ---------------------------------------------------------------------------
+  broker:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: app
+      # No default. The database already shipped with password == username once.
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?run scripts/keys.sh first}
+    volumes:
+      - brokerdata:/var/lib/rabbitmq
+    ports:
+      # Management UI on loopback ONLY. Published on 0.0.0.0 it is a credentialed
+      # admin console reachable from the network, and on Linux Docker's DNAT skips
+      # host INPUT rules. AMQP itself is not published at all: only sibling
+      # containers speak it.
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      # CMD-SHELL, not CMD: the exec form passes `&&` as a literal ARGUMENT, so
+      # the first written version failed with `too many arguments` and the service
+      # sat in `starting` forever while everything that waits on it stalled. A
+      # healthcheck that can never pass is worse than none — the dependency graph
+      # deadlocks instead of erroring.
+      #
+      # check_running alone is not enough: a node with a memory or disk alarm is
+      # running and refusing publishes, which looks like a hung producer.
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  init:
+    build:
+      context: ./api
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
+      NODE_ENV: production
+      # Demo accounts stay off unless asked for, and refuse to exist under
+      # NODE_ENV=production at all. This used to plant an admin with a password
+      # committed to the repository, on every single start.
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-0}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # The only process in the fleet that holds the database credential.
+  #
+  # WHY IT EXISTS. api used to open its own pool, which meant an RCE in Node read
+  # all twelve tables -- users.pass_hash, payments.raw, labs.solution included.
+  # Here the credential lives in one Go binary that speaks a CLOSED CATALOGUE of
+  # named operations and has no SQL endpoint at all: statements are assembled from
+  # each operation's declared column list, so a wildcard is unreachable rather
+  # than rejected. The same RCE now reads the shapes that catalogue declares,
+  # scoped to one actor.
+  #
+  # NO PUBLISHED PORT. Nothing outside the compose network may reach it. api and
+  # api-worker are the only callers, and they authenticate with DATA_SECRETO.
+  #
+  # The build context is the whole app directory, not ./data: the image bakes in
+  # api/src/ontologia.json (the generated forbidden-column list) and Docker
+  # cannot COPY from outside its context. Same reason defense/ builds from `.`.
+  data:
+    build:
+      context: .
+      dockerfile: data/Dockerfile
+    environment:
+      DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
+      # No default, in any environment. data/internal/httpapi refuses to start on
+      # a secret under 32 characters or one containing a placeholder word, so
+      # there is no value that could be filled in here to make it boot.
+      DATA_SECRETO: ${DATA_SECRETO:?run scripts/keys.sh first}
+      PORT: "8788"
+    depends_on:
+      db:
+        condition: service_healthy
+      # The catalogue's statements name columns. Against an unmigrated schema
+      # every one of them fails, so waiting for init is not politeness.
+      init:
+        condition: service_completed_successfully
+    # A scratch image with one static binary has nothing to write and nothing to
+    # run. Saying so to the kernel as well costs nothing and removes the rest.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    environment:
+      # Same secret the db service gets, interpolated from the compose .env —
+      # not a literal. A literal here is what made scripts/keys.sh rotate a
+      # password nothing read. The generator keeps it alphanumeric on purpose:
+      # a + or a / inside a connection URL needs percent-encoding.
+      DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
+      WEB_ORIGIN: http://localhost:4321
+      HOST: 0.0.0.0
+      PORT: "8787"
+      # Sin estas dos el checkout responde 501 en vez de fingir un pago.
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+      NODE_ENV: production
+      # No default. A known signing key is a forgeable admin session; compose
+      # refuses to start rather than hand out one everybody can read.
+      JWT_SECRET: ${JWT_SECRET:?run scripts/keys.sh first}
+      # Secreto compartido con el servicio de IA. Sin el, /api/chat responde 501.
+      IA_URL: http://ia:8799
+      IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
+      # Servicio de datos. Mientras la migracion siga en curso api conserva
+      # DATABASE_URL arriba; el objetivo es borrarlo y quedarse solo con esto.
+      DATA_URL: http://data:8788
+      DATA_SECRETO: ${DATA_SECRETO:?run scripts/keys.sh first}
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+    # No command override: the image's CMD is just the server now. Schema and
+    # seed belong to the `init` service.
+    depends_on:
+      db:
+        condition: service_healthy
+      # service_completed_successfully, not service_started: the API must not
+      # accept traffic against a schema that has not been applied. If init fails,
+      # api never starts — which is the correct outcome, loudly.
+      init:
+        condition: service_completed_successfully
+      # service_started only meant "the process was spawned": uvicorn had not
+      # bound 8799 yet, so the first /api/chat got a 502 that looked like a chat
+      # bug. The ia service already defines a healthcheck — use it.
+      ia:
+        condition: service_healthy
+      data:
+        condition: service_healthy
+    ports:
+      - "8787:8787"
+    # /api/health touches the labs table, so a green answer means: seed finished,
+    # migrations applied, the pool works and the port is bound. That is exactly
+    # the gate web needs — without it web served pages mid-seed.
+    # start_period covers migrate() + the full seed on a fresh volume; failures
+    # inside it do not count against retries.
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  ia:
+    build: ./ai
+    environment:
+      # El puente de vuelta: la IA pide a la API que ejecute las herramientas,
+      # porque la API es la unica que tiene la sesion del usuario.
+      NODE_URL: http://api:8787
+      IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
+      PORT: "8799"
+      # Basta UNA. El orden se fija con PROVEEDOR_ORDEN.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      PROVEEDOR_ORDEN: ${PROVEEDOR_ORDEN:-}
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+    # No se publica puerto al host a proposito: solo lo llama la API por la red
+    # interna. Es un servicio interno, no una API publica.
+    expose:
+      - "8799"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8799/salud')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # The workers. Each runs the SAME IMAGE as its service, with a different
+  # command.
+  #
+  # That is deliberate and it is the point. A worker built from different code
+  # than its API is a bug class of its own: the worker's idea of a tool diverges
+  # from the API's and nothing detects it until a job produces a wrong answer.
+  # Same image, different entrypoint, and that divergence cannot be expressed.
+  #
+  # Scale these by queue depth. Neither publishes a port; nothing talks to them
+  # except the broker.
+  # ---------------------------------------------------------------------------
+  api-worker:
+    build: ./api
+    command: ["node", "dist/src/worker.js"]
+    environment:
+      DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?run scripts/keys.sh first}
+      IA_URL: http://ia:8799
+      IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
+      # Servicio de datos. Mientras la migracion siga en curso api conserva
+      # DATABASE_URL arriba; el objetivo es borrarlo y quedarse solo con esto.
+      DATA_URL: http://data:8788
+      DATA_SECRETO: ${DATA_SECRETO:?run scripts/keys.sh first}
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+    depends_on:
+      broker:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+      data:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ai-worker:
+    build: ./ai
+    command: ["python", "-m", "course_ai.worker"]
+    environment:
+      NODE_URL: http://api:8787
+      IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      PROVEEDOR_ORDEN: ${PROVEEDOR_ORDEN:-}
+    depends_on:
+      broker:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Owns the RabbitMQ topology: it declares the exchanges, queues and bindings, and
+  # observes what is in flight. Nothing routes THROUGH it — that is deliberate, and it
+  # is the line that keeps it from becoming the orchestrator this architecture argues
+  # against. The test to apply to any future change: if stopping this container would
+  # break another service, it has become the orchestrator and the change is wrong.
+  queue:
+    build: ./queue
+    environment:
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+      # NOTE: this is the AI service's shared secret, reused. One credential across two
+      # trust boundaries — see the finding in docs/SECURITY-AUDIT.md. Kept as-is because
+      # queue/internal/config/config.go reads this name; splitting it is a coordinated
+      # change across keys.sh, compose and Go, and is cheapest now while nothing calls
+      # this service.
+      IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
+      APP_ENV: production
+      PORT: "8790"
+      # The at-most-once claim store. Empty means in-memory claims, which the service
+      # reports as a warning on /health rather than hiding: a redelivery after a restart
+      # can then run a handler twice. It points at api's claim route, which does not
+      # exist yet.
+      BUS_CLAIM_URL: ${BUS_CLAIM_URL:-}
+    depends_on:
+      broker:
+        condition: service_healthy
+    # Not published, like `ia`. Putting an enqueue endpoint on the host buys nothing —
+    # queue/tools/ reaches it from inside the network. If you ever need host curl access,
+    # bind 127.0.0.1:8790:8790, never 0.0.0.0.
+    expose:
+      - "8790"
+    # Exec form with no shell, because the image is `scratch`: there is no /bin/sh for
+    # CMD-SHELL to run. The binary answers its own healthcheck subcommand.
+    healthcheck:
+      test: ["CMD", "/queue", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    environment:
+      API_URL: http://api:8787
+      HOST: 0.0.0.0
+      PORT: "4321"
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+    depends_on:
+      # Was a bare `- api`, i.e. service_started: web accepted traffic while the
+      # api was still seeding, and every page that reads the session got a
+      # connection refused. Chain is db -> ia -> api -> web, no cycle.
+      api:
+        condition: service_healthy
+    ports:
+      - "4321:4321"
+    # /robots.txt is server-rendered but talks to nothing: it proves the Astro
+    # node server is answering without making web's health depend on the api a
+    # second time (depends_on already does that).
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4321/robots.txt').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # -------------------------------------------------------------------------
+  # THE FIVE LINES OF DEFENCE
+  #
+  # One image, five commands. They share `defense/Dockerfile` because they share
+  # every package; the binary is chosen per service, which is why that image has
+  # no ENTRYPOINT.
+  #
+  # WHAT THEY ALL HAVE IN COMMON, and why each item is here:
+  #   cap_drop: ALL          none of them needs a capability. cmd/smith reports
+  #                          any that appears, so this is asserted at runtime.
+  #   read_only: true        a writable rootfs is what turns one file-write bug
+  #                          into something that survives a restart.
+  #   no-new-privileges      a setuid binary in a future layer cannot escalate.
+  #   no docker.sock         the socket is root on the host. Quarantining a
+  #                          container is therefore an ESCALATION here, not an
+  #                          action -- see policy.QuarantineContainer.
+  #   DEFENSE_MODE=propose   the default. Nothing is applied until somebody sets
+  #                          enforce deliberately, per agent.
+  #
+  # They deliberately have NO DATABASE_URL and NO JWT_SECRET. Neo revokes a
+  # session by publishing on the bus and letting the api do it with its own
+  # credentials: the agent with the power holds the fewest keys.
+  # -------------------------------------------------------------------------
+
+  # Line 1 -- the door. Needs the HOST network namespace, because from inside its
+  # own it can only see its own sockets, and a clean result from there would mean
+  # nothing at all. Read-only and capability-free even so.
+  morpheus:
+    build:
+      context: .
+      dockerfile: defense/Dockerfile
+    command: ["/morpheus"]
+    network_mode: host
+    environment:
+      APP_ENV: production
+      # host networking means no DNS name for the broker; the published port on
+      # the host is not open, so morpheus reports on stdout and the audit log.
+      AMQP_URL: ""
+      DEFENSE_MODE: propose
+      DEFENSE_SCAN_EVERY: 15m
+      DEFENSE_AUDIT: /var/lib/defense/audit.jsonl
+    volumes:
+      - defenseaudit:/var/lib/defense
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Line 2 -- the walls. Reads sshd_config and /proc from the host, READ ONLY. It
+  # never applies anything: `docker compose run --rm --entrypoint /trinity
+  # defense-trinity nft` prints the ruleset for a human to review and apply.
+  trinity:
+    build:
+      context: .
+      dockerfile: defense/Dockerfile
+    command: ["/trinity"]
+    environment:
+      APP_ENV: production
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+      DEFENSE_MODE: propose
+      DEFENSE_SCAN_EVERY: 30m
+      DEFENSE_AUDIT: /var/lib/defense/audit.jsonl
+    volumes:
+      - defenseaudit:/var/lib/defense
+      # :ro is the whole point. Trinity reports on the host's configuration and
+      # must not be able to change it.
+      - /etc/ssh/sshd_config:/etc/ssh/sshd_config:ro
+      - /etc/apt/apt.conf.d:/etc/apt/apt.conf.d:ro
+    depends_on:
+      broker:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Line 3 -- the adversary. Deliberately the least privileged thing in this file:
+  # it asks "if somebody is already in here, what do they get", and the answer has
+  # to be "nothing", so it gets nothing.
+  smith:
+    build:
+      context: .
+      dockerfile: defense/Dockerfile
+    command: ["/smith"]
+    environment:
+      APP_ENV: production
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+      DEFENSE_MODE: propose
+      DEFENSE_SCAN_EVERY: 1h
+      DEFENSE_AUDIT: /var/lib/defense/audit.jsonl
+    volumes:
+      - defenseaudit:/var/lib/defense
+    depends_on:
+      broker:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Line 4 -- it sees. Consumes defense.signal.* and publishes scored threats.
+  # No policy engine, no guard: internal/guard's test asserts that no package
+  # outside itself can start a process, so this is structural, not a promise.
+  oracle:
+    build:
+      context: .
+      dockerfile: defense/Dockerfile
+    command: ["/oracle"]
+    environment:
+      APP_ENV: production
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+      DEFENSE_MODE: propose
+      DEFENSE_WATCH_WINDOW: 5m
+      DEFENSE_AUDIT: /var/lib/defense/audit.jsonl
+    volumes:
+      - defenseaudit:/var/lib/defense
+    depends_on:
+      broker:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Line 5 -- the only one that may act, and it starts unable to.
+  #
+  # DEFENSE_MODE stays `propose` until the thresholds in cmd/oracle have been
+  # watched against real traffic. Flipping it to `enforce` is a deliberate,
+  # documented act: see defense/README.md. Even then the ceiling is ten
+  # reversible, self-expiring actions per ten minutes, from a five-entry
+  # allowlist, none of which can touch cloudflared, db, broker or mosquitto.
+  neo:
+    build:
+      context: .
+      dockerfile: defense/Dockerfile
+    command: ["/neo"]
+    environment:
+      APP_ENV: production
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
+      DEFENSE_MODE: ${DEFENSE_MODE:-propose}
+      DEFENSE_AUDIT: /var/lib/defense/audit.jsonl
+      # Absent is a supported state: without them an edge block escalates
+      # instead of happening, and Neo says so in the escalation.
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+    volumes:
+      - defenseaudit:/var/lib/defense
+    depends_on:
+      broker:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  brokerdata:
+  # The audit log. A named volume rather than a bind mount so it survives
+  # `docker compose down` -- the records worth having are the ones written just
+  # before something went wrong, and those are exactly the ones a recreate would
+  # take with it.
+  defenseaudit:

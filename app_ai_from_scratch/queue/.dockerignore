@@ -1,0 +1,11 @@
+# Only cmd/, internal/, go.mod and go.sum belong in the build context. Anything
+# else that changes would invalidate a layer for no reason -- and the sibling
+# source the contract check reads is deliberately NOT here, because a service
+# image must not need its siblings to build.
+*
+!cmd/
+!internal/
+!bus/
+!broker/
+!go.mod
+!go.sum

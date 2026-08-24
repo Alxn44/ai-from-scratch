@@ -1,0 +1,37 @@
+{
+  "//": "The API is TypeScript and tsgo both CHECKS and EMITS it. `tsgo -p .` writes dist/ (dist/src/server.js is the entrypoint); `tsgo -p . --noEmit`, which is what scripts/types.mjs runs, only checks. Development runs the sources directly: `node --experimental-strip-types --watch src/server.ts` — Node 22.13 reports process.features.typescript === false, so the flag is explicit. strict stays OFF: turning it on in one go over 7000 lines produces hundreds of style notices and the whole report gets ignored. What IS on are the checks that catch real errors. allowImportingTsExtensions + rewriteRelativeImportExtensions is the pair that makes one import specifier work in both worlds: the source says './db.ts' (which is what Node's type stripper can resolve) and the emit rewrites it to './db.js'.",
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2023"],
+    "types": ["node"],
+    "outDir": "dist",
+    // rootDir is PINNED, not inferred. tsgo derives it from the common directory of the
+    // files it actually finds, so a build that has only src/ (the Docker image copies no
+    // test/ and no scripts/) infers ./src, flattens the layout to dist/*.js and then fails
+    // with TS5011. Fixed at the project root, the entrypoint is dist/src/server.js whether
+    // test/ and scripts/ are there or not.
+    "rootDir": ".",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": false,
+    "sourceMap": true,
+    "declaration": false,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.mts", "scripts/**/*.mjs"],
+  "exclude": ["node_modules", "dist"]
+}

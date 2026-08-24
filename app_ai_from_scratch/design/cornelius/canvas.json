@@ -1,0 +1,12 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",  "x": 0,    "y": 0,   "w": 1180, "h": 2400, "title": "Identidad" },
+    { "file": "Panel.dc.html", "x": 1260, "y": 0,   "w": 1120, "h": 760,  "title": "Panel en vivo" },
+    { "file": "Paseo.dc.html", "x": 1260, "y": 850, "w": 1120, "h": 1500, "title": "Movimiento" }
+  ],
+  "annotations": [
+    { "id": "brief", "x": 0, "y": -150, "w": 420,
+      "text": "Cornelius — gato tuxedo, ojos amarillos.\nTokens tomados de web/src/lib/theme-css.ts, sin redondear.\nPanel: clicable, y muestra QUÉ herramienta usa.\nMovimiento: pulsa «Verlo ya» para no esperar 34 s." }
+  ],
+  "launch": { "view": "canvas" }
+}

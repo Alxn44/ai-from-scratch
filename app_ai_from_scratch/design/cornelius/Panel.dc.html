@@ -1,0 +1,613 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Same tokens as the identity sheet, same source: web/src/lib/theme-css.ts. */
+    .stage{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --btn-bg:#fff;--btn-fg:#000;--on-ac:#fff;
+      --cx-fur:#000;--cx-mark:#fff;--cx-eye:#FFD60A;
+    }
+    .stage.paper{
+      --bg:#F2F2F2;--panel:#fff;
+      --l1:#000;--l2:rgba(0,0,0,.66);--l3:rgba(0,0,0,.58);
+      --hair:rgba(0,0,0,.22);--hair2:rgba(0,0,0,.08);--fill:rgba(120,120,128,.20);
+      --ac:#0A5AD6;--ac-solid:#0A5AD6;--ok:#0C6B3E;--or:#8A5000;--rd:#C21B12;
+      --btn-bg:#000;--btn-fg:#fff;
+    }
+    body{margin:0;background:#000;font-family:-apple-system,system-ui,sans-serif}
+    a{color:var(--ac);text-decoration:none}
+    a:hover{color:#409CFF}
+
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0;color:var(--l1)}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .mono{font:400 11px/1.5 var(--m);color:var(--l3);margin:0}
+
+    /* --- Cornelius, identical rules to the sheet --------------------------- */
+    .cx{display:block;overflow:visible}
+    .cx .contour{fill:none;stroke:var(--hair);stroke-width:1.1}
+    /* Contorno de las orejas. Faltaba, y era un defecto medible: las orejas son
+       #000 puro y la cabeza si llevaba .contour, ellas no. Sobre --panel #0B0B0C
+       eso da 1,07:1 -- invisible. En papel el panel es #fff y salen a 21:1, asi
+       que el fallo estaba solo en el tema por defecto, que es el que ve todo el
+       mundo.
+       Es una POLILINEA ABIERTA, no el triangulo cerrado: la base de la oreja cae
+       dentro de la cabeza, y cerrarla dibujaria una raya cruzando el craneo. Se
+       pinta ANTES del relleno de la cabeza, asi que la union queda tapada.
+       No se esconde en ningun nivel de detalle: a 16 px la oreja es justo lo que
+       distingue la silueta de un circulo. */
+    .earline{fill:none;stroke:var(--hair);stroke-width:1.1;stroke-linejoin:miter}
+    .cx .fur{fill:var(--cx-fur)}
+    .cx .mark{fill:var(--cx-mark)}
+    .cx .inner{fill:rgba(255,255,255,.14)}
+    .cx .eye{fill:var(--cx-eye)}
+    .cx .pupil{fill:#000}
+    .cx .lids{fill:none;stroke:var(--cx-eye);stroke-width:1.6;stroke-linecap:round;opacity:0}
+    /* Pelaje y bigotes. BLANCOS -- es lo que tiene un gato negro.
+       Dos grupos, y la division no es cosmetica:
+         .fur-in  cae SOBRE el pelaje, asi que puede ser blanco puro en los dos
+                  temas: el fondo que le toca es el pelaje, no el panel. Mismo
+                  argumento que los ojos amarillos.
+         .fur-out sobresale de la silueta y pisa el panel. Ahi el blanco NO sirve:
+                  en tema papel --panel es #fff y un pelo blanco sobre blanco no es
+                  un pelo. Usa var(--hair), que es la linea que ya separa cada
+                  panel de la app.
+       Los bigotes se acortaron para que el tramo visible caiga sobre la mejilla
+       negra; lo que asoma son 2-3 px y en papel simplemente termina en el borde.
+       Solo en el nivel completo: a 26 px un trazo de 1 sobre un viewBox de 64 mide
+       0,4 px reales y se vuelve gris sucio en vez de pelo. */
+    .cx .fur-in{fill:none;stroke:var(--cx-mark);stroke-width:.9;stroke-linecap:round;opacity:.62}
+    .cx .fur-out{fill:none;stroke:var(--hair);stroke-width:1;stroke-linecap:round}
+    .cx .whisker{fill:none;stroke:var(--cx-mark);stroke-width:1;stroke-linecap:round;opacity:.9}
+    .cx.md .fur-in,.cx.md .fur-out,.cx.md .whisker,
+    .cx.sm .fur-in,.cx.sm .fur-out,.cx.sm .whisker{display:none}
+    .cx.sm .inner,.cx.sm .pupil{display:none}
+    @keyframes cx-blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
+    .cx.is-idle .eyes{transform-box:fill-box;transform-origin:center;
+      animation:cx-blink 5.5s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes cx-squint{0%,100%{transform:scaleY(.62)}50%{transform:scaleY(.44)}}
+    .cx.is-thinking .eyes{transform-box:fill-box;transform-origin:center;
+      animation:cx-squint 1.6s ease-in-out infinite}
+    .cx.is-thinking .ears{transform-box:fill-box;transform-origin:center bottom;
+      transform:rotate(-4deg) scaleY(.9)}
+    .cx.is-answering .pupil{transform-box:fill-box;transform-origin:center;transform:scaleX(2.1)}
+    .cx.is-answering .eyes{transform-box:fill-box;transform-origin:center;transform:scaleY(1.1)}
+    .cx.is-muted .eye,.cx.is-muted .pupil{opacity:0}
+    .cx.is-muted .lids{opacity:1}
+    .cx.is-error .contour{stroke:var(--rd);stroke-width:1.4}
+    .cx.is-error .eye{fill:var(--rd)}
+    @media (prefers-reduced-motion: reduce){.cx .eyes{animation:none !important}}
+
+    /* --- the stage -------------------------------------------------------- */
+    .stage{background:var(--bg);min-height:760px;padding:34px 38px;display:flex;gap:34px;
+      align-items:flex-start}
+    /* A stand-in for the app frame: the panel sits at left:264px, which is the
+       sidebar's width, so the sidebar has to be here for the position to mean
+       anything. */
+    .side{width:226px;flex:none;border-right:1px solid var(--hair2);padding-right:0;
+      display:flex;flex-direction:column;gap:2px;min-height:660px}
+    .nav{width:100%;height:44px;display:flex;align-items:center;gap:11px;padding:0 16px;
+      background:none;border:0;border-left:2px solid transparent;color:var(--l3);
+      font:500 13px/1 var(--f);cursor:default;text-align:left}
+    .nav.on{border-left-color:var(--ac);color:var(--l1);background:var(--fill)}
+    .navi{width:16px;height:16px;flex:none}
+
+    .work{flex:1;display:flex;flex-direction:column;gap:26px;min-width:0}
+    .capa{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:392px}
+    .iacard{border:1px solid var(--hair);background:var(--panel);padding:14px 16px;
+      display:flex;flex-direction:column;gap:11px}
+    .iarow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .hilo{display:flex;flex-direction:column;gap:9px;max-height:340px;overflow-y:auto}
+    .iab{border:1px solid var(--hair2);padding:10px 12px;font:400 14px/1.45 var(--f)}
+    .iab.yo{align-self:flex-end;max-width:86%;border-color:var(--ac);background:var(--fill);color:var(--l1)}
+    .iab.bot{align-self:stretch;color:var(--l2);display:flex;gap:10px;align-items:flex-start}
+    .iab.bad{align-self:stretch;border-color:var(--rd);color:var(--rd);display:flex;gap:10px;align-items:flex-start}
+    .form{display:flex;gap:8px}
+    .input{height:44px;width:100%;padding:0 14px;background:var(--fill);border:1px solid var(--hair2);
+      color:var(--l1);font:400 15px/1 var(--f)}
+    .input:focus{outline:none;border-color:var(--ac)}
+    .input::placeholder{color:var(--l3);opacity:1}
+    .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;
+      padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);
+      font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+      transition:background .2s,color .2s;font-family:var(--m)}
+    .btn:hover{background:var(--ac);color:var(--on-ac)}
+    .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--l1)}
+    .btn.ghost:hover{background:var(--fill);color:var(--l1)}
+    .send{height:44px;flex:none;font-size:10px;padding:0 14px}
+    .launch{align-self:flex-start;height:40px;font-size:10px}
+    .foot{display:flex;align-items:center;justify-content:space-between;gap:12px;
+      border-top:1px solid var(--hair2);padding-top:10px}
+    .switch{display:inline-flex;align-items:center;gap:9px;background:none;border:0;padding:0;
+      cursor:pointer;color:var(--l3);font:500 10px/1 var(--m);letter-spacing:.14em;
+      text-transform:uppercase}
+    .switch.on{color:var(--l1)}
+    .track{width:32px;height:18px;flex:none;border:1px solid var(--hair);background:var(--fill);
+      display:flex;align-items:center;padding:2px}
+    .switch.on .track{border-color:var(--ac);background:rgba(10,132,255,.22)}
+    .knob{width:12px;height:12px;background:var(--l3);display:block;transition:transform .18s}
+    .switch.on .knob{background:var(--ac);transform:translateX(14px)}
+    .link{background:none;border:0;padding:0;color:var(--ac);cursor:pointer;
+      font:500 11px/1.2 var(--m);letter-spacing:.06em;text-decoration:none}
+    .x{width:16px;height:16px;flex:none}
+    .xbtn{background:none;border:0;color:var(--l3);cursor:pointer;padding:4px;line-height:0}
+    .xbtn:hover{color:var(--l1)}
+    .tools{display:flex;flex-direction:column;gap:12px;width:250px;flex:none}
+    .toolrow{display:flex;gap:8px;flex-wrap:wrap}
+    .tbtn{height:30px;padding:0 10px;background:transparent;border:1px solid var(--hair2);
+      color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;
+      cursor:pointer}
+    .tbtn:hover{color:var(--l1);background:var(--fill)}
+    .tbtn.on{background:var(--ac-solid);color:var(--on-ac);border-color:var(--ac-solid)}
+    /* La traza. Los nombres son los del registro real (api/src/tools/*.ts), no
+       inventados: si el panel muestra una herramienta que no existe, la primera
+       persona que abra la traza completa en /chat ve dos listas distintas. */
+    .traza{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .tool{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;
+      border:1px solid var(--hair2);background:var(--fill);
+      font:500 10px/1 var(--m);letter-spacing:.04em;color:var(--l2)}
+    .tool.now{border-color:var(--ac);color:var(--l1)}
+    .tool .pip{width:4px;height:4px;flex:none;background:var(--l3)}
+    .tool.now .pip{background:var(--ac)}
+    .tool.done .pip{background:var(--ok)}
+    .trazalink{background:none;border:0;padding:0;color:var(--l3);cursor:pointer;
+      font:500 10px/1 var(--m);letter-spacing:.1em;text-transform:uppercase}
+    .trazalink:hover{color:var(--l1)}
+    @keyframes dots{0%,20%{opacity:.25}50%{opacity:1}80%,100%{opacity:.25}}
+    .dot{width:3px;height:3px;background:var(--l3);display:block;animation:dots 1.2s infinite}
+    .dot:nth-child(2){animation-delay:.15s}
+    .dot:nth-child(3){animation-delay:.3s}
+  </style>
+</helmet>
+
+<div class="stage {{themeClass}}">
+
+  <!-- the app frame, only as much of it as the panel's position needs -->
+  <nav class="side">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="6">
+      <div class="nav {{n.on}}">
+        <svg class="navi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+          <rect x="2.5" y="2.5" width="11" height="11"></rect>
+        </svg>
+        <span>{{n.label}}</span>
+      </div>
+    </sc-for>
+    <!-- The row that used to say «Chat». It is a toggle now, and this is where
+         Cornelius replaces a generic glyph. -->
+    <div class="nav on" style="margin-top:10px">
+      <svg class="cx sm {{catState}}" width="16" height="16" viewBox="0 0 64 64" aria-hidden="true">
+        <g class="ears">
+          <path class="earline" d="M13 21 L17 3 L31 13"></path>
+          <path class="earline" d="M51 21 L47 3 L33 13"></path>
+          <path class="fur" d="M13 21 L17 3 L31 13 Z"></path>
+          <path class="fur" d="M51 21 L47 3 L33 13 Z"></path>
+        </g>
+        <path class="fur" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+        <path class="mark" d="M32 29.5 L39.2 46 C39.2 52 36 55.4 32 55.4 C28 55.4 24.8 52 24.8 46 Z"></path>
+        <g class="fur-in">
+          <path d="M13.2 34.2 L18.4 32.6"></path>
+          <path d="M12.6 38.4 L18.2 37.6"></path>
+          <path d="M13.4 42.4 L18.6 42"></path>
+          <path d="M50.8 34.2 L45.6 32.6"></path>
+          <path d="M51.4 38.4 L45.8 37.6"></path>
+          <path d="M50.6 42.4 L45.4 42"></path>
+          <path d="M16.8 19.6 L19.8 12.4"></path>
+          <path d="M18.8 20.2 L22.2 14"></path>
+          <path d="M20.8 20.6 L24.8 15.6"></path>
+          <path d="M47.2 19.6 L44.2 12.4"></path>
+          <path d="M45.2 20.2 L41.8 14"></path>
+          <path d="M43.2 20.6 L39.2 15.6"></path>
+        </g>
+        <g class="fur-out">
+          <path d="M11.2 33.4 L6.8 31.6"></path>
+          <path d="M10.6 37.6 L5.4 37.4"></path>
+          <path d="M11.8 41.8 L6.4 43.6"></path>
+          <path d="M52.8 33.4 L57.2 31.6"></path>
+          <path d="M53.4 37.6 L58.6 37.4"></path>
+          <path d="M52.2 41.8 L57.6 43.6"></path>
+          <path d="M29.6 11.2 L28.6 7.6"></path>
+          <path d="M32 10.9 L32 7"></path>
+          <path d="M34.4 11.2 L35.4 7.6"></path>
+          <path d="M27.4 54.4 L26.2 58"></path>
+          <path d="M32 55.4 L32 59"></path>
+          <path d="M36.6 54.4 L37.8 58"></path>
+        </g>
+        <g class="whisker">
+          <path d="M25 40.6 L9.2 36.8"></path>
+          <path d="M25 43.6 L9.4 46"></path>
+          <path d="M39 40.6 L54.8 36.8"></path>
+          <path d="M39 43.6 L54.6 46"></path>
+        </g>
+        <g class="eyes">
+          <ellipse class="eye" cx="23" cy="28" rx="5.3" ry="4.3" transform="rotate(-8 23 28)"></ellipse>
+          <ellipse class="eye" cx="41" cy="28" rx="5.3" ry="4.3" transform="rotate(8 41 28)"></ellipse>
+          <path class="lids" d="M18.2 28.6 C20.4 31 25.6 31 27.8 28"></path>
+          <path class="lids" d="M36.2 28 C38.4 31 43.6 31 45.8 28.6"></path>
+        </g>
+        <path class="contour" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+      </svg>
+      <span>Modo IA</span>
+    </div>
+  </nav>
+
+  <div class="work">
+    <div style="display:flex;gap:34px;align-items:flex-start">
+
+      <div class="capa">
+        <sc-if value="{{closed}}" hint-placeholder-val="{{false}}">
+          <button class="btn launch" onClick="{{openIt}}" type="button">Preguntar a Cornelius</button>
+        </sc-if>
+
+        <sc-if value="{{open}}" hint-placeholder-val="{{true}}">
+          <section class="iacard">
+            <div class="iarow">
+              <div style="display:flex;align-items:center;gap:11px">
+                <svg class="cx md {{catState}}" width="26" height="26" viewBox="0 0 64 64" role="img"
+                     aria-label="Cornelius">
+                  <g class="ears">
+                    <path class="earline" d="M13 21 L17 3 L31 13"></path>
+                    <path class="earline" d="M51 21 L47 3 L33 13"></path>
+                    <path class="fur" d="M13 21 L17 3 L31 13 Z"></path>
+                    <path class="fur" d="M51 21 L47 3 L33 13 Z"></path>
+                    <path class="inner" d="M17.5 18.5 L19.6 8.4 L27 14.2 Z"></path>
+                    <path class="inner" d="M46.5 18.5 L44.4 8.4 L37 14.2 Z"></path>
+                  </g>
+                  <path class="fur" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+                  <path class="mark" d="M32 29.5 L39.2 46 C39.2 52 36 55.4 32 55.4 C28 55.4 24.8 52 24.8 46 Z"></path>
+        <g class="fur-in">
+          <path d="M13.2 34.2 L18.4 32.6"></path>
+          <path d="M12.6 38.4 L18.2 37.6"></path>
+          <path d="M13.4 42.4 L18.6 42"></path>
+          <path d="M50.8 34.2 L45.6 32.6"></path>
+          <path d="M51.4 38.4 L45.8 37.6"></path>
+          <path d="M50.6 42.4 L45.4 42"></path>
+          <path d="M16.8 19.6 L19.8 12.4"></path>
+          <path d="M18.8 20.2 L22.2 14"></path>
+          <path d="M20.8 20.6 L24.8 15.6"></path>
+          <path d="M47.2 19.6 L44.2 12.4"></path>
+          <path d="M45.2 20.2 L41.8 14"></path>
+          <path d="M43.2 20.6 L39.2 15.6"></path>
+        </g>
+        <g class="fur-out">
+          <path d="M11.2 33.4 L6.8 31.6"></path>
+          <path d="M10.6 37.6 L5.4 37.4"></path>
+          <path d="M11.8 41.8 L6.4 43.6"></path>
+          <path d="M52.8 33.4 L57.2 31.6"></path>
+          <path d="M53.4 37.6 L58.6 37.4"></path>
+          <path d="M52.2 41.8 L57.6 43.6"></path>
+          <path d="M29.6 11.2 L28.6 7.6"></path>
+          <path d="M32 10.9 L32 7"></path>
+          <path d="M34.4 11.2 L35.4 7.6"></path>
+          <path d="M27.4 54.4 L26.2 58"></path>
+          <path d="M32 55.4 L32 59"></path>
+          <path d="M36.6 54.4 L37.8 58"></path>
+        </g>
+        <g class="whisker">
+          <path d="M25 40.6 L9.2 36.8"></path>
+          <path d="M25 43.6 L9.4 46"></path>
+          <path d="M39 40.6 L54.8 36.8"></path>
+          <path d="M39 43.6 L54.6 46"></path>
+        </g>
+        <g class="eyes">
+                    <ellipse class="eye" cx="23" cy="28" rx="5.3" ry="4.3" transform="rotate(-8 23 28)"></ellipse>
+                    <ellipse class="eye" cx="41" cy="28" rx="5.3" ry="4.3" transform="rotate(8 41 28)"></ellipse>
+                    <ellipse class="pupil" cx="23" cy="28" rx="1.5" ry="3.5"></ellipse>
+                    <ellipse class="pupil" cx="41" cy="28" rx="1.5" ry="3.5"></ellipse>
+                    <path class="lids" d="M18.2 28.6 C20.4 31 25.6 31 27.8 28"></path>
+                    <path class="lids" d="M36.2 28 C38.4 31 43.6 31 45.8 28.6"></path>
+                  </g>
+                  <path class="nose" d="M32 35.4 L34.7 39 L29.3 39 Z" fill="#1C1C1E"></path>
+                  <path class="contour" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+                </svg>
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <p class="eb">Cornelius</p>
+                  <p class="s" style="font-size:12px">{{sub}}</p>
+                </div>
+              </div>
+              <button class="xbtn" onClick="{{closeIt}}" type="button" aria-label="Cerrar">
+                <svg class="x" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <path d="M4 4 L12 12"></path><path d="M12 4 L4 12"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="hilo">
+              <sc-for list="{{thread}}" as="m" hint-placeholder-count="2">
+                <div class="iab {{m.cls}}">
+                  <sc-if value="{{m.isBot}}" hint-placeholder-val="{{true}}">
+                    <svg class="cx sm {{m.cat}}" width="18" height="18" viewBox="0 0 64 64"
+                         aria-hidden="true" style="margin-top:1px;flex:none">
+                      <g class="ears">
+                        <path class="earline" d="M13 21 L17 3 L31 13"></path>
+                        <path class="earline" d="M51 21 L47 3 L33 13"></path>
+                        <path class="fur" d="M13 21 L17 3 L31 13 Z"></path>
+                        <path class="fur" d="M51 21 L47 3 L33 13 Z"></path>
+                      </g>
+                      <path class="fur" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+                      <path class="mark" d="M32 29.5 L39.2 46 C39.2 52 36 55.4 32 55.4 C28 55.4 24.8 52 24.8 46 Z"></path>
+        <g class="fur-in">
+          <path d="M13.2 34.2 L18.4 32.6"></path>
+          <path d="M12.6 38.4 L18.2 37.6"></path>
+          <path d="M13.4 42.4 L18.6 42"></path>
+          <path d="M50.8 34.2 L45.6 32.6"></path>
+          <path d="M51.4 38.4 L45.8 37.6"></path>
+          <path d="M50.6 42.4 L45.4 42"></path>
+          <path d="M16.8 19.6 L19.8 12.4"></path>
+          <path d="M18.8 20.2 L22.2 14"></path>
+          <path d="M20.8 20.6 L24.8 15.6"></path>
+          <path d="M47.2 19.6 L44.2 12.4"></path>
+          <path d="M45.2 20.2 L41.8 14"></path>
+          <path d="M43.2 20.6 L39.2 15.6"></path>
+        </g>
+        <g class="fur-out">
+          <path d="M11.2 33.4 L6.8 31.6"></path>
+          <path d="M10.6 37.6 L5.4 37.4"></path>
+          <path d="M11.8 41.8 L6.4 43.6"></path>
+          <path d="M52.8 33.4 L57.2 31.6"></path>
+          <path d="M53.4 37.6 L58.6 37.4"></path>
+          <path d="M52.2 41.8 L57.6 43.6"></path>
+          <path d="M29.6 11.2 L28.6 7.6"></path>
+          <path d="M32 10.9 L32 7"></path>
+          <path d="M34.4 11.2 L35.4 7.6"></path>
+          <path d="M27.4 54.4 L26.2 58"></path>
+          <path d="M32 55.4 L32 59"></path>
+          <path d="M36.6 54.4 L37.8 58"></path>
+        </g>
+        <g class="whisker">
+          <path d="M25 40.6 L9.2 36.8"></path>
+          <path d="M25 43.6 L9.4 46"></path>
+          <path d="M39 40.6 L54.8 36.8"></path>
+          <path d="M39 43.6 L54.6 46"></path>
+        </g>
+        <g class="eyes">
+                        <ellipse class="eye" cx="23" cy="28" rx="5.3" ry="4.3" transform="rotate(-8 23 28)"></ellipse>
+                        <ellipse class="eye" cx="41" cy="28" rx="5.3" ry="4.3" transform="rotate(8 41 28)"></ellipse>
+                      </g>
+                      <path class="contour" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+                    </svg>
+                  </sc-if>
+                  <span>{{m.text}}</span>
+                </div>
+              </sc-for>
+
+              <sc-if value="{{thinking}}" hint-placeholder-val="{{false}}">
+                <div class="iab bot">
+                  <svg class="cx sm is-thinking" width="18" height="18" viewBox="0 0 64 64"
+                       aria-hidden="true" style="margin-top:1px;flex:none">
+                    <g class="ears">
+                      <path class="earline" d="M13 21 L17 3 L31 13"></path>
+                      <path class="earline" d="M51 21 L47 3 L33 13"></path>
+                      <path class="fur" d="M13 21 L17 3 L31 13 Z"></path>
+                      <path class="fur" d="M51 21 L47 3 L33 13 Z"></path>
+                    </g>
+                    <path class="fur" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+                    <path class="mark" d="M32 29.5 L39.2 46 C39.2 52 36 55.4 32 55.4 C28 55.4 24.8 52 24.8 46 Z"></path>
+        <g class="fur-in">
+          <path d="M13.2 34.2 L18.4 32.6"></path>
+          <path d="M12.6 38.4 L18.2 37.6"></path>
+          <path d="M13.4 42.4 L18.6 42"></path>
+          <path d="M50.8 34.2 L45.6 32.6"></path>
+          <path d="M51.4 38.4 L45.8 37.6"></path>
+          <path d="M50.6 42.4 L45.4 42"></path>
+          <path d="M16.8 19.6 L19.8 12.4"></path>
+          <path d="M18.8 20.2 L22.2 14"></path>
+          <path d="M20.8 20.6 L24.8 15.6"></path>
+          <path d="M47.2 19.6 L44.2 12.4"></path>
+          <path d="M45.2 20.2 L41.8 14"></path>
+          <path d="M43.2 20.6 L39.2 15.6"></path>
+        </g>
+        <g class="fur-out">
+          <path d="M11.2 33.4 L6.8 31.6"></path>
+          <path d="M10.6 37.6 L5.4 37.4"></path>
+          <path d="M11.8 41.8 L6.4 43.6"></path>
+          <path d="M52.8 33.4 L57.2 31.6"></path>
+          <path d="M53.4 37.6 L58.6 37.4"></path>
+          <path d="M52.2 41.8 L57.6 43.6"></path>
+          <path d="M29.6 11.2 L28.6 7.6"></path>
+          <path d="M32 10.9 L32 7"></path>
+          <path d="M34.4 11.2 L35.4 7.6"></path>
+          <path d="M27.4 54.4 L26.2 58"></path>
+          <path d="M32 55.4 L32 59"></path>
+          <path d="M36.6 54.4 L37.8 58"></path>
+        </g>
+        <g class="whisker">
+          <path d="M25 40.6 L9.2 36.8"></path>
+          <path d="M25 43.6 L9.4 46"></path>
+          <path d="M39 40.6 L54.8 36.8"></path>
+          <path d="M39 43.6 L54.6 46"></path>
+        </g>
+        <g class="eyes">
+                      <ellipse class="eye" cx="23" cy="28" rx="5.3" ry="4.3" transform="rotate(-8 23 28)"></ellipse>
+                      <ellipse class="eye" cx="41" cy="28" rx="5.3" ry="4.3" transform="rotate(8 41 28)"></ellipse>
+                    </g>
+                    <path class="contour" d="M10 26 C10 15 19 11 32 11 C45 11 54 15 54 26 C54 42 45 55 32 55 C19 55 10 42 10 26 Z"></path>
+                  </svg>
+                  <span style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                    <span style="display:flex;align-items:center;gap:4px;height:14px">
+                      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    </span>
+                    <span class="traza">
+                      <sc-for list="{{running}}" as="t" hint-placeholder-count="2">
+                        <span class="tool {{t.cls}}"><span class="pip"></span>{{t.name}}</span>
+                      </sc-for>
+                    </span>
+                  </span>
+                </div>
+              </sc-if>
+            </div>
+
+            <sc-if value="{{hasTrace}}" hint-placeholder-val="{{true}}">
+              <div class="traza" style="border-top:1px solid var(--hair2);padding-top:9px">
+                <sc-for list="{{used}}" as="t" hint-placeholder-count="3">
+                  <span class="tool done"><span class="pip"></span>{{t.name}}</span>
+                </sc-for>
+                <button class="trazalink" onClick="{{noop}}" type="button">ver la traza</button>
+              </div>
+            </sc-if>
+
+            <div class="form">
+              <input class="input" placeholder="{{ph}}" value="{{draft}}" onInput="{{type}}"
+                     aria-label="Tu pregunta">
+              <button class="btn send" onClick="{{send}}" type="button">Enviar</button>
+            </div>
+            <p class="s" style="font-size:12px">Sólo ve tus propios datos. Nunca los de otra persona.</p>
+
+            <div class="foot">
+              <button class="switch {{switchCls}}" onClick="{{toggleAvisos}}" type="button" role="switch">
+                <span class="track" aria-hidden="true"><span class="knob"></span></span>
+                <span>Avisos</span>
+              </button>
+              <a class="link" href="#">Abrir el chat completo</a>
+            </div>
+          </section>
+        </sc-if>
+      </div>
+
+      <!-- Prototype controls. Kept visibly separate from the panel: they are not
+           part of the product, they are how you reach a state that needs a real
+           failure to happen. -->
+      <div class="tools">
+        <p class="lbl">Probar los estados</p>
+        <div class="toolrow">
+          <sc-for list="{{buttons}}" as="b" hint-placeholder-count="4">
+            <button class="tbtn {{b.on}}" onClick="{{b.go}}" type="button">{{b.label}}</button>
+          </sc-for>
+        </div>
+        <p class="mono">Escribir y enviar recorre pensando → respondiendo → reposo por su
+          cuenta. Apagar «Avisos» lo deja callado.</p>
+        <p class="mono" style="color:var(--l3)">estado actual · {{stateName}}</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","paper"],"default":"dark","section":"Tema"},"$preview":{"width":1120,"height":760}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      open: true,
+      phase: 'idle',      // idle | thinking | answering | error
+      avisos: true,
+      draft: '',
+      running: [],
+      used: ['mi_panorama', 'mi_acceso'],
+      thread: [
+        { who: 'yo',  text: '¿Por qué no puedo abrir la lección 4?' },
+        { who: 'bot', text: 'Todavía no la compraste. La primera es libre; de la 2 en adelante hace falta el pago. Te dejo el enlace y seguimos.' },
+      ],
+    };
+    this.timers = [];
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); }
+  later(ms, fn) { this.timers.push(setTimeout(fn, ms)); }
+
+  // The state a viewer actually sees on the cat: `muted` wins over `idle`,
+  // because a cat that blinks while it is silenced is saying it is listening.
+  catClass() {
+    const { phase, avisos } = this.state;
+    if (phase === 'error') return 'is-error';
+    if (phase === 'thinking') return 'is-thinking';
+    if (phase === 'answering') return 'is-answering';
+    return avisos ? 'is-idle' : 'is-muted';
+  }
+
+  // Los nombres salen de api/src/tools/*.ts. Tres llamadas es lo que cuesta de
+  // verdad esta pregunta: el panorama, los errores y la ficha del lab que sigue.
+  runTurn() {
+    const q = (this.state.draft || '').trim() || '¿Qué hago ahora?';
+    const plan = ['mi_panorama', 'mis_errores', 'lab_ficha'];
+    this.setState({
+      draft: '',
+      phase: 'thinking',
+      running: [],
+      used: [],
+      thread: this.state.thread.concat([{ who: 'yo', text: q }]),
+    });
+    // Una herramienta cada 420 ms. El panel muestra CUÁL, no un spinner: es la
+    // diferencia entre «está pensando» y «está leyendo tus intentos».
+    plan.forEach((name, i) => {
+      this.later(360 + i * 420, () => this.setState({ running: plan.slice(0, i + 1) }));
+    });
+    this.later(360 + plan.length * 420 + 240, () => {
+      this.setState({
+        phase: 'answering',
+        running: [],
+        used: plan,
+        thread: this.state.thread.concat([{
+          who: 'bot',
+          text: 'Te toca el 3.2. Lo intentaste dos veces y las dos fallaste en el mismo paso, así que empiezo por ahí.',
+        }]),
+      });
+      this.later(1500, () => this.setState({ phase: 'idle' }));
+    });
+  }
+
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const { open, phase, avisos, draft, thread, running, used } = this.state;
+    const cat = this.catClass();
+    const names = { 'is-idle': 'reposo', 'is-thinking': 'pensando',
+      'is-answering': 'respondiendo', 'is-muted': 'callado', 'is-error': 'error' };
+    const set = (p) => () => this.setState({ phase: p, open: true });
+    return {
+      themeClass: theme === 'paper' ? 'paper' : '',
+      open, closed: !open,
+      thinking: phase === 'thinking',
+      catState: cat,
+      stateName: names[cat],
+      draft,
+      ph: 'Pregunta lo que quieras del curso',
+      sub: phase === 'thinking' ? 'Pensando…'
+        : phase === 'error' ? 'Algo falló de mi lado'
+        : avisos ? 'Te avisa cuando toca estudiar' : 'Avisos apagados',
+      switchCls: avisos ? 'on' : '',
+      running: (running || []).map((n, i) => ({
+        name: n,
+        cls: i === (running || []).length - 1 ? 'now' : 'done',
+      })),
+      used: (used || []).map((n) => ({ name: n })),
+      hasTrace: phase !== 'thinking' && (used || []).length > 0,
+      noop: () => {},
+      thread: thread.map((m) => ({
+        text: m.text,
+        isBot: m.who === 'bot',
+        cls: m.who === 'bot' ? 'bot' : 'yo',
+        cat: 'is-idle',
+      })),
+      nav: [
+        { label: 'Panel',   on: '' }, { label: 'Curso',   on: '' },
+        { label: 'Logros',  on: '' }, { label: 'Ranking', on: '' },
+        { label: 'Ligas',   on: '' }, { label: 'Perfil',  on: '' },
+      ],
+      buttons: [
+        { label: 'Reposo',   on: cat === 'is-idle' ? 'on' : '',      go: set('idle') },
+        { label: 'Pensando', on: cat === 'is-thinking' ? 'on' : '',  go: set('thinking') },
+        { label: 'Respond.', on: cat === 'is-answering' ? 'on' : '', go: set('answering') },
+        { label: 'Error',    on: cat === 'is-error' ? 'on' : '',     go: set('error') },
+      ],
+      openIt: () => this.setState({ open: true }),
+      closeIt: () => this.setState({ open: false }),
+      toggleAvisos: () => this.setState({ avisos: !avisos, phase: 'idle' }),
+      type: (e) => this.setState({ draft: e.target.value }),
+      send: () => this.runTurn(),
+    };
+  }
+}
+</script>
+</body>
+</html>

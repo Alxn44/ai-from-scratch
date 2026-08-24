@@ -1,0 +1,167 @@
+---
+export const prerender = false;
+import App from '../layouts/App.astro';
+import { gate } from '../lib/session';
+import { icon } from '../lib/icons';
+import { t, resolveLang } from '../lib/i18n';
+import { jsonSafe } from '../lib/json-safe';
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+const L = t(resolveLang(user!.lang, Astro.request));
+const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as const;
+---
+<App user={user!} title="Ajustes" crumb="AJUSTES / CUENTA" active="Ajustes">
+  <div style="padding:30px 28px 48px;display:grid;grid-template-columns:200px 1fr;gap:34px;align-items:start;max-width:1180px">
+    <nav style="display:flex;flex-direction:column;gap:2px;position:sticky;top:84px">
+      <span class="nav" aria-current="page" style="border-left-width:2px">{L.ajustes.cuenta}</span>
+      <span class="nav">{L.ajustes.curso}</span>
+      
+    </nav>
+
+    <div style="display:flex;flex-direction:column;gap:34px;max-width:880px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <p class="eb">{L.nav.ajustes}</p>
+        <h1 class="h1">{L.ajustes.cuenta}</h1>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px">
+        <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="nm">{L.ajustes.nombre}</label><input class="input" id="nm" value={user!.name}></div>
+        <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="em">{L.ajustes.correo}</label><input class="input" id="em" value={user!.email}></div>
+        <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="pw">{L.ajustes.clave}</label><input class="input" id="pw" type="password" value="············"></div>
+        <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="rl">{L.ajustes.rol}</label><input class="input" id="rl" value={ROLE_ES[user!.role]} disabled style="color:var(--l3)"></div>
+      </div>
+      <p class="s">{L.ajustes.rolNota}</p>
+
+      <div style="display:flex;flex-direction:column;gap:18px;border-top:1px solid var(--hair);padding-top:26px">
+        <h2 class="h2">{L.ajustes.curso}</h2>
+
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
+          <div style="max-width:520px">
+            <div class="h3">{L.ajustes.idiomaTit}</div>
+            <p class="s" style="color:var(--l2);margin-top:4px">
+              {L.ajustes.idiomaNota} {L.ajustes.detectado}: <b id="detected" style="color:var(--l1);font-weight:600">—</b>.
+            </p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:none">
+            <div style="display:flex;gap:8px">
+              <button class="chip" data-lang="auto" data-on={user!.lang === 'auto' ? '' : undefined} style="min-width:68px">{L.automatico}</button>
+              <button class="chip" data-lang="es" data-on={user!.lang === 'es' ? '' : undefined} style="min-width:68px">ES</button>
+              <button class="chip" data-lang="en" data-on={user!.lang === 'en' ? '' : undefined} style="min-width:68px">EN</button>
+            </div>
+            <span class="lbl" id="following">{(user!.lang === 'auto' ? L.siguiendoEquipo : L.elegidoPorTi).toUpperCase()}</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+          <div style="max-width:520px"><div class="h3">{L.ajustes.sonidoTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.sonidoNota}</p></div>
+          <div style="display:flex;gap:8px;flex:none">
+            <button class="chip" data-son="on" style="min-width:80px">{L.ajustes.sonidoOn}</button>
+            <button class="chip" data-son="off" style="min-width:80px">{L.ajustes.sonidoOff}</button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+          <div><div class="h3">{L.ajustes.temaTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.temaNota}</p></div>
+          <div style="display:flex;gap:8px;flex:none">
+            <button class="chip" data-theme="auto" data-on={user!.theme === 'auto' ? '' : undefined} style="min-width:80px">{L.automatico}</button>
+            <button class="chip" data-theme="dark" data-on={user!.theme === 'dark' ? '' : undefined} style="min-width:80px">{L.oscuro}</button>
+            <button class="chip" data-theme="paper" data-on={user!.theme === 'paper' ? '' : undefined} style="min-width:80px">{L.papel}</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;border-top:1px solid var(--rd);padding-top:26px">
+        <h2 class="h2" style="color:var(--rd)">{L.ajustes.riesgo}</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-bottom:18px;border-bottom:1px solid var(--hair2)">
+          <div><div class="h3">{L.ajustes.cerrarTodas}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.cerrarTodasNota}</p></div>
+          <button class="btn ghost" id="killall" style="flex:none">{L.ajustes.cerrarBtn}</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
+            <div style="max-width:520px">
+              <div class="h3">{L.ajustes.eliminar}</div>
+              <p class="s" style="color:var(--l2);margin-top:4px">Se desactiva el acceso y tu nombre se anonimiza. Tus intentos quedan en las estadísticas de la cohorte, sin tus datos. Tu correo se libera: puedes volver a registrarte con él.</p>
+              <p class="s" style="margin-top:6px">La compra no se reembolsa por este medio — para eso está la garantía de 14 días.</p>
+            </div>
+            <button class="btn danger" id="del-open" style="flex:none">{L.ajustes.eliminarBtn}</button>
+          </div>
+          <div id="del-box" hidden style="border:1px solid var(--rd);padding:18px;display:flex;flex-direction:column;gap:12px">
+            <p class="lbl" style="color:var(--rd)">{L.ui.confirmaClave}</p>
+            <input class="input" id="del-pass" type="password" placeholder="tu contraseña actual">
+            <div style="display:flex;gap:10px">
+              <button class="btn danger" id="del-go">{L.ui.siElimina}</button>
+              <button class="btn ghost" id="del-cancel">{L.ui.cancelar}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="ui-txt" is:inline set:html={jsonSafe(L.ui)}></script>
+
+  <script>
+
+    // El sonido es preferencia de EQUIPO, no de cuenta: quien estudia en la
+    // oficina lo quiere apagado y en casa encendido, y es el mismo usuario.
+    import { suena, silenciar, sonar, prepararSonido } from '../lib/sound';
+    prepararSonido();
+    const pintaSon = () => document.querySelectorAll<HTMLElement>('[data-son]').forEach((b) =>
+      (b.dataset.son === (suena() ? 'on' : 'off')) ? b.setAttribute('data-on', '') : b.removeAttribute('data-on'));
+    document.querySelectorAll<HTMLElement>('[data-son]').forEach((b) =>
+      b.addEventListener('click', () => {
+        silenciar(b.dataset.son === 'off');
+        pintaSon();
+        if (suena()) sonar('estrella', 4);   // se oye lo que acabas de encender
+      }));
+    pintaSon();
+    const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);
+    const det = navigator.language?.toLowerCase().startsWith('en') ? 'English' : 'español';
+    document.getElementById('detected')!.textContent = det;
+
+    async function patch(body: Record<string, string>, ok: string) {
+      const res = await fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.ok) { window.toast('ok', U.ajGuardado, ok); return true; }
+      window.toast('bad', U.ajNoGuardo, U.ajNoGuardoB);
+      return false;
+    }
+    document.querySelectorAll<HTMLElement>('[data-lang]').forEach((b) => b.addEventListener('click', async () => {
+      const lang = b.dataset.lang!;
+      if (await patch({ lang }, U.ajIdioma)) location.reload();
+    }));
+    document.querySelectorAll<HTMLElement>('[data-theme]').forEach((b) => b.addEventListener('click', async () => {
+      const th = b.dataset.theme!;
+      if (await patch({ theme: th }, th === 'auto' ? U.ajTemaAuto : th === 'dark' ? U.ajTemaOscuro : U.ajTemaPapel)) {
+        document.querySelectorAll('[data-theme]').forEach((x) => x.removeAttribute('data-on'));
+        b.setAttribute('data-on', '');
+        document.documentElement.setAttribute('data-theme', th);
+        document.querySelectorAll<HTMLElement>('.segb[data-pref="theme"]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.val === th)));
+      }
+    }));
+    const box = document.getElementById('del-box')!;
+    const pass = document.getElementById('del-pass') as HTMLInputElement;
+    document.getElementById('del-open')!.addEventListener('click', () => { box.hidden = false; pass.focus(); });
+    document.getElementById('del-cancel')!.addEventListener('click', () => { box.hidden = true; });
+    document.getElementById('del-go')!.addEventListener('click', async () => {
+      const password = pass.value;
+      if (!password) { window.toast('warn', U.faltaClave, U.faltaClaveB); return; }
+      const res = await fetch('/api/account/delete', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        window.toast('info', U.cuentaFuera, U.cuentaFueraB);
+        setTimeout(() => location.assign('/registro'), 1200);
+        return;
+      }
+      window.toast('bad', U.noElimino, d.msg ?? U.noEliminoB);
+    });
+
+    document.getElementById('killall')!.addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.toast('info', U.sesionesFuera, U.sesionesFueraB);
+      setTimeout(() => location.assign('/login'), 600);
+    });
+  </script>
+</App>
