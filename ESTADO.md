@@ -1,3 +1,43 @@
+# Estado · 2026-08-24
+
+Almacén de medios cableado al API. Lo de abajo, del 21 de agosto, sigue vigente
+salvo donde esta sección lo corrija.
+
+## Hecho hoy
+
+| punto | estado | con qué se comprueba |
+|---|---|---|
+| `api` hace de proxy de los medios | hecho | `api/src/medios.js` (permisos), `media-bridge.js` (cable), `medios-rutas.js` (rutas) · `pnpm --dir api test:medios` → **87 comprobaciones, sin fallos** |
+| Autorización antes de proxear | hecho | cuatro cubos con muro propio; `lecciones` usa el muro lección a lección. `media` no decide nada |
+| Errores del almacén traducidos | hecho | un solo `switch` para la web; tabla en `MEDIOS.md` |
+| Subida y bajada en streaming | hecho | ni el API ni Astro juntan el fichero en memoria; una comprobación manda 900 KiB y los compara byte a byte |
+| El muro salió de `server.js` | hecho | `api/src/muro.js`: lo consultan el índice, los labs y los medios |
+| `media` en compose | hecho | `media:8792`, **sin puerto publicado**, volumen `media-data`, detrás del perfil `medios` |
+| `/api/pdf/:lang` desde el almacén | hecho | busca en el cubo `libros` y usa `api/files/` como respaldo |
+| Convenio de cubos y claves | hecho | `MEDIOS.md`. Falta subir los medios: en este repositorio no hay ninguno |
+
+## Arreglado de paso
+
+| qué | dónde | por qué importaba |
+|---|---|---|
+| `/api/lessons` derramaba dos columnas de pago | `api/src/server.js:220` | Hacía `SELECT *` y volcaba `{...l}` de las doce lecciones sin muro, con `locked` como bandera para el cliente. Hoy `lessons.technical` y `lessons.analogy` están vacías, así que no se escapaba nada — pero la ontología dice «puede estar vacía mientras se redacta», o sea que la intención de escribirlas existe. Ahora las columnas van nombradas |
+| El proxy de Astro corrompía cualquier binario | `web/src/pages/api/[...path].ts` | Reenviaba el cuerpo con `await request.text()`, que decodifica como UTF-8: un PNG o un PDF salía con los bytes inválidos sustituidos por U+FFFD. Ahora va como stream |
+| CORS sin `PUT` ni `DELETE` | `api/src/server.js:23` | `access-control-allow-methods` no los listaba. Latente desde antes: `DELETE /api/ranking/optin` ya existía |
+| Una subida grande cortaba el socket | `api/src/medios-rutas.js` | Al pasarse del techo se destruía la conexión y el cliente recibía `ECONNRESET` en vez del 413. Lo encontró la prueba de subida sin `content-length` |
+
+## Bloqueado, y no por ti
+
+`media-store` es **otro repositorio** y no está en GitHub: sólo existe en tu
+portátil, y según su propio handoff todavía sin un commit. Desde aquí no se puede
+publicar su imagen, ni escribir su workflow de despliegue, ni añadirle peticiones
+por rango, ni darle copia de seguridad al volumen. Los cuatro puntos están
+listados en `MEDIOS.md` · «Lo que falta».
+
+Mientras la imagen no exista, el servicio `media` queda detrás de un perfil de
+compose y `/api/medios/*` responde 503. El resto del curso funciona igual.
+
+---
+
 # Estado · 2026-08-21
 
 Cuatro encargos, 28 puntos. **24 hechos y verificados · 2 esperando a Luna · 1 descartado con

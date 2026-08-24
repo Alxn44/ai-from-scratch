@@ -7,9 +7,21 @@ import { logrosDe, nivelRango } from './logros.js';
 import { correr } from './harness.js';
 import { hayProveedor, proveedores } from './proveedores.js';
 import { catalogo } from './agent-tools.js';
+import medios from './medios-rutas.js';
+import { LECCIONES_LIBRES, conAcceso } from './muro.js';
+import * as almacen from './media-bridge.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 await app.register(cookie);
+
+// Medios. Las dos cosas que recibe el plugin son las dos que NO debe
+// reimplementar: quien eres (la cookie de sesion) y que puedes ver (el muro de
+// pago). El almacen de medios no decide ninguna de las dos.
+await app.register(medios, {
+  prefix: '/api/medios',
+  usuarioActual: currentUser,
+  accesoLeccion: conAcceso,
+});
 
 const ORIGIN = process.env.WEB_ORIGIN ?? 'http://localhost:4321';
 app.addHook('onRequest', async (req, reply) => {
@@ -18,7 +30,7 @@ app.addHook('onRequest', async (req, reply) => {
     reply.header('access-control-allow-origin', origin);
     reply.header('access-control-allow-credentials', 'true');
     reply.header('access-control-allow-headers', 'content-type');
-    reply.header('access-control-allow-methods', 'GET,POST,PATCH,OPTIONS');
+    reply.header('access-control-allow-methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   }
   if (req.method === 'OPTIONS') reply.code(204).send();
 });
@@ -197,10 +209,9 @@ app.patch('/api/settings', async (req, reply) => {
 });
 
 // ---------- curso ----------
-// Muro de pago: la lección 01 y sus tres labs son gratis; el resto del Vol. 1 se
-// abre con la compra. Tutores y admins ven todo porque su trabajo es acompañar.
-export const LECCIONES_LIBRES = 1;
-const conAcceso = (u, n) => !!u.paid || u.role !== 'student' || Number(n) <= LECCIONES_LIBRES;
+// El muro de pago vive en `muro.js`: lo consultan el indice, los labs y los
+// medios, y una regla con tres lectores no puede estar escrita en uno de ellos.
+export { LECCIONES_LIBRES };
 
 const BEST = `SELECT lab_id, MAX(correct) AS solved, COUNT(*)::int AS attempts
               FROM attempts WHERE user_id = ? GROUP BY lab_id`;
@@ -208,7 +219,14 @@ const BEST = `SELECT lab_id, MAX(correct) AS solved, COUNT(*)::int AS attempts
 app.get('/api/lessons', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   const best = new Map((await all(BEST, [u.id])).map((r) => [r.lab_id, r]));
-  const lessons = await all('SELECT * FROM lessons ORDER BY n');
+  // Columnas explicitas, no `SELECT *`. `lessons.technical` y `lessons.analogy`
+  // son prosa de pago: hoy estan vacias (la de verdad vive en `lesson_text`, que
+  // si esta detras del 402), pero el indice se pide SIN muro y con `locked` como
+  // una bandera que decide el cliente. El dia que alguien escriba esas dos
+  // columnas —y la ontologia dice «puede estar vacia mientras se redacta», o sea
+  // que la intencion existe— este `SELECT *` empezaria a repartirlas a cuentas
+  // gratuitas sin que nadie tocara esta linea. Se cierra nombrando lo que sale.
+  const lessons = await all('SELECT n, eyebrow, title, summary, math, math_cap FROM lessons ORDER BY n');
   const labs = await all('SELECT id, lesson_n, idx, level, kind, draft FROM labs ORDER BY lesson_n, idx');
   return {
     lessons: lessons.map((l) => {
@@ -485,17 +503,44 @@ app.post('/api/chat', async (req, reply) => {
 });
 
 // ---------- PDF ----------
+// El libro vive en el cubo `libros` del almacen de medios. El fichero local sigue
+// funcionando como respaldo: es lo que hace que esta ruta no dependa de que el
+// almacen este arriba para servir un PDF que ya estaba en la imagen.
+//
+// El orden importa. Primero el almacen, porque es el sitio donde se puede
+// reemplazar el libro sin volver a construir la imagen del API.
 app.get('/api/pdf/:lang', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   if (!u.paid) return reply.code(402).send({ error: 'sin_compra' });
   const lang = req.params.lang === 'en' ? 'en' : 'es';
-  const { existsSync, createReadStream } = await import('node:fs');
-  const path = new URL(`../files/curso-${lang}.pdf`, import.meta.url).pathname;
-  if (!existsSync(path)) {
-    return reply.code(503).send({ error: 'pdf_no_generado', msg: `Falta api/files/curso-${lang}.pdf (lo produce el build de Chrome headless).` });
-  }
+  const clave = `curso-${lang}.pdf`;
+
   reply.header('content-type', 'application/pdf');
   reply.header('content-disposition', `attachment; filename="ia-desde-cero-${lang}.pdf"`);
+  reply.header('cache-control', 'private, no-store');
+
+  if (almacen.configurado()) {
+    try {
+      const m = await almacen.descargar('libros', clave);
+      if (m.bytes) reply.header('content-length', String(m.bytes));
+      return reply.send(m.cuerpo);
+    } catch (e) {
+      // Que no este en el almacen no es un fallo: puede estar en la imagen. Un
+      // almacen caido tampoco corta la ruta si hay respaldo. Se sigue, y si
+      // tampoco hay fichero local, el 503 de abajo dice las dos cosas.
+      req.log.warn({ err: e?.error ?? String(e), clave }, 'pdf: no esta en el almacen, probando el fichero local');
+    }
+  }
+
+  const { existsSync, createReadStream } = await import('node:fs');
+  const path = new URL(`../files/${clave}`, import.meta.url).pathname;
+  if (!existsSync(path)) {
+    reply.removeHeader('content-disposition');
+    return reply.code(503).type('application/json').send({
+      error: 'pdf_no_generado',
+      msg: `No hay ${clave}: ni en el cubo \`libros\` del almacen, ni en api/files/ (lo produce el build de Chrome headless).`,
+    });
+  }
   return reply.send(createReadStream(path));
 });
 

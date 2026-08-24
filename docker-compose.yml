@@ -1,4 +1,4 @@
-# Tres contenedores: base, backend y frontend. Un solo comando:
+# Cuatro contenedores: base, almacen de medios, backend y frontend. Un comando:
 #   docker compose up --build
 services:
   db:
@@ -17,6 +17,40 @@ services:
       timeout: 3s
       retries: 20
 
+  # El almacen de objetos propio de la plataforma. Vive en otro repositorio
+  # (`media-store`), asi que aqui entra como IMAGEN y nunca se construye: en el Pi
+  # rige la regla de `--no-build`, y lo que no se construye alli tampoco se
+  # construye aqui, para que local y produccion no diverjan.
+  #
+  # SIN PUERTO PUBLICADO, a proposito. Solo `api` habla con el, por nombre de
+  # servicio en la red de compose. El navegador no lo alcanza nunca: quien
+  # autoriza es `api`, y un puerto abierto seria una segunda puerta sin muro.
+  # Misma postura que el AMQP.
+  # DETRAS DE UN PERFIL, y por eso `docker compose up` normal no lo levanta. La
+  # imagen todavia no esta publicada en ninguna parte (ver MEDIOS.md, punto 2 de
+  # lo pendiente): si este servicio entrara en el arranque por defecto, `pnpm
+  # docker` fallaria al no poder bajarla, y romper el arranque que hoy funciona
+  # para estrenar uno que aun no puede funcionar es un mal negocio.
+  #
+  #   docker compose --profile medios up -d media
+  #
+  # Mientras no este, el API responde 503 con `medios_sin_configurar` en las
+  # rutas de medios y sigue sirviendo el resto: probado en api/test/medios.mjs.
+  media:
+    image: ${MEDIA_IMAGE:-ghcr.io/alxn44/media-store:latest}
+    profiles: ["medios"]
+    environment:
+      # El mismo secreto que lleva `api` en la cabecera x-ia-secreto. Sin el, el
+      # almacen responde no_es_el_servicio a todo lo que no sea /health.
+      IA_SECRETO: ${IA_SECRETO:-}
+      MAX_OBJECT_BYTES: ${MAX_OBJECT_BYTES:-67108864}
+    volumes:
+      - media-data:/storage
+    restart: unless-stopped
+    # Sin healthcheck: la imagen es de las minimas y no trae shell ni curl con
+    # que sondearla desde dentro. El API ya trata un almacen caido como un 503
+    # con su codigo (`medios_caido`), asi que no hace falta que compose lo sepa.
+
   api:
     build: ./api
     environment:
@@ -29,8 +63,15 @@ services:
       MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
       MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
       JWT_SECRET: ${JWT_SECRET:-dev-solo-para-local}
+      # Almacen de medios: por nombre de servicio, dentro de la red de compose.
+      MEDIA_URL: http://media:8792
+      # Sin secreto, las rutas de medios responden 503 y el resto del curso
+      # sigue igual. Es la misma postura que Mercado Pago: no se finge nada.
+      IA_SECRETO: ${IA_SECRETO:-}
     # La siembra es idempotente: actualiza lecciones y labs sin borrar intentos.
     command: sh -c "node src/seed.js && node src/server.js"
+    # Sin `depends_on: media` a proposito: esta detras de un perfil, y el API no
+    # lo necesita para arrancar ni para servir el resto del curso.
     depends_on:
       db:
         condition: service_healthy
@@ -51,3 +92,7 @@ services:
 
 volumes:
   pgdata:
+  # Los medios subidos. En el Pi esto es disco de verdad y `media-store` borra de
+  # verdad: no hay papelera. La copia de seguridad de este volumen esta PENDIENTE
+  # (ver MEDIOS.md); mientras no exista, lo que se borre aqui no vuelve.
+  media-data:

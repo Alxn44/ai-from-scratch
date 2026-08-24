@@ -10,6 +10,9 @@ lecciones, labs corregidos en servidor, ontología de conceptos y pagos (Mercado
   `node:crypto` (scrypt + HMAC). Corrección de labs vive en el servidor
   (`api/src/grade.js`), nunca en el cliente.
 - **db** — Postgres 17 (contenedor `db` en `docker-compose.yml`).
+- **media** — `media-store`, el almacén de objetos propio (repositorio aparte, Go).
+  Guarda avatares, PDF y medios de lección. El navegador no lo alcanza: `api`
+  autoriza y hace de proxy. Detrás de un perfil de compose. Ver `MEDIOS.md`.
 - **scripts/** — orquestación de dev (`dev.mjs`) y generación de ontología.
 
 ## Requisitos
@@ -48,12 +51,15 @@ pnpm dev             # levanta api + web con reload
 | `DATABASE_URL` | sí (o la inyecta docker compose) | Conexión a Postgres. |
 | `WEB_ORIGIN` | sí | CORS, origen del frontend. |
 | `MP_ACCESS_TOKEN` / `MP_PUBLIC_KEY` / `MP_WEBHOOK_SECRET` | no | Sin estas, `/api/payments/...` responde `501` (no se puede pagar, resto de la app funciona igual). |
+| `IA_SECRETO` | no | Secreto compartido con `media-store`. Sin él, `/api/medios/*` responde `503` y el resto de la app funciona igual. |
+| `MEDIA_URL` | no | Dónde está el almacén. Por defecto `http://127.0.0.1:8792`; en compose, `http://media:8792`. |
 
 ## Comandos útiles
 
 ```bash
 pnpm reset                # borra DB, la levanta de nuevo y reseed
 pnpm test:aislamiento     # test de aislamiento de datos entre usuarios
+pnpm --dir api test:medios   # 87 comprobaciones de medios, sin Postgres ni Docker
 pnpm ontologia            # regenera el grafo de ontología de conceptos
 pnpm stop                 # apaga web local + contenedores docker
 ```
@@ -65,8 +71,12 @@ pnpm stop                 # apaga web local + contenedores docker
 - **Borrado de cuenta = soft delete.** Se conserva la fila (los intentos siguen
   contando para la cohorte), se marca `deleted_at`, se anonimiza el nombre y se
   rota el correo a `borrado+{id}@alpadev.local`.
-- Ver `PLATAFORMA.md`, `ONTOLOGIA.md`, `ESTADO.md` y `REGIONES.md` para contexto
-  de producto, estado actual y decisiones de contenido.
+- **El almacén de medios no decide nada; decide el API.** `media-store` guarda
+  bytes. Quién puede leer o escribir cada cubo está declarado en
+  `api/src/medios.js`, y el muro de pago en `api/src/muro.js`. No duplicar
+  ninguna de las dos reglas dentro de una ruta.
+- Ver `PLATAFORMA.md`, `MEDIOS.md`, `ONTOLOGIA.md`, `ESTADO.md` y `REGIONES.md`
+  para contexto de producto, estado actual y decisiones de contenido.
 
 ## Estructura
 
@@ -74,5 +84,5 @@ pnpm stop                 # apaga web local + contenedores docker
 api/        Fastify API — auth, contenido, grading, ontología, pagos
 web/        Astro frontend
 scripts/    dev.mjs (orquesta api+web), gen-ontologia.mjs
-docker-compose.yml   db + api + web, un comando
+docker-compose.yml   db + api + web, un comando (+ media, tras --profile medios)
 ```

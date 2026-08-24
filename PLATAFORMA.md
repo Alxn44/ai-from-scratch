@@ -1,6 +1,8 @@
 # Plataforma del curso · cómo se corre
 
-Tres contenedores: **db** (Postgres 17), **api** (Fastify 5) y **web** (Astro SSR).
+Tres contenedores: **db** (Postgres 17), **api** (Fastify 5) y **web** (Astro SSR),
+más un cuarto opcional, **media** (`media-store`, Go), detrás de un perfil de
+compose y documentado en `MEDIOS.md`.
 El navegador solo habla con Astro; Astro proxea `/api/*` al Fastify (mismo origen → la
 cookie de sesión `SameSite=Lax` funciona igual en local y en producción tras un dominio).
 
@@ -89,7 +91,8 @@ El gestor de paquetes es **pnpm** (`packageManager` fijado en los dos `package.j
 | Legales | funciona · `/terminos` y `/privacidad`, y la garantía quedó en **14 días** (7 estaba por debajo del mínimo de la UE) |
 | Contraste | medido: 0 fallos WCAG AA en las páginas públicas y de la app × oscuro y papel |
 | Panel tutor / admin | funciona · datos reales, cambio de rol auditado |
-| PDF | ruta lista · 402 sin compra, 503 mientras no exista `api/files/curso-{es,en}.pdf` |
+| PDF | ruta lista · 402 sin compra. Ahora busca primero en el cubo `libros` del almacén de medios y usa `api/files/curso-{es,en}.pdf` como respaldo; 503 si no está en ninguno de los dos |
+| Medios | cableado y probado · `/api/medios/*` con cuatro cubos, muro por cubo y por lección, subida y bajada en streaming. **87 comprobaciones sin Postgres ni Docker** (`pnpm --dir api test:medios`). El servicio `media` todavía no tiene imagen publicada, así que hoy responde 503 |
 | Mercado Pago | **no cobra**: sin `MP_ACCESS_TOKEN` devuelve 501. El webhook verifica firma y ya hay `back_urls` a `/pago/gracias` y `/pago/error` |
 
 ## Rutas
@@ -102,13 +105,16 @@ Con sesión: `/panel` `/curso` `/leccion/{n}` `/chat` `/logros` `/ranking` `/per
 
 API: auth (login, logout, register, recover, reset), `me`, `settings`, `lessons`,
 `lessons/:n`, `labs/:id/attempt`, `progress`, `logros`, `ranking`, `ranking/optin`,
-`chat`, `chat/estado`, `pdf/:lang`, `tutor/cohort`, `admin/*`, `payments/mercadopago/*`, `health`.
+`chat`, `chat/estado`, `pdf/:lang`, `medios`, `medios/salud`, `medios/preparar`,
+`medios/avatar`, `medios/:cubo`, `medios/:cubo/*`, `tutor/cohort`, `admin/*`,
+`payments/mercadopago/*`, `health`.
 
 ## Comprobaciones
 
 ```bash
 pnpm dev                          # levanta todo y no dice «listo» hasta que los dos responden
-pnpm --dir api test               # aislamiento del agente + harness
+pnpm --dir api test               # medios + aislamiento del agente + harness
+pnpm --dir api test:medios        # solo medios: no necesita Postgres ni Docker
 pnpm --dir web i18n               # deriva de claves entre idiomas
 pnpm --dir web exec astro check   # tipos (necesita typescript 6: la 7 rompe la API que usa)
 ```
@@ -119,10 +125,13 @@ pnpm --dir web exec astro check   # tipos (necesita typescript 6: la 7 rompe la 
 2. Una llave de proveedor para el modo IA (cualquiera de las seis).
 3. Stripe para Estados Unidos y la Unión Europea: Mercado Pago no opera allí (`REGIONES.md`).
 4. Proveedor de correo, o quien pierda la contraseña se queda fuera.
-5. Generar `api/files/curso-es.pdf` y `curso-en.pdf`.
+5. Generar `curso-es.pdf` y `curso-en.pdf`, y subirlos al cubo `libros`
+   (o dejarlos en `api/files/`, que sigue valiendo de respaldo).
 6. Francés y portugués: el cableado está, faltan los diccionarios (`CONTENIDO-LECCIONES.md`).
 7. Límite por IP en `/api/auth/recover` (hoy solo hay límite por cuenta: 3 por hora).
 8. Apagar la siembra en producción: crea tres cuentas con contraseña conocida y una es admin.
-9. Los labs de tipo `build` se califican flojo a propósito: aceptan cualquier pieza no vacía en
+9. Publicar la imagen de `media-store` y darle copia de seguridad al volumen
+   `media-data`: hoy borra de verdad y no hay respaldo (`MEDIOS.md`).
+10. Los labs de tipo `build` se califican flojo a propósito: aceptan cualquier pieza no vacía en
    cada ranura. Componer no tiene una única respuesta buena; si quieres exigir más, hay que
    marcar qué tiles son válidas por ranura en `solution`.

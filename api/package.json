@@ -6,11 +6,12 @@
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
     "seed": "node src/seed.js",
-    "test": "node test/aislamiento.mjs && node test/harness.mjs",
+    "start": "node src/server.js",
+    "test": "node test/medios.mjs && node test/aislamiento.mjs && node test/harness.mjs",
     "test:aislamiento": "node test/aislamiento.mjs",
-    "test:harness": "node test/harness.mjs"
+    "test:harness": "node test/harness.mjs",
+    "test:medios": "node test/medios.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
