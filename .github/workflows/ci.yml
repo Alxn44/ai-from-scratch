@@ -73,6 +73,14 @@ jobs:
       # password below exists for the ninety seconds this container lives.
       SEED_DEMO_USERS: '1'
       SEED_DEMO_PASSWORD: ci-only-ephemeral-demo-password-not-a-credential
+      # test/bridge.mts logs in as one of those accounts to get a real session --
+      # without one it cannot check isolation, which is the entire point of that
+      # suite, and it fails loudly instead of skipping. Its password is
+      # `process.env.TEST_PASS ?? 'Curso2026*'`, and that hard-coded fallback is
+      # the very thing the opt-in seed exists to stop being load-bearing. Pinning
+      # TEST_PASS to the same value the seed just used makes the dependency
+      # explicit rather than a coincidence between two files.
+      TEST_PASS: ci-only-ephemeral-demo-password-not-a-credential
       NODE_ENV: test
 
     steps:
