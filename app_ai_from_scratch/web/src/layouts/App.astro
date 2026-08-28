@@ -163,6 +163,9 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
        esta en el carril, y no justifican 44px permanentes. */
     .actionbar{display:none}
     .app-head-action{display:flex;align-items:center;gap:12px}
+    /* En CSS y no en linea: un style="" le gana a la regla movil de mas abajo,
+       y los dos .seg seguian comiendose la cabecera en un telefono. */
+    .app-head-prefs{display:flex;align-items:center;gap:18px}
     .app-head-left{display:flex;align-items:center;gap:10px;min-width:0}
     .app-head-right{display:flex;align-items:center;gap:18px;min-width:0}
     .app-head-tools{display:flex;align-items:center;gap:12px}
@@ -198,16 +201,16 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
          .cerrada-split  320+24     = 344 contra 334 (muro de pago)
          .chat-split     300+24     = 324, y el 1fr del hilo se quedaba corto
          .perfil-stats   4 columnas de 74 menos 44 de padding = 30 de contenido */
-    .curso-card{display:grid;grid-template-columns:60px 1fr 300px;gap:22px;align-items:start}
-    .cerrada-split{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start}
-    .chat-split{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+    .curso-card{display:grid;grid-template-columns:60px minmax(0,1fr) 300px;gap:22px;align-items:start}
+    .cerrada-split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+    .chat-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
     .perfil-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
-    .perfil-split{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;align-items:start}
-    .tutor-split{display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start}
-    .soporte-2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+    .perfil-split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:24px;align-items:start}
+    .tutor-split{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:24px;align-items:start}
+    .soporte-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
     .tbl-rank{display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px}
-    .tbl-admin{display:grid;grid-template-columns:1.2fr 1.6fr 150px 110px 90px;gap:16px}
-    .tbl-tutor{display:grid;grid-template-columns:1.4fr 1.4fr 90px 110px 110px;gap:16px}
+    .tbl-admin{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 150px 110px 90px;gap:16px}
+    .tbl-tutor{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 110px;gap:16px}
     @media (max-width:900px){
       .app-pad{padding:18px 14px 32px}
       .stack-3,.ajustes-split,.ajustes-fields,.lec-cols{grid-template-columns:1fr}
@@ -269,7 +272,7 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
       /* En movil manda la barra inferior, asi que la copia de la cabecera se
          apaga. Cada anchura ensena exactamente una. */
       .app-head-action{display:none}
-      .curso-card,.cerrada-split,.chat-split,.perfil-split,.tutor-split,.soporte-2{grid-template-columns:1fr}
+      .curso-card,.cerrada-split,.chat-split,.perfil-split,.tutor-split,.soporte-2{grid-template-columns:minmax(0,1fr)}
       /* 2 y no 4: a 362 px cuatro columnas dan 74 por tarjeta, y .card gasta 44
          en padding. Dentro hay numeros a font:700 34px, que piden ~90. */
       .perfil-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
@@ -289,6 +292,14 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
          (nombre, correo, fechas). Apilarlas las vuelve ilegibles: scroll
          horizontal dentro de su propio contenedor, que es el trato correcto
          para una tabla, y el body nunca desborda. */
+      /* Un hijo de flex o grid trae min-width:auto, o sea que NO puede encoger
+         por debajo de su max-content: una linea larga infla al padre en vez de
+         partirse. En .card de /soporte eso daba un hijo de 301px dentro de una
+         tarjeta de 256 y 37px de desborde a 320. Es el mismo fallo que el 1fr
+         desnudo de arriba, en su version flex, y se cierra igual: dejar encoger.
+         Solo hijos directos: no toca rejillas internas ni .tblwrap, que necesita
+         su min-width para tener algo que desplazar. */
+      .card > *:not(.tblwrap){min-width:0}
       .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
       .tblwrap > *{min-width:620px}
     }
@@ -390,7 +401,7 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
                .app-head-prefs{display:none}: los mismos controles estan en
                /ajustes, que esta en el carril, y ahi son .chip de 44px en vez de
                .segb de 30. Asi la fila 1 queda para hamburguesa + miga. -->
-          <div class="app-head-prefs" style="display:flex;align-items:center;gap:18px">
+          <div class="app-head-prefs">
 
           <div class="seg" role="group" aria-label={L.idioma}>
             <button class="segb" data-pref="lang" data-val="auto" aria-pressed={user.lang === 'auto'}>{L.automatico}</button>

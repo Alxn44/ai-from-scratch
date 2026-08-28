@@ -51,7 +51,16 @@ body.lang-saliendo{opacity:.4;transition:opacity .42s ease-out}
 // Componentes compartidos por las páginas públicas.
 export const PUBLIC_BASE = LANG_FX + `
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--l1);font-family:var(--f);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+/* overflow-wrap:break-word en el cuerpo entero.
+   Una direccion de correo no ofrece ningun punto de corte que 'normal' acepte,
+   asi que founder.alpadev@gmail.com medía 301px dentro de una columna de 256 en
+   /soporte y sacaba 37px de scroll horizontal a TODA la pagina a 320px. El
+   sintoma era raro de leer: ningun elemento se salia del viewport -- la caja si
+   encogia -- y aun asi documentElement.scrollWidth era 357, porque lo que se
+   derramaba era el texto, no la caja.
+   break-word y no anywhere: solo parte una palabra cuando de otro modo se
+   desbordaria, y no cambia el calculo de min-content del resto del texto. */
+body{margin:0;background:var(--bg);color:var(--l1);font-family:var(--f);-webkit-font-smoothing:antialiased;overflow-wrap:break-word;transition:background .2s,color .2s}
 a{color:var(--ac);text-decoration:none}
 a:hover{color:var(--ac-solid)}
 .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
@@ -62,6 +71,12 @@ a:hover{color:var(--ac-solid)}
 .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
 .num{font-variant-numeric:tabular-nums}
 .card{border:1px solid var(--hair2);padding:22px}
+/* Un hijo de flex o grid trae min-width:auto: NO puede encoger por debajo de su
+   max-content, asi que una linea larga infla al padre en vez de partirse. En
+   /soporte eso daba un hijo de 301px dentro de una tarjeta de 256 y 37px de
+   desborde a 320. Es el mismo fallo que una pista 1fr desnuda en rejilla, en su
+   version flex. Solo hijos directos, para no tocar nada que necesite su minimo. */
+.card > *{min-width:0}
 .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s}
 .btn:hover{background:var(--ac);color:#fff}
 .btn:disabled{opacity:.5;cursor:default}
@@ -102,6 +117,17 @@ a:hover{color:var(--ac-solid)}
 .mark{width:26px;height:26px;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)}
 #toasts{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;width:372px;z-index:50}
 .toast{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--hair);background:var(--panel)}
+/* Cabecera de las paginas publicas.
+   Vivia ENTERA en un atributo style, con height:64px fijo y sin flex-wrap. Un
+   estilo en linea no lo puede pisar una media query, asi que la marca y los seis
+   botones de preferencias estaban condenados a compartir una sola fila: a 390px
+   sumaban ~530 y se salian 59px por la derecha en /terminos, /privacidad, /404,
+   /pago/gracias y /pago/error. El ancho maximo sigue en linea porque es dinamico
+   (lo decide cada pagina); la geometria que depende del viewport, no. */
+.pub-head{height:64px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+@media (max-width:900px){
+  .pub-head{height:auto;min-height:56px;flex-wrap:wrap;gap:8px 14px;padding-top:10px;padding-bottom:10px}
+}
 .pub-split{display:flex;min-height:100dvh}
 .pub-pane{width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px}
 .pub-main{flex:1;min-width:0;display:flex;flex-direction:column;padding:26px 40px 40px}

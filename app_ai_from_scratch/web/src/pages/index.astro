@@ -74,11 +74,20 @@ input[type=text]::placeholder{color:rgba(235,235,245,.26)}
    de 186x186 y screen(#FF453A,#0A84FF) = rgb(255,164,255). De ahi salia el
    cuadrado rosado. mask-size:contain para cuadrar con el object-fit:contain
    de la img hermana. */
-.tint{position:absolute;inset:0;mix-blend-mode:multiply;
-  -webkit-mask-image:url(/logo.png);mask-image:url(/logo.png);
-  -webkit-mask-size:contain;mask-size:contain;
-  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
-  -webkit-mask-position:center;mask-position:center}
+/* LA MARCA ES «IA» EN UN CUADRO, y se dibuja.
+   Antes era <img src="/logo.png"> en seis sitios, y el rig de aberracion
+   cromatica del loader tenia que enmascarar dos tintes contra el glifo de esa
+   imagen para no pintar el cuadro entero de color. Con la marca dibujada ese
+   problema no existe: cada capa hereda su color y no hace falta mascara, ni
+   mix-blend-mode:multiply, ni cargar un PNG antes de poder animar.
+   El tamano entra por --lg para que los cuatro usos (186, 24, 22 y 18 px)
+   compartan proporciones en vez de repetir numeros sueltos. */
+.lg{display:grid;place-items:center;flex:none;box-sizing:border-box;
+  width:var(--lg,24px);height:var(--lg,24px);color:inherit;
+  border:max(1px,calc(var(--lg,24px) * .04)) solid currentColor;
+  font:700 calc(var(--lg,24px) * .46)/1 var(--f);letter-spacing:-.02em}
+/* Las dos capas desplazadas del rig: centran su cuadro y le dan el color. */
+[data-split]{display:grid;place-items:center}
 .skip:hover{color:#fff!important}
 section[id]{scroll-margin-top:72px}
 .hero-grid{display:grid;grid-template-columns:1fr 372px;gap:44px;align-items:end}
@@ -152,15 +161,15 @@ section[id]{scroll-margin-top:72px}
   <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,.10) 0%,rgba(0,0,0,.72) 62%,#000 100%);pointer-events:none"></div>
   <div style="position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:26px">
     <div data-el="intrologo" style="position:relative;isolation:isolate;width:186px;height:186px;opacity:0;will-change:transform,filter">
-      <div data-split="r" style="position:absolute;inset:0;mix-blend-mode:screen">
-        <img class="lg" alt="" style="width:100%;height:100%;object-fit:contain">
-        <div class="tint" style="background:#FF453A"></div>
+      <div data-split="r" style="position:absolute;inset:0;mix-blend-mode:screen;color:#FF453A">
+        <span class="lg" style="--lg:186px" aria-hidden="true">IA</span>
       </div>
-      <div data-split="b" style="position:absolute;inset:0;mix-blend-mode:screen">
-        <img class="lg" alt="" style="width:100%;height:100%;object-fit:contain">
-        <div class="tint" style="background:#0A84FF"></div>
+      <div data-split="b" style="position:absolute;inset:0;mix-blend-mode:screen;color:#0A84FF">
+        <span class="lg" style="--lg:186px" aria-hidden="true">IA</span>
       </div>
-      <img class="lg" alt="IA desde cero" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen">
+      <div style="position:absolute;inset:0;display:grid;place-items:center;color:#fff;mix-blend-mode:screen">
+        <span class="lg" style="--lg:186px" role="img" aria-label="IA desde cero">IA</span>
+      </div>
     </div>
     <div data-el="introword" style="display:flex;flex-direction:column;align-items:center;gap:10px;clip-path:inset(0 100% 0 0)">
       <div style="font:700 44px/1 var(--f);letter-spacing:-.04em;color:#fff">IA desde cero</div>
@@ -187,7 +196,7 @@ section[id]{scroll-margin-top:72px}
 <div style="position:fixed;left:0;right:0;top:1px;z-index:60;background:rgba(0,0,0,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--hair);padding-top:env(safe-area-inset-top)">
   <div class="lnav-in" style="max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:20px">
     <div style="display:flex;align-items:center;gap:14px">
-      <img class="lg" alt="IA desde cero" style="width:24px;height:24px;object-fit:cover">
+      <span class="lg" style="--lg:24px" role="img" aria-label="IA desde cero">IA</span>
       <div style="font:700 15px/1 var(--f);letter-spacing:-.01em">IA desde cero</div>
       <div class="lnav-meta" style="width:1px;height:16px;background:var(--hair)"></div>
       <div class="lnav-meta" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">FUNDAMENTOS · VOL. 1</div>
@@ -257,7 +266,7 @@ section[id]{scroll-margin-top:72px}
             <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">FUNDAMENTOS · VOL. 1</div>
             <div style="font:400 13px/1.4 var(--f);color:var(--l2);max-width:230px">Cómo piensa, por qué se inventa cosas y cómo pedirle bien.</div>
             <div style="display:flex;align-items:center;gap:9px;padding-top:6px;border-top:1px solid var(--hair2);margin-top:6px">
-              <img class="lg" alt="" style="width:18px;height:18px;object-fit:cover">
+              <span class="lg" style="--lg:18px" aria-hidden="true">IA</span>
               <div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI · ES / EN</div>
             </div>
           </div>
@@ -455,7 +464,7 @@ section[id]{scroll-margin-top:72px}
       <div style="font:400 17px/1.45 var(--f);color:var(--l2);max-width:340px">Una tarde de lectura y dejas de pedirle cosas a ciegas.</div>
     </div>
     <div class="foot-meta" style="border-top:1px solid var(--hair2);padding-top:26px;font:500 10px/1.6 var(--m);letter-spacing:.14em;color:var(--l3)">
-      <div style="display:flex;align-items:center;gap:11px"><img class="lg" alt="" style="width:22px;height:22px;object-fit:cover"><span>IA DESDE CERO · VOL. 1</span></div>
+      <div style="display:flex;align-items:center;gap:11px"><span class="lg" style="--lg:22px" aria-hidden="true">IA</span><span>IA DESDE CERO · VOL. 1</span></div>
       <div>@ALXN_DEV_AI</div>
       <div>12 LECCIONES · ES / EN</div>
       <div>CANCELAS CUANDO QUIERAS · GARANTÍA 14 DÍAS</div>
@@ -484,13 +493,11 @@ section[id]{scroll-margin-top:72px}
 <script>
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { MODULES, CANDS, FAQS, MICRO, TICKER, LOGO } from '../data/landing';
+import { MODULES, CANDS, FAQS, MICRO, TICKER } from '../data/landing';
 
 gsap.registerPlugin(ScrollTrigger);
 (window as any).gsap = gsap;
 (window as any).ScrollTrigger = ScrollTrigger;
-
-document.querySelectorAll("img.lg").forEach(i => { (i as HTMLImageElement).src = LOGO; });
 
 const esc = (s: unknown) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
@@ -629,12 +636,26 @@ function mountCover(){
       return { tx:tg.tx, ty:tg.ty, vx:Math.cos(a)*rr, vy:Math.sin(a)*rr*1.25, r:Math.random(), sp:.55+Math.random()*.9 };
     });
   };
-  const img = new Image();
-  img.onload = () => {
+  // Se DIBUJA la marca en vez de cargarla. Sin imagen no hay carga que esperar
+  // ni que pueda fallar, asi que el camino de onerror deja de existir: el unico
+  // fallback que queda es el try/catch, para el navegador que niegue el canvas.
+  const marca = () => {
+    const S=104, off=document.createElement("canvas"); off.width=S; off.height=S;
+    const oc=off.getContext("2d")!;
+    oc.fillStyle="#000"; oc.fillRect(0,0,S,S);
+    // Las mismas proporciones que la clase .lg: borde .04 y texto .46 del lado,
+    // que son las de .mark en theme-css.ts (caja 26 -> texto 12, borde 1).
+    oc.strokeStyle="#fff"; oc.lineWidth=Math.max(2,S*.04);
+    const m=S*.13; oc.strokeRect(m,m,S-2*m,S-2*m);
+    oc.fillStyle="#fff"; oc.textAlign="center"; oc.textBaseline="middle";
+    oc.font='700 ' + Math.round(S*.46) + "px -apple-system,'SF Pro Display',system-ui,sans-serif";
+    oc.fillText("IA", S/2, S/2);
+    return oc.getImageData(0,0,S,S).data;
+  };
+  const sembrar = () => {
     try {
-      const S=104, off=document.createElement("canvas"); off.width=S; off.height=S;
-      const oc=off.getContext("2d")!; oc.drawImage(img,0,0,S,S);
-      const d=oc.getImageData(0,0,S,S).data, found: any[]=[];
+      const S=104;
+      const d=marca(), found: any[]=[];
       let x0=S,x1=0,y0=S,y1=0;
       for(let y=0;y<S;y++) for(let x=0;x<S;x++){
         const i=(y*S+x)*4, lum=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)*(d[i+3]/255);
@@ -647,8 +668,7 @@ function mountCover(){
     } catch(e){ targets = ring(); }
     build();
   };
-  img.onerror = () => { targets = ring(); build(); };
-  img.src = LOGO;
+  sembrar();
   sizeCanvas();
   window.addEventListener("resize", sizeCanvas);
   const ease = (u: number) => u<.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
