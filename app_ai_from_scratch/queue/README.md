@@ -217,7 +217,7 @@ Every one of these is a rule this repository already paid for.
 - No default `AMQP_URL`, no default secret, no default DSN. A default pointing at
   a real host is how a service ends up talking to the wrong broker while looking
   healthy.
-- `IA_SECRETO` is **required** outside development. A known placeholder or a
+- `QUEUE_SECRETO` is **required** outside development. A known placeholder or a
   secret under 32 characters throws with an actionable message, the same standard
   as `sessionKey()` in `api/src/auth.ts`. In development an ephemeral one is
   minted per boot and said out loud.
@@ -234,7 +234,7 @@ Every one of these is a rule this repository already paid for.
 ## HTTP
 
 `/health` needs no secret — a healthcheck carrying a credential puts it in every
-compose file and process listing. Everything else requires `x-ia-secreto`.
+compose file and process listing. Everything else requires `x-queue-secreto`.
 
 | Route | What it does |
 |---|---|
@@ -246,9 +246,8 @@ compose file and process listing. Everything else requires `x-ia-secreto`.
 | `POST /enqueue` | `{type, payload, key?, idempotency_key?}` → **202** with the id, or 502/503 with `published: false`. Unknown JSON fields are rejected. |
 | `POST /dead/replay` | `{limit}` — move up to `limit` dead letters back. Requires an explicit limit; acks off the DLQ only after the republish is confirmed. |
 
-Route paths and the JSON keys of *new* routes are English. `IA_SECRETO` and the
-`x-ia-secreto` header stay Spanish because `api` and `ai` already send them and
-renaming them breaks both.
+Route paths and the JSON keys of *new* routes are English. `QUEUE_SECRETO` and
+the `x-queue-secreto` header identify this service and stay separate from AI.
 
 ## Docker
 
@@ -307,7 +306,7 @@ of keys while the tool declares another — silently.
 | variable | what for |
 |---|---|
 | `AMQP_URL` | The broker. **No default.** Unset is supported and loud: `/health` says 503 `no_broker`. |
-| `IA_SECRETO` | Shared service secret. Required outside development. The **same** value as in `api/.env` and `ai/.env`. |
+| `QUEUE_SECRETO` | Queue's service secret. Required outside development. It is separate from `IA_SECRETO` and is accepted only by the API's durable claim route. |
 | `APP_ENV` | `development` relaxes the secret rule. Anything else, including unset, is production. |
 | `PORT` | 8790 |
 | `BUS_EXCHANGE` | `course.events`. A name, not a credential, so it may default — and all three runtimes must agree on it. |
@@ -318,10 +317,10 @@ of keys while the tool declares another — silently.
 
 ## Known gap: idempotency is in memory
 
-`BUS_CLAIM_URL` should point at `api`'s claim route, which **does not exist yet** —
-the same note is at the top of `ai/src/course_ai/bus.py`, which has been waiting
-for it too. Until it does, this service uses in-memory claims, says so at boot,
-and reports it in `/health` as a `warning`.
+`BUS_CLAIM_URL` points at `api`'s `/api/v3/interno/bus/claim` route in compose.
+The route maps to `/data`'s closed `bus.*` operations, so queue remains database-free.
+If the variable is unset locally, this service uses in-memory claims, says so at
+boot, and reports it in `/health` as a `warning`.
 
 What that costs, precisely: a redelivery *after a restart* can run a handler
 twice. Within one process life, dedupe is correct.

@@ -205,7 +205,25 @@ func TestNoAgentOperationCanReachAJamasColumn(t *testing.T) {
 // should never be possible to add one without a reviewer seeing it.
 func TestTheExemptionListDoesNotGrowQuietly(t *testing.T) {
 	want := []string{
+		"auth.admin_users -> users.email,id",
+		"auth.password_reset -> users.deleted_at,email,failed,id,locked_until,pass_hash,token_version",
+		"auth.recovery_by_email -> users.id",
+		"auth.register -> users.deleted_at,email,failed,id,locked_until,pass_hash,token_version",
+		"auth.reset_lookup -> reset_tokens.expires_at,id,used_at,user_id",
+		"auth.throttle -> auth_throttles.expires_at",
+		"auth.user -> users.deleted_at,email,failed,id,locked_until,pass_hash,token_version",
+		"auth.user_by_email -> users.deleted_at,email,failed,id,locked_until,pass_hash,token_version",
+		"bus.claim -> jobs.clave",
+		"counter.read -> jobs.datos",
+		"job.oldest_due -> jobs.corre_en",
+		"job.orphans -> jobs.tipo",
+		"job.state_counts -> jobs.estado",
+		"job.take -> jobs.clave,datos,id,intentos,tipo",
 		"lab.solution_for_grading -> labs.solution",
+		"league.flow -> ranking_optin.user_id",
+		"question.solution_for_grading -> questions.solution",
+		"tutor.students_all -> users.email,id",
+		"tutor.students_cohort -> users.email,id",
 		"user.credentials_by_email -> users.email,failed,id,locked_until,pass_hash,token_version",
 	}
 	got := Exemptions(ontology(t))
@@ -328,14 +346,17 @@ func TestAnUndeclaredMuroIsRefusedRatherThanAssumedFree(t *testing.T) {
 func TestTheSetOfPaidOperationsDoesNotGrowQuietly(t *testing.T) {
 	ont := ontology(t)
 	want := map[string][]string{
-		"lesson.get":           {"analogy", "technical"},
-		"lesson.search_corpus": {"analogy", "technical"},
-		"lab.list_for_lesson":  {"payload", "prompt"},
-		"lab.get":              {"payload", "prompt"},
-		"lab.prompts":          {"prompt"},
-		"lab.explanation":      {"explanation"},
-		"lesson_text.get":      {"analogy", "examples", "technical"},
-		"lesson_text.by_lang":  {"analogy", "technical"},
+		"lesson.get":             {"analogy", "technical"},
+		"lesson.search_corpus":   {"analogy", "technical"},
+		"lab.list_for_lesson":    {"payload", "prompt"},
+		"lab.get":                {"payload", "prompt"},
+		"lab.prompts":            {"prompt"},
+		"lab.explanation":        {"explanation"},
+		"lesson_text.get":        {"analogy", "examples", "technical"},
+		"lesson_text.by_lang":    {"analogy", "technical"},
+		"progress.failed_labs":   {"prompt"},
+		"question.explanation":   {"explanation_en", "explanation_es"},
+		"question.list_for_pack": {"payload", "prompt_en", "prompt_es"},
 	}
 	got := map[string][]string{}
 	for _, o := range Catalog() {

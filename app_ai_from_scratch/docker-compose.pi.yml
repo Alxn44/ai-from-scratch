@@ -1,0 +1,4 @@
+# Overlay marker for the Raspberry Pi. Host-port bindings are parameterized in
+# the base compose file so a deploy can select loopback-only ports in .env
+# without Compose appending an additional published port.
+services: {}

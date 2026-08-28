@@ -32,13 +32,9 @@ import (
 // deliberately has no database: the moment it opens one it becomes a second
 // writer to api's tables, which is argument 4 against an orchestrator in
 // docs/ARCHITECTURE.md. So the durable claim goes over HTTP to api, exactly as
-// ai/src/course_ai/bus.py does it, with the same `x-ia-secreto` proof-of-origin.
-//
-// STATE OF THE WIRING, stated plainly and unchanged from the note in bus.py: the
-// route APIClaims posts to (BUS_CLAIM_URL, e.g.
-// http://api:8787/api/v3/interno/bus/claim) DOES NOT EXIST YET. Until it does,
-// a queue service started without BUS_CLAIM_URL uses MemoryClaims and says so
-// loudly at boot and in /health.
+// ai/src/course_ai/bus.py does it. Queue presents its own `x-queue-secreto`
+// identity; the AI worker retains `x-ia-secreto`, so compromising one service
+// does not authenticate a caller as the other.
 
 // Claims is the idempotency lease.
 type Claims interface {
@@ -91,9 +87,9 @@ func (m *MemoryClaims) Release(_ context.Context, key string) error {
 
 // APIClaims is the durable claim: one HTTP call to api, which owns the row.
 //
-// Authenticated with the service secret (`x-ia-secreto`), the same
-// proof-of-origin the tool bridge uses. It carries no user identity because a
-// worker has no user: an idempotency key is not a person.
+// Authenticated with queue's own service secret (`x-queue-secreto`). It carries
+// no user identity because a worker has no user: an idempotency key is not a
+// person.
 type APIClaims struct {
 	URL     string
 	Secret  string
@@ -197,7 +193,7 @@ func (a *APIClaims) post(ctx context.Context, action, key string) (map[string]an
 		return nil, err
 	}
 	req.Header.Set("content-type", "application/json")
-	req.Header.Set("x-ia-secreto", a.Secret)
+	req.Header.Set("x-queue-secreto", a.Secret)
 	res, err := a.httpClient(timeout).Do(req)
 	if err != nil {
 		return nil, err

@@ -2,11 +2,15 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
-import { all, get, migrate, run } from './db.ts';
-import type { LabRow, LessonRow, UserRow } from './db.ts';
-import { COOKIE, TOKEN_MINUTES, cookieOpts, hashPassword, hashToken, newToken, sign, spendKdf, verify, verifyPassword } from './auth.ts';
+import { many, one, write, writeMany, writeAuthorized } from './data.ts';
+import type { LabRow, LessonRow } from './db.ts';
+import { COOKIE, mandaPlataforma } from '../../auth/src/core.ts';
+import { createAuth } from '../../auth/src/index.ts';
+import type { AuthUser } from '../../auth/src/index.ts';
 import { grade, hint, publicLab } from './grading.ts';
-import type { BestAttempt } from './grading.ts';
+import type { BestAttempt, PublicLabSource } from './grading.ts';
+import { examGate, ofPack, packScore, publicQuestion } from './assess.ts';
+import type { QuestionBest, QuestionRow } from './assess.ts';
 import { achievementsFor, rankLevel } from './achievements.ts';
 import { LEAGUE_ZONE, closeWeek, leaguesState } from './leagues.ts';
 // INTERMEDIATE STATE, said on purpose: the agent LOOP already lives in Python
@@ -18,8 +22,10 @@ import { LEAGUE_ZONE, closeWeek, leaguesState } from './leagues.ts';
 // deleted once nothing imported them. See docs/MIGRATION.md.
 import { catalog, families, run as runTool } from './tools/index.ts';
 import { AI_SECRET, AI_URL, aiHealth, hasAi, talkToAi } from './ai-bridge.ts';
-import { enqueue, increment, queueState, register, worker } from './jobs.ts';
+import { loadTurns, rememberTurn, type ChatSource } from './messages-bridge.ts';
+import { increment, queueState } from './jobs.ts';
 import { coachState } from './coach.ts';
+import { publish as publishEvent } from './bus.ts';
 
 // ---------------------------------------------------------------------------
 // API VERSIONING
@@ -109,262 +115,43 @@ app.addHook('onRequest', async (req, reply) => {
   if (req.method === 'OPTIONS') reply.code(204).send();
 });
 
-// ---------- session ----------
-const USER_BY_ID = 'SELECT * FROM users WHERE id = ? AND deleted_at IS NULL';
-
-// THE session resolver. Every door — browser cookie and AI service header alike —
-// goes through this one function.
-//
-// It used to exist twice. The browser copy compared token_version; the copy in
-// /api/interno/herramienta selected only `id`, so it had no column to compare and
-// never checked. A password reset therefore revoked the browser session and left
-// the agent session alive, while the reset endpoint answered
-// { sesionesCerradas: true }. Proven: token_version 0 -> 1, same cookie, GET /me
-// answered 401 and the tool call answered 200.
-//
-// Two implementations of one rule is how that happened, so there is now one.
-async function resolveSession(token: unknown): Promise<UserRow | null> {
-  const t = verify(token);
-  if (!t?.sub) return null;
-  const u = await get<UserRow>(USER_BY_ID, [t.sub]);
-  // Changing the password bumps token_version: every cookie issued before it dies.
-  if (!u || (t.v ?? 0) !== u.token_version) return null;
-  return u;
-}
-
-const currentUser = (req: FastifyRequest): Promise<UserRow | null> => resolveSession(req.cookies?.[COOKIE]);
-
-async function requireUser(req: FastifyRequest, reply: FastifyReply): Promise<UserRow | null> {
-  const u = await currentUser(req);
-  if (!u) { reply.code(401).send({ error: 'no_session' }); return null; }
-  return u;
-}
-
-async function requireRole(req: FastifyRequest, reply: FastifyReply, roles: readonly string[]): Promise<UserRow | null> {
-  const u = await requireUser(req, reply);
-  if (!u) return null;
-  if (!roles.includes(u.role)) { reply.code(403).send({ error: 'forbidden', need: roles }); return null; }
-  return u;
-}
-
-/** The public shape of a user. Wire format: web/src/lib/session.ts reads it. */
-const shape = (u: UserRow) => ({
-  id: u.id, email: u.email, name: u.name, role: u.role, lang: u.lang,
-  theme: u.theme, paid: !!u.paid, cohort: u.cohort,
+// ---------- auth boundary ----------
+// Identity, sessions, account lifecycle and entitlement application live in
+// /auth. This process mounts that module and consumes its guards; it does not
+// carry a second implementation.
+const auth = createAuth({
+  one, many, write, writeAuthorized,
+  origin: ORIGIN, production: process.env.NODE_ENV === 'production', log: app.log,
+  signal: async (signal, payload) => {
+    await publishEvent('defense.signal', { signal, ...payload }, {
+      key: `defense.signal.${signal}`,
+      idempotencyKey: `${signal}:${String(payload.subject ?? 'unknown')}:${Date.now()}`,
+      log: app.log,
+    });
+  },
 });
-
-// 'auto' = follow the device (Accept-Language / prefers-color-scheme).
-// fr and pt are already accepted: if there is no dictionary yet, the front end
-// falls back to Spanish and the lesson says so. That way adding a language does
-// not require touching the API.
-const LANGS = ['es', 'en', 'fr', 'pt', 'auto'];
-const THEMES = ['dark', 'paper', 'auto'];
-const pref = (v: unknown, allowed: readonly string[]): string =>
-  (typeof v === 'string' && allowed.includes(v) ? v : 'auto');
-
-// ---------- auth ----------
-// ONE failure answer for every way of not getting in. Frozen as a constant so a
-// later edit cannot add a field to one branch and forget the other — which is
-// exactly how the previous three oracles appeared.
-const LOGIN_NO = { error: 'credenciales' };
-const MAX_FAILED = 5;
-const LOCK_MS = 15 * 60_000;
-const isLocked = (u: UserRow | null | undefined): boolean =>
-  Boolean(u?.locked_until && u.locked_until > new Date());
-
-/** POST /api/auth/login. Everything is optional because it is attacker input. */
-interface LoginBody { email?: unknown; password?: unknown; lang?: unknown; theme?: unknown }
-
-// Login used to answer three different things depending on whether the address
-// had an account, and all three were readable from outside:
-//
-//   body    { left: 2 } when the row existed, { left: null } when it did not
-//   timing  verifyPassword only ran on a found row: 52 ms present, 26 ms absent
-//   status  423 'bloqueada' before the password was checked — a lock reply on an
-//           address you do not own confirms the account by itself
-//
-// Now: same status, same body, same work spent. The remaining-attempts hint is
-// gone from the pre-auth response; web/src/pages/login.astro:118 already falls
-// back to a generic message when `left` is absent.
-app.post<{ Body: LoginBody }>('/api/auth/login', async (req, reply) => {
-  const { email, password, lang, theme } = req.body ?? {};
-  if (!email || !password) return reply.code(400).send({ error: 'faltan_datos' });
-  const plain = String(password);
-  const u = await get<UserRow>('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL', [String(email).toLowerCase()]);
-
-  // The KDF is spent either way. With no row there is no hash to check, so the
-  // same work goes into a decoy: the two paths cost the same wall clock.
-  const ok = u ? await verifyPassword(plain, u.pass_hash) : await spendKdf(plain);
-  if (!ok) {
-    // A locked account is not counted again: re-arming the lock on every attempt
-    // would let anyone hold someone else out forever.
-    if (u && !isLocked(u)) {
-      const failed = u.failed + 1;
-      const lock = failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MS).toISOString() : null;
-      await run('UPDATE users SET failed = ?, locked_until = ? WHERE id = ?', [failed, lock, u.id]);
-    }
-    return reply.code(401).send(LOGIN_NO);
-  }
-  // The password checked out, so whoever is asking owns the account: from here
-  // it is safe to say the account is locked. Saying it BEFORE was the oracle.
-  if (isLocked(u)) return reply.code(423).send({ error: 'bloqueada', until: u!.locked_until });
-
-  await run('UPDATE users SET failed = 0, locked_until = NULL WHERE id = ?', [u!.id]);
-  // The language or theme the visitor chose before logging in is adopted only if
-  // the account was still on 'auto': an explicit account preference is never
-  // overwritten.
-  if (u!.lang === 'auto' && typeof lang === 'string' && LANGS.includes(lang) && lang !== 'auto') {
-    await run('UPDATE users SET lang = ? WHERE id = ?', [lang, u!.id]);
-  }
-  if (u!.theme === 'auto' && typeof theme === 'string' && THEMES.includes(theme) && theme !== 'auto') {
-    await run('UPDATE users SET theme = ? WHERE id = ?', [theme, u!.id]);
-  }
-  reply.setCookie(COOKIE, sign({ sub: u!.id, role: u!.role, v: u!.token_version }), cookieOpts);
-  const fresh = await get<UserRow>(USER_BY_ID, [u!.id]);
-  return { user: shape(fresh!) };
-});
-
-app.post('/api/auth/logout', async (req, reply) => {
-  reply.clearCookie(COOKIE, { path: '/' });
-  return { ok: true };
-});
-
-const EMAIL_RE = /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/;
-
-interface RegisterBody { email?: unknown; name?: unknown; password?: unknown; lang?: unknown; theme?: unknown }
-
-app.post<{ Body: RegisterBody }>('/api/auth/register', async (req, reply) => {
-  const { email, name, password, lang, theme } = req.body ?? {};
-  const mail = String(email ?? '').trim().toLowerCase();
-  if (!EMAIL_RE.test(mail)) return reply.code(400).send({ error: 'correo_invalido' });
-  if (String(name ?? '').trim().length < 2) return reply.code(400).send({ error: 'nombre_corto' });
-  if (String(password ?? '').length < 8) return reply.code(400).send({ error: 'clave_corta', msg: 'Mínimo 8 caracteres.' });
-  const taken = await get<{ id: number }>('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [mail]);
-  if (taken) return reply.code(409).send({ error: 'correo_en_uso' });
-  const u = await get<UserRow>(`INSERT INTO users (email,name,pass_hash,role,paid,lang,theme)
-                                VALUES (?,?,?,?,0,?,?) RETURNING *`,
-    [mail, String(name).trim(), await hashPassword(String(password)), 'student',
-     pref(lang, LANGS), pref(theme, THEMES)]);
-  reply.setCookie(COOKIE, sign({ sub: u!.id, role: u!.role, v: u!.token_version }), cookieOpts);
-  return reply.code(201).send({ user: shape(u!) });
-});
-
-// Asks for a recovery link. It ALWAYS answers the same thing, whether the account
-// exists or not: if it said «that email has no account», anybody could find out
-// who bought the course.
-app.post<{ Body: { email?: unknown } }>('/api/auth/recover', async (req, reply) => {
-  const mail = String(req.body?.email ?? '').trim().toLowerCase();
-  const answer = { ok: true, msg: 'Si ese correo tiene cuenta, el enlace ya salió.' };
-  if (!EMAIL_RE.test(mail)) return reply.code(400).send({ error: 'correo_invalido' });
-
-  const u = await get<Pick<UserRow, 'id' | 'name'>>('SELECT id, name FROM users WHERE email = ? AND deleted_at IS NULL', [mail]);
-  if (!u) return answer;
-
-  // Per-account limit: 3 links an hour. Without this the form is an email cannon
-  // aimed at any address somebody wants to bother.
-  const rate = await get<{ c: number }>(
-    "SELECT COUNT(*)::int AS c FROM reset_tokens WHERE user_id = ? AND created_at > now() - interval '1 hour'",
-    [u.id]);
-  if ((rate?.c ?? 0) >= 3) {
-    app.log.warn({ userId: u.id }, 'recover: hourly limit reached');
-    return answer;
-  }
-
-  const token = newToken();
-  await run(
-    `INSERT INTO reset_tokens (user_id, token_hash, expires_at)
-     VALUES (?, ?, now() + interval '${TOKEN_MINUTES} minutes')`,
-    [u.id, hashToken(token)]);
-
-  const link = `${ORIGIN}/recuperar?t=${token}`;
-  // There is no mail provider configured. Instead of faking a send, the link goes
-  // to the server log and, outside production, is returned to the client.
-  app.log.info({ link }, 'recover: link generated (no mail provider configured)');
-  if (process.env.NODE_ENV !== 'production') return { ...answer, dev_enlace: link };
-  return answer;
-});
-
-// Redeems the link. The token is compared by hash, used exactly once, and changing
-// the password closes the sessions open on other devices.
-app.post<{ Body: { token?: unknown; password?: unknown } }>('/api/auth/reset', async (req, reply) => {
-  const { token, password } = req.body ?? {};
-  if (String(password ?? '').length < 8) {
-    return reply.code(400).send({ error: 'clave_corta', msg: 'Mínimo 8 caracteres.' });
-  }
-  const row = await get<{ id: number; user_id: number; used_at: Date | null; vencido: boolean }>(
-    `SELECT r.id, r.user_id, r.used_at, r.expires_at < now() AS vencido
-     FROM reset_tokens r WHERE r.token_hash = ?`, [hashToken(String(token ?? ''))]);
-  if (!row) return reply.code(400).send({ error: 'enlace_invalido', msg: 'Ese enlace no sirve. Pide uno nuevo.' });
-  if (row.used_at) return reply.code(409).send({ error: 'enlace_usado', msg: 'Ese enlace ya se usó. Pide uno nuevo.' });
-  if (row.vencido) return reply.code(410).send({ error: 'enlace_vencido', msg: `El enlace dura ${TOKEN_MINUTES} minutos. Pide uno nuevo.` });
-
-  const u = await get<UserRow>('UPDATE users SET pass_hash = ?, token_version = token_version + 1, failed = 0, locked_until = NULL WHERE id = ? RETURNING *',
-    [await hashPassword(String(password)), row.user_id]);
-  await run('UPDATE reset_tokens SET used_at = now() WHERE id = ?', [row.id]);
-  // This person's other pending links die with the one just used.
-  await run('UPDATE reset_tokens SET used_at = now() WHERE user_id = ? AND used_at IS NULL', [row.user_id]);
-
-  reply.setCookie(COOKIE, sign({ sub: u!.id, role: u!.role, v: u!.token_version }), cookieOpts);
-  return { user: shape(u!), sesionesCerradas: true };
-});
-
-// Soft delete: keeps the row and the attempts, rotates the email to free it, and
-// anonymises the name.
-app.post<{ Body: { password?: unknown } }>('/api/account/delete', async (req, reply) => {
-  const u = await requireUser(req, reply); if (!u) return;
-  const { password } = req.body ?? {};
-  if (!await verifyPassword(String(password ?? ''), u.pass_hash)) {
-    return reply.code(401).send({ error: 'clave_incorrecta', msg: 'Confirma con tu contraseña actual.' });
-  }
-  if (u.role === 'admin') {
-    const admins = await get<{ c: number }>("SELECT COUNT(*)::int AS c FROM users WHERE role = 'admin' AND deleted_at IS NULL");
-    if ((admins?.c ?? 0) <= 1) return reply.code(409).send({ error: 'ultimo_admin', msg: 'No puedes dejar la plataforma sin admins.' });
-  }
-  await run(`UPDATE users SET deleted_at = now(), email = ?, name = 'Cuenta borrada' WHERE id = ?`,
-    [`borrado+${u.id}@alpadev.local`, u.id]);
-  // The opt-in row goes with the account. The soft delete rotated the email and
-  // blanked the name, but ranking_optin held an alias the person CHOSE — and
-  // aliases allow 3-18 chars of [a-z0-9._-], so real names pass the validator.
-  // Left behind, that alias and their weekly progress kept appearing in the
-  // public ranking and in the league table forever, while the product had just
-  // told them the account was gone.
-  await run('DELETE FROM ranking_optin WHERE user_id = ?', [u.id]);
-  reply.clearCookie(COOKIE, { path: '/' });
-  return { ok: true, deleted: u.id };
-});
-
-app.get('/api/me', async (req, reply) => {
-  const u = await requireUser(req, reply); if (!u) return;
-  return { user: shape(u) };
-});
-
-app.patch<{ Body: { lang?: unknown; theme?: unknown } }>('/api/settings', async (req, reply) => {
-  const u = await requireUser(req, reply); if (!u) return;
-  const { lang, theme } = req.body ?? {};
-  if (lang && (typeof lang !== 'string' || !LANGS.includes(lang))) return reply.code(400).send({ error: 'lang' });
-  if (theme && (typeof theme !== 'string' || !THEMES.includes(theme))) return reply.code(400).send({ error: 'theme' });
-  const saved = await get<UserRow>(`UPDATE users SET lang = COALESCE(?, lang), theme = COALESCE(?, theme)
-                                    WHERE id = ? RETURNING *`,
-    [(lang as string) ?? null, (theme as string) ?? null, u.id]);
-  return { user: shape(saved!) };
-});
+auth.registerRoutes(app);
+const { currentUser, requireUser, requireRole } = auth;
+const LANGS = [...auth.langs];
 
 // ---------- course ----------
 // Paywall: lesson 01 and its three labs are free; the rest of Vol. 1 opens with
 // the purchase. Tutors and admins see everything because accompanying is their job.
 export const FREE_LESSONS = 1;
-const hasAccess = (u: UserRow, n: unknown): boolean =>
+const hasAccess = (u: Pick<AuthUser, 'paid' | 'role'>, n: unknown): boolean =>
   !!u.paid || u.role !== 'student' || Number(n) <= FREE_LESSONS;
 
-const BEST = `SELECT lab_id, MAX(correct) AS solved, COUNT(*)::int AS attempts
-              FROM attempts WHERE user_id = ? GROUP BY lab_id`;
+type LessonCard = Pick<LessonRow, 'n' | 'eyebrow' | 'title' | 'summary' | 'math' | 'math_cap'>;
+type LabIndex = Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>;
 
 app.get('/api/lessons', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  const best = new Map((await all<BestAttempt>(BEST, [u.id])).map((r) => [r.lab_id, r]));
-  const lessons = await all<LessonRow>('SELECT * FROM lessons ORDER BY n');
-  const labs = await all<Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>>(
-    'SELECT id, lesson_n, idx, level, kind, draft FROM labs ORDER BY lesson_n, idx');
+  const [bestRows, lessons, labs] = await Promise.all([
+    many<BestAttempt>('attempt.best_by_lab', {}, u.id),
+    many<LessonCard>('lesson.list'),
+    many<LabIndex>('lab.index'),
+  ]);
+  const best = new Map(bestRows.map((r) => [r.lab_id, r]));
   return {
     lessons: lessons.map((l) => {
       const own = labs.filter((x) => x.lesson_n === l.n);
@@ -378,50 +165,59 @@ app.get('/api/lessons', async (req, reply) => {
 app.get<{ Params: { n: string }; Querystring: { lang?: string } }>('/api/lessons/:n', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   const n = Number(req.params.n);
-  const lesson = await get<LessonRow>('SELECT * FROM lessons WHERE n = ?', [n]);
-  if (!lesson) return reply.code(404).send({ error: 'no_existe' });
+  if (!Number.isInteger(n) || n < 1) return reply.code(404).send({ error: 'no_existe' });
+  const card = await one<LessonCard>('lesson.card', { n });
+  if (!card) return reply.code(404).send({ error: 'no_existe' });
   // The 402 carries the lesson's public card (without labs): a locked page is a
   // shop window, not a dead end.
   if (!hasAccess(u, n)) return reply.code(402).send({
     error: 'requiere_compra', libres: FREE_LESSONS,
-    lesson: { n: lesson.n, eyebrow: lesson.eyebrow, title: lesson.title, summary: lesson.summary, math: lesson.math, math_cap: lesson.math_cap },
-    labs: (await all<Pick<LabRow, 'id' | 'idx' | 'level'>>('SELECT id, idx, level FROM labs WHERE lesson_n = ? ORDER BY idx', [n])),
+    lesson: card,
+    labs: await many<Pick<LabRow, 'id' | 'idx' | 'level'>>('lab.list_for_lesson_locked', { lesson_n: n }),
   });
-  const best = new Map((await all<BestAttempt>(BEST, [u.id])).map((r) => [r.lab_id, r]));
-  const labs = (await all<LabRow>('SELECT * FROM labs WHERE lesson_n = ? ORDER BY idx', [n]))
+  const [lesson, bestRows, paidLabs] = await Promise.all([
+    one<LessonRow>('lesson.get', { n }),
+    many<BestAttempt>('attempt.best_by_lab', {}, u.id),
+    many<PublicLabSource>('lab.list_for_lesson', { lesson_n: n }),
+  ]);
+  if (!lesson) return reply.code(404).send({ error: 'no_existe' });
+  const best = new Map(bestRows.map((r) => [r.lab_id, r]));
+  const labs = paidLabs
     .map((l) => publicLab(l, best.get(l.id)?.solved === 1 ? best.get(l.id) : null));
   // Technical explanation + analogy + examples: without this the lab cannot be solved.
   const asked = req.query?.lang;
   const lang = asked && LANGS.includes(asked) && asked !== 'auto' ? asked : (u.lang === 'auto' ? 'es' : u.lang);
-  const Q_TEXT = 'SELECT technical, analogy, examples FROM lesson_text WHERE lesson_n = ? AND lang = ?';
   type TextRow = { technical: string; analogy: string; examples: unknown };
-  let texto = await get<TextRow>(Q_TEXT, [n, lang]);
+  let texto = await one<TextRow>('lesson_text.get', { lesson_n: n, lang });
   let textoIdioma = texto ? lang : null;
-  if (!texto && lang !== 'es') { texto = await get<TextRow>(Q_TEXT, [n, 'es']); textoIdioma = texto ? 'es' : null; }
-  return { lesson, labs, texto, textoIdioma };
+  if (!texto && lang !== 'es') {
+    texto = await one<TextRow>('lesson_text.get', { lesson_n: n, lang: 'es' });
+    textoIdioma = texto ? 'es' : null;
+  }
+  const quizPack = `q${String(n).padStart(2, '0')}`;
+  const [quizRows, allBest] = await Promise.all([
+    many<QuestionRow>('question.list_for_pack', { pack: quizPack }),
+    many<QuestionBest>('qattempt.best_by_question', {}, u.id),
+  ]);
+  const quizBest = ofPack(allBest, quizPack);
+  const qBest = new Map(quizBest.map((b) => [b.question_id, b]));
+  const quiz = quizRows.map((r) => publicQuestion(r, lang, qBest.get(r.id)));
+  const quizScore = packScore(quizBest, quizRows.length);
+  return { lesson, labs, texto, textoIdioma, quiz, quizScore };
 });
 
 // ---------- Achievements ----------
-const PER_LESSON = `
-  SELECT l.lesson_n AS n, COUNT(*)::int AS total,
-         SUM(CASE WHEN a.solved = 1 THEN 1 ELSE 0 END)::int AS solved
-  FROM labs l
-  LEFT JOIN (SELECT lab_id, MAX(correct) AS solved FROM attempts WHERE user_id = ? GROUP BY lab_id) a
-    ON a.lab_id = l.id
-  GROUP BY l.lesson_n ORDER BY l.lesson_n`;
-
 interface PerLessonRow { n: number; total: number; solved: number }
 
 /** Recomputes the achievements they are owed and stores the ones they did not
  *  have. Returns only the new ones: the front end uses them to fire the animation. */
 async function syncAchievements(userId: number) {
-  const perLesson = await all<PerLessonRow>(PER_LESSON, [userId]);
+  const perLesson = await many<PerLessonRow>('achievement.progress_by_lesson', {}, userId);
   const should = achievementsFor(perLesson);
-  const has = new Set((await all<{ code: string }>('SELECT code FROM achievements WHERE user_id = ?', [userId])).map((r) => r.code));
+  const has = new Set((await many<{ code: string }>('achievement.codes', {}, userId)).map((r) => r.code));
   const nuevos = should.filter((l) => !has.has(l.code));
   for (const l of nuevos) {
-    await run(`INSERT INTO achievements (user_id, code, kind, lesson_n) VALUES (?,?,?,?)
-      ON CONFLICT (user_id, code) DO NOTHING`, [userId, l.code, l.kind, l.lesson_n]);
+    await write('achievement.record', { code: l.code, kind: l.kind, lesson_n: l.lesson_n }, userId);
   }
   return { nuevos, todos: should, perLesson };
 }
@@ -429,8 +225,8 @@ async function syncAchievements(userId: number) {
 app.get('/api/logros', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   const { todos, perLesson } = await syncAchievements(u.id);
-  const rows = await all<{ code: string; kind: string; lesson_n: number | null; earned_at: Date }>(
-    'SELECT code, kind, lesson_n, earned_at FROM achievements WHERE user_id = ? ORDER BY earned_at, code', [u.id]);
+  const rows = await many<{ code: string; kind: string; lesson_n: number | null; earned_at: string }>(
+    'achievement.mine', {}, u.id);
   const codes = rows.map((f) => f.code);
   return {
     logros: rows,
@@ -451,24 +247,10 @@ app.get('/api/ranking', async (req, reply) => {
   // row, and this predicate is the second lock. A row that survives — restored
   // from a backup, written by a script, inserted before the delete handler was
   // fixed — still does not put a deleted person back on the public table.
-  const table = await all<{ alias: string; lecciones: number; labs: number }>(`
-    SELECT o.alias,
-           COUNT(DISTINCT hechas.lesson_n)::int AS lecciones,
-           COUNT(DISTINCT ok.lab_id)::int       AS labs
-    FROM ranking_optin o
-    JOIN users us ON us.id = o.user_id AND us.deleted_at IS NULL
-    LEFT JOIN (SELECT DISTINCT user_id, lab_id FROM attempts WHERE correct = 1) ok ON ok.user_id = o.user_id
-    LEFT JOIN (
-      SELECT a.user_id, l.lesson_n
-      FROM labs l
-      JOIN attempts a ON a.lab_id = l.id AND a.correct = 1
-      GROUP BY a.user_id, l.lesson_n
-      HAVING COUNT(DISTINCT a.lab_id) = (SELECT COUNT(*) FROM labs x WHERE x.lesson_n = l.lesson_n)
-    ) hechas ON hechas.user_id = o.user_id
-    GROUP BY o.alias, o.joined_at
-    ORDER BY lecciones DESC, labs DESC, o.joined_at ASC
-    LIMIT 50`);
-  const mine = await get<{ alias: string }>('SELECT alias FROM ranking_optin WHERE user_id = ?', [u.id]);
+  const [table, mine] = await Promise.all([
+    many<{ alias: string; lecciones: number; labs: number }>('ranking.table'),
+    one<{ alias: string }>('ranking.mine', {}, u.id),
+  ]);
   const pos = mine ? table.findIndex((r) => r.alias === mine.alias) + 1 : null;
   return { tabla: table, yo: { alias: mine?.alias ?? null, apuntado: !!mine, puesto: pos || null } };
 });
@@ -480,16 +262,15 @@ app.post<{ Body: { alias?: unknown } }>('/api/ranking/optin', async (req, reply)
     return reply.code(400).send({ error: 'alias_invalido', msg: 'De 3 a 18 caracteres: letras, números, punto, guion o guion bajo.' });
   }
   // The alias is the only public thing: the name and the email never leave the server.
-  const clash = await get<{ user_id: number }>('SELECT user_id FROM ranking_optin WHERE alias = ? AND user_id <> ?', [alias, u.id]);
+  const clash = await one<{ alias: string }>('ranking.alias_clash', { alias }, u.id);
   if (clash) return reply.code(409).send({ error: 'alias_tomado' });
-  await run(`INSERT INTO ranking_optin (user_id, alias) VALUES (?,?)
-    ON CONFLICT (user_id) DO UPDATE SET alias = EXCLUDED.alias`, [u.id, alias]);
+  await write('ranking.upsert', { alias }, u.id);
   return { alias, apuntado: true };
 });
 
 app.delete('/api/ranking/optin', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  await run('DELETE FROM ranking_optin WHERE user_id = ?', [u.id]);
+  await write('ranking.delete', {}, u.id);
   return { apuntado: false };
 });
 
@@ -521,7 +302,7 @@ app.get('/api/ligas', async (req, reply) => {
 
 app.post('/api/ligas/cerrar', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  if (u.role !== 'admin') return reply.code(403).send({ error: 'solo_admin' });
+  if (!mandaPlataforma(u.role)) return reply.code(403).send({ error: 'solo_admin' });
   // Idempotent thanks to the PK (user_id, week) with DO NOTHING: the cron can fail
   // and retry without anybody looking at anything by hand.
   return closeWeek();
@@ -529,35 +310,132 @@ app.post('/api/ligas/cerrar', async (req, reply) => {
 
 app.post<{ Params: { id: string }; Body: { answer?: unknown } }>('/api/labs/:id/attempt', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  const lab = await get<LabRow>('SELECT * FROM labs WHERE id = ?', [String(req.params.id)]);
-  if (!lab) return reply.code(404).send({ error: 'no_existe' });
-  if (lab.draft) return reply.code(409).send({ error: 'borrador', msg: 'Este lab todavía no está escrito.' });
-  if (!hasAccess(u, lab.lesson_n)) return reply.code(402).send({ error: 'requiere_compra', libres: FREE_LESSONS });
+  const id = String(req.params.id);
+  const card = await one<Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>>('lab.card_by_id', { id });
+  if (!card) return reply.code(404).send({ error: 'no_existe' });
+  if (card.draft) return reply.code(409).send({ error: 'borrador', msg: 'Este lab todavía no está escrito.' });
+  if (!hasAccess(u, card.lesson_n)) return reply.code(402).send({ error: 'requiere_compra', libres: FREE_LESSONS });
   const answer = req.body?.answer;
   if (answer === undefined) return reply.code(400).send({ error: 'falta_respuesta' });
-  const correct = grade(lab, answer);
-  await run('INSERT INTO attempts (user_id, lab_id, answer, correct) VALUES (?,?,?,?)',
-    [u.id, lab.id, JSON.stringify(answer), correct ? 1 : 0]);
+  const [gradable, explanation] = await Promise.all([
+    one<{ id: string; kind: string; solution: string }>('lab.solution_for_grading', { id }),
+    one<{ explanation: string }>('lab.explanation', { id }),
+  ]);
+  if (!gradable) return reply.code(404).send({ error: 'no_existe' });
+  const correct = grade(gradable, answer);
+  await write('attempt.record', { lab_id: id, answer: JSON.stringify(answer), correct: correct ? 1 : 0 }, u.id);
   // Only a correct answer can unlock anything: if they got it wrong, nothing is
   // recomputed.
   const achievements = correct ? await syncAchievements(u.id) : { nuevos: [] };
-  return { correct, explanation: lab.explanation, hint: hint(lab, answer), nuevos: achievements.nuevos };
+  return { correct, explanation: explanation?.explanation ?? '', hint: hint(gradable, answer), nuevos: achievements.nuevos };
+});
+
+app.get('/api/exams', async (req, reply) => {
+  const u = await requireUser(req, reply); if (!u) return;
+  const [packs, qBest] = await Promise.all([
+    many<{ pack: string; kind: string; from_n: number; to_n: number; total: number }>('question.packs'),
+    many<QuestionBest>('qattempt.best_by_question', {}, u.id),
+  ]);
+  const currentByPack = new Map(await Promise.all(packs.map(async (p) => [
+    p.pack, new Set((await many<{ id: string }>('question.list_for_pack', { pack: p.pack })).map((r) => r.id)),
+  ] as const)));
+  return {
+    exams: packs.filter((p) => p.kind === 'exam').map((p) => {
+      const n = Number(p.pack.slice(1));
+      const gate = examGate(n) ?? p.to_n;
+      const ids = currentByPack.get(p.pack) ?? new Set<string>();
+      const score = packScore(qBest.filter((b) => ids.has(b.question_id)), ids.size);
+      return { n, from: p.from_n, to: p.to_n, locked: !hasAccess(u, gate), ...score };
+    }),
+  };
+});
+
+app.get<{ Params: { n: string }; Querystring: { lang?: string } }>('/api/exams/:n', async (req, reply) => {
+  const u = await requireUser(req, reply); if (!u) return;
+  const n = Number(req.params.n);
+  const gate = examGate(n);
+  if (gate == null) return reply.code(404).send({ error: 'no_existe' });
+  if (!hasAccess(u, gate)) return reply.code(402).send({ error: 'requiere_compra', libres: FREE_LESSONS, n, from: gate - 3, to: gate });
+  const asked = req.query?.lang;
+  const lang = asked && LANGS.includes(asked) && asked !== 'auto' ? asked : (u.lang === 'auto' ? 'es' : u.lang);
+  const pack = `e${n}`;
+  const [rows, allBest] = await Promise.all([
+    many<QuestionRow>('question.list_for_pack', { pack }),
+    many<QuestionBest>('qattempt.best_by_question', {}, u.id),
+  ]);
+  const ids = new Set(rows.map((r) => r.id));
+  const bestRows = ofPack(allBest, pack).filter((b) => ids.has(b.question_id));
+  if (!rows.length) return reply.code(404).send({ error: 'no_existe' });
+  const best = new Map(bestRows.map((b) => [b.question_id, b]));
+  return {
+    n, from: gate - 3, to: gate,
+    questions: rows.map((r) => publicQuestion(r, lang, best.get(r.id))),
+    score: packScore(bestRows, rows.length),
+  };
+});
+
+app.post<{ Params: { id: string }; Body: { answer?: unknown } }>('/api/questions/:id/attempt', async (req, reply) => {
+  const u = await requireUser(req, reply); if (!u) return;
+  const id = String(req.params.id);
+  const card = await one<{ id: string; kind: string; pack: string; lesson_n: number }>('question.card_by_id', { id });
+  if (!card) return reply.code(404).send({ error: 'no_existe' });
+  const gateLesson = card.kind === 'exam' ? (examGate(Number(card.pack.slice(1))) ?? card.lesson_n) : card.lesson_n;
+  if (!hasAccess(u, gateLesson)) return reply.code(402).send({ error: 'requiere_compra', libres: FREE_LESSONS });
+  const answer = req.body?.answer;
+  if (answer === undefined || answer === null || String(answer).trim() === '') {
+    return reply.code(400).send({ error: 'falta_respuesta' });
+  }
+  const gradable = await one<{ id: string; solution: string }>('question.solution_for_grading', { id });
+  if (!gradable) return reply.code(404).send({ error: 'no_existe' });
+  const correct = grade({ kind: 'choice', solution: gradable.solution }, answer);
+  await write('qattempt.record', { question_id: id, answer: JSON.stringify(answer), correct: correct ? 1 : 0 }, u.id);
+  // Explanation is actor-scoped in /data and is deliberately read only after
+  // the attempt is recorded. This prevents an unattempted question from
+  // becoming an explanation oracle and makes the ownership boundary explicit.
+  const expl = await one<{ explanation_es: string; explanation_en: string }>('question.explanation', { id }, u.id);
+  const lang = u.lang === 'en' ? 'en' : 'es';
+  const explanation = lang === 'en' ? (expl?.explanation_en ?? '') : (expl?.explanation_es ?? '');
+  const pack = card.pack;
+  const allBest = await many<QuestionBest>('qattempt.best_by_question', {}, u.id);
+  const listed = await many<{ id: string }>('question.list_for_pack', { pack });
+  const listedIds = new Set(listed.map((r) => r.id));
+  const bestRows = ofPack(allBest, pack).filter((b) => listedIds.has(b.question_id));
+  return { correct, explanation, score: packScore(bestRows, listed.length) };
 });
 
 app.get('/api/progress', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
-  const rows = await all<BestAttempt>(BEST, [u.id]);
+  const rows = await many<BestAttempt>('attempt.best_by_lab', {}, u.id);
   const solvedLabs = rows.filter((r) => r.solved === 1).length;
-  const totals = await get<{ c: number }>('SELECT COUNT(*)::int AS c FROM labs');
-  const perLesson = await all<PerLessonRow>(`
-    SELECT l.lesson_n AS n, COUNT(*)::int AS total,
-           SUM(CASE WHEN a.solved = 1 THEN 1 ELSE 0 END)::int AS solved
-    FROM labs l
-    LEFT JOIN (SELECT lab_id, MAX(correct) AS solved FROM attempts WHERE user_id = ? GROUP BY lab_id) a
-      ON a.lab_id = l.id
-    GROUP BY l.lesson_n ORDER BY l.lesson_n`, [u.id]);
+  const [totals, perLesson, packs, qBest] = await Promise.all([
+    one<{ c: number }>('lab.count'),
+    many<PerLessonRow>('achievement.progress_by_lesson', {}, u.id),
+    many<{ pack: string; kind: string; from_n: number; to_n: number; total: number }>('question.packs'),
+    many<QuestionBest>('qattempt.best_by_question', {}, u.id),
+  ]);
   const lessonsDone = perLesson.filter((r) => r.solved === r.total).length;
-  return { solvedLabs, totalLabs: totals?.c ?? 0, lessonsDone, totalLessons: perLesson.length, perLesson };
+  const solvedQ = new Set(qBest.filter((b) => b.solved === 1).map((b) => b.question_id));
+  const quizPacks = packs.filter((p) => p.kind === 'quiz');
+  const examPacks = packs.filter((p) => p.kind === 'exam');
+  const currentIds = new Map(await Promise.all(packs.map(async (p) => [
+    p.pack, new Set((await many<{ id: string }>('question.list_for_pack', { pack: p.pack })).map((r) => r.id)),
+  ] as const)));
+  const quizzesDone = quizPacks.filter((p) =>
+    [...solvedQ].filter((id) => currentIds.get(p.pack)?.has(id)).length >= (currentIds.get(p.pack)?.size ?? 0)).length;
+  const exams = examPacks.map((p) => {
+    const n = Number(p.pack.slice(1));
+    const gate = examGate(n) ?? p.to_n;
+    const score = packScore(
+      qBest.filter((b) => currentIds.get(p.pack)?.has(b.question_id)),
+      currentIds.get(p.pack)?.size ?? 0,
+    );
+    return { n, from: p.from_n, to: p.to_n, locked: !hasAccess(u, gate), ...score };
+  });
+  return {
+    solvedLabs, totalLabs: totals?.c ?? 0, lessonsDone, totalLessons: perLesson.length, perLesson,
+    quizzesDone, quizzesTotal: quizPacks.length,
+    examsPassed: exams.filter((e) => e.passed).length, exams,
+  };
 });
 
 // ---------- Proactive assistant ----------
@@ -727,14 +605,53 @@ app.get('/api/chat/estado', async (req, reply) => {
 // collapses to '' and fails on that same single code path, without throwing.
 const secretDigest = (v: string): Buffer => createHash('sha256').update(v, 'utf8').digest();
 
+const QUEUE_SECRET = process.env.QUEUE_SECRETO?.trim() ?? '';
+
+function matchesSecret(given: unknown, expected: string): boolean {
+  if (!expected || typeof given !== 'string') return false;
+  return timingSafeEqual(secretDigest(given), secretDigest(expected));
+}
+
 function isFromService(req: FastifyRequest): boolean {
   // A missing IA_SECRETO is our own configuration, not attacker input: nothing
   // about the request leaks by answering it early.
   if (!AI_SECRET) return false;
-  const raw = req.headers['x-ia-secreto'];
-  const given = typeof raw === 'string' ? raw : '';
-  return timingSafeEqual(secretDigest(given), secretDigest(AI_SECRET));
+  return matchesSecret(req.headers['x-ia-secreto'], AI_SECRET ?? '');
 }
+
+// Durable bus idempotency. queue has its own identity and AI retains its own:
+// accepting either credential lets both workers use the same lease contract
+// without making a leaked queue credential valid against the agent/tool bridge.
+// The API still does not own SQL; each action maps to one closed /data operation.
+const SCHEMA_BUS_CLAIM = {
+  body: {
+    type: 'object', required: ['action', 'key', 'owner'], additionalProperties: false,
+    properties: {
+      action: { type: 'string', enum: ['claim', 'complete', 'release'] },
+      key: { type: 'string', minLength: 1, maxLength: 500 },
+      owner: { type: 'string', minLength: 1, maxLength: 200 },
+      lease_s: { type: 'integer', minimum: 1, maximum: 86400 },
+    },
+  },
+};
+
+interface BusClaimBody { action: 'claim' | 'complete' | 'release'; key: string; owner: string; lease_s?: number }
+
+app.post<{ Body: BusClaimBody }>('/api/interno/bus/claim', { schema: SCHEMA_BUS_CLAIM }, async (req, reply) => {
+  const queue = matchesSecret(req.headers['x-queue-secreto'], QUEUE_SECRET);
+  const ai = matchesSecret(req.headers['x-ia-secreto'], AI_SECRET ?? '');
+  if (!queue && !ai) return reply.code(401).send({ error: 'servicio_no_autorizado' });
+
+  const { action, key, owner } = req.body;
+  if (action === 'claim') {
+    const rows = await writeMany<{ clave: string }>('bus.claim', {
+      key, worker: owner, lease: req.body.lease_s ?? 300,
+    });
+    return { claimed: rows.length > 0, state: rows.length ? 'running' : 'duplicate' };
+  }
+  await write(action === 'complete' ? 'bus.complete' : 'bus.release', { key, worker: owner });
+  return { ok: true, state: action === 'complete' ? 'done' : 'released' };
+});
 
 app.get('/api/interno/catalogo', async (req, reply) => {
   if (!isFromService(req)) return reply.code(401).send({ error: 'no_es_el_servicio' });
@@ -763,7 +680,7 @@ app.post<{ Body: ToolCallBody }>('/api/interno/herramienta', { schema: SCHEMA_TO
   if (!session) return reply.code(401).send({ error: 'sin_sesion' });
   // The cookie is validated through the SAME path as a browser request: there is
   // no separate trusted route for the service.
-  const u = await resolveSession(session);
+  const u = await currentUser({ headers: { 'x-user-session': session } });
   if (!u) return reply.code(401).send({ error: 'sesion_invalida' });
   const name = String(req.body?.nombre ?? '');
   const args = req.body?.args && typeof req.body.args === 'object' ? req.body.args : {};
@@ -785,11 +702,14 @@ const SCHEMA_CHAT = {
         },
       },
       lang: { type: 'string', enum: ['es', 'en', 'auto'] },
+      fuente: { type: 'string', enum: ['chat', 'panel'] },
+      proveedor: { type: 'string', enum: ['sonnet', 'deepseek', 'kimi', 'together', 'anthropic'] },
+      esfuerzo: { type: 'string', enum: ['bajo', 'medio', 'alto'] },
     },
   },
 };
 
-interface ChatBody { mensajes?: unknown; lang?: unknown }
+interface ChatBody { mensajes?: unknown; lang?: unknown; fuente?: unknown; proveedor?: unknown; esfuerzo?: unknown }
 
 app.post<{ Body: ChatBody }>('/api/chat', { schema: SCHEMA_CHAT }, async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
@@ -827,9 +747,29 @@ app.post<{ Body: ChatBody }>('/api/chat', { schema: SCHEMA_CHAT }, async (req, r
   // have.
   const session = req.cookies?.[COOKIE] ?? '';
   if (!session) return reply.code(401).send({ error: 'sin_sesion' });
-  const r = await talkToAi({ sesion: session, mensajes: messages, lang });
+  const source: ChatSource = req.body?.fuente === 'panel' ? 'panel' : 'chat';
+  const pick = typeof req.body?.proveedor === 'string' ? req.body.proveedor : undefined;
+  const effort = typeof req.body?.esfuerzo === 'string' ? req.body.esfuerzo : undefined;
+  const r = await talkToAi({ sesion: session, mensajes: messages, lang,
+    proveedor: pick, esfuerzo: effort });
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  await rememberTurn({
+    userId: u.id, source, lang,
+    user: lastUser ? { content: lastUser.content } : undefined,
+    assistant: r.respuesta
+      ? { content: r.respuesta, provider: r.proveedor, model: r.modelo, trace: r.traza }
+      : undefined,
+  });
   if (r.error) return reply.code(r.error === 'sin_proveedor' ? 501 : 502).send(r);
   return r;
+});
+
+app.get<{ Querystring: { fuente?: string } }>('/api/chat/history', async (req, reply) => {
+  const u = await requireUser(req, reply); if (!u) return;
+  const source: ChatSource = req.query?.fuente === 'panel' ? 'panel' : 'chat';
+  const loaded = await loadTurns(u.id, source);
+  if ('error' in loaded) return reply.code(503).send(loaded);
+  return loaded;
 });
 
 // ---------- PDF ----------
@@ -872,155 +812,141 @@ app.get<{ Params: { lang: string } }>('/api/pdf/:lang', async (req, reply) => {
 // mean "everyone".
 app.get('/api/tutor/cohort', async (req, reply) => {
   const u = await requireRole(req, reply, ['tutor', 'admin']); if (!u) return;
-  const scope = u.role === 'admin' ? 'todos' : u.cohort ? 'cohorte' : 'ninguna';
+  const scope = mandaPlataforma(u.role) ? 'todos' : u.cohort ? 'cohorte' : 'ninguna';
   if (scope === 'ninguna') {
     return { alcance: scope, cohort: null, students: [], stuck: [],
              msg: 'Tu cuenta de tutor no tiene cohorte asignada, así que no hay estudiantes a tu cargo. Pide a un admin que te asigne una.' };
   }
-  const filter = scope === 'cohorte' ? 'AND us.cohort = ?' : '';
-  const args = scope === 'cohorte' ? [u.cohort] : [];
-  const students = await all<{ id: number; name: string; email: string; solved: number; last_seen: Date | null }>(`
-    SELECT us.id, us.name, us.email,
-      (SELECT COUNT(*)::int FROM (SELECT lab_id FROM attempts
-         WHERE user_id = us.id AND correct = 1 GROUP BY lab_id) hechos) AS solved,
-      (SELECT MAX(at) FROM attempts WHERE user_id = us.id) AS last_seen
-    FROM users us
-    WHERE us.role = 'student' AND us.deleted_at IS NULL ${filter}
-    ORDER BY last_seen ASC NULLS LAST`, args);
+  const students = scope === 'cohorte'
+    ? await many<{ id: number; name: string; email: string; solved: number; last_seen: string | null }>(
+        'tutor.students_cohort', { cohort: u.cohort })
+    : await many<{ id: number; name: string; email: string; solved: number; last_seen: string | null }>(
+        'tutor.students_all');
   // `stuck` follows the same scope. Aggregate difficulty is not personal data,
   // but a cohort view that silently mixes in other cohorts' numbers is a lie
   // about what the tutor is looking at.
-  const stuck = await all<{ lab_id: string; tries: number; wins: number }>(`
-    SELECT a.lab_id, COUNT(*)::int AS tries, SUM(a.correct)::int AS wins
-    FROM attempts a
-    JOIN users us ON us.id = a.user_id AND us.deleted_at IS NULL ${filter}
-    GROUP BY a.lab_id HAVING COUNT(*) >= 2 ORDER BY tries DESC LIMIT 5`, args);
+  const stuck = scope === 'cohorte'
+    ? await many<{ lab_id: string; tries: number; wins: number }>(
+        'tutor.stuck_cohort', { cohort: u.cohort })
+    : await many<{ lab_id: string; tries: number; wins: number }>('tutor.stuck_all');
   return { alcance: scope, cohort: scope === 'cohorte' ? u.cohort : null, students, stuck };
 });
 
-// ---------- admin ----------
-app.get('/api/admin/users', async (req, reply) => {
-  const u = await requireRole(req, reply, ['admin']); if (!u) return;
-  return { users: await all(`SELECT id,email,name,role,paid,cohort,created_at FROM users
-                             WHERE deleted_at IS NULL ORDER BY created_at DESC`) };
+
+// ---------- payments gateway ----------
+// Provider credentials, webhooks, retries and subscription state live in the
+// independent /payments service. The course API only authenticates its user and
+// forwards the minimum actor identity required to create or manage checkout.
+const PAYMENTS_URL = (process.env.PAYMENTS_URL ?? '').replace(/\/+$/, '');
+const PAYMENTS_SECRET = process.env.PAYMENTS_SECRET ?? '';
+
+function paymentsUnavailable(): Response {
+  return new Response(JSON.stringify({ error: 'payments_unavailable' }),
+    { status: 503, headers: { 'content-type': 'application/json' } });
+}
+
+async function callPayments(path: string, init: RequestInit = {}): Promise<Response> {
+  if (!PAYMENTS_URL || !PAYMENTS_SECRET) return paymentsUnavailable();
+  // Configurado pero apagado es el MISMO hecho que sin configurar: no hay
+  // pagos ahora mismo. Sin este catch el fetch lanza, Fastify responde 500
+  // «fetch failed» y /admin entero se cae porque su panel de cobros no
+  // contesta. Un servicio de pagos caido no puede tumbar la administracion.
+  try {
+    return await fetch(`${PAYMENTS_URL}${path}`, { ...init, headers: {
+      authorization: `Bearer ${PAYMENTS_SECRET}`, 'content-type': 'application/json', ...init.headers,
+    } });
+  } catch (e) {
+    app.log.error({ err: e, path }, 'payments unreachable');
+    return paymentsUnavailable();
+  }
+}
+
+async function relay(reply: FastifyReply, response: Response): Promise<unknown> {
+  const text = await response.text();
+  reply.code(response.status);
+  if ((response.headers.get('content-type') ?? '').includes('application/json')) {
+    try { return reply.send(JSON.parse(text)); } catch {}
+  }
+  return reply.send(text);
+}
+
+app.post<{ Body: { mode?: unknown; couponCode?: unknown } }>('/api/payments/mercadopago/preference', async (req, reply) => {
+  const user = await requireUser(req, reply); if (!user) return;
+  const mode = req.body?.mode === 'subscription' ? 'subscription' : 'one_time';
+  const couponCode = typeof req.body?.couponCode === 'string' ? req.body.couponCode : '';
+  if (mode === 'subscription') {
+    await publishEvent('defense.signal', { signal: 'subscription.checkout_started',
+      subject: String(user.id), target: String(user.id) }, {
+      key: 'defense.signal.subscription.checkout_started',
+      idempotencyKey: `subscription.checkout_started:${user.id}:${Date.now()}`, log: app.log,
+    });
+  }
+  const response = await callPayments('/v1/checkout', { method: 'POST', body: JSON.stringify({
+    userId: user.id, email: user.email, mode, ...(couponCode ? { couponCode } : {}),
+  }) });
+  return relay(reply, response);
 });
 
-app.patch<{ Params: { id: string }; Body: { role?: unknown } }>('/api/admin/users/:id/role', async (req, reply) => {
-  const actor = await requireRole(req, reply, ['admin']); if (!actor) return;
-  const target = await get<UserRow>(USER_BY_ID, [Number(req.params.id)]);
-  const role = req.body?.role;
-  if (!target) return reply.code(404).send({ error: 'no_existe' });
-  if (typeof role !== 'string' || !['student', 'tutor', 'admin'].includes(role)) {
-    return reply.code(400).send({ error: 'rol_invalido' });
-  }
-  if (target.role === 'admin' && role !== 'admin') {
-    // Self-demotion was the unguarded door, and it is the only one that can
-    // actually empty the admin role: the actor is an admin, so any OTHER admin
-    // being demoted still leaves the actor behind. There is no recovery endpoint
-    // and no way back in, so it is refused outright — ask another admin.
-    if (target.id === actor.id) {
-      return reply.code(409).send({ error: 'auto_degradacion',
-        msg: 'No puedes quitarte a ti mismo el rol de admin. Pídeselo a otro admin.' });
-    }
-    // `deleted_at IS NULL` was missing here while the equivalent guard in
-    // /api/account/delete has it. A soft-deleted ex-admin satisfied the count, so
-    // the last ACTIVE admin could be demoted with nothing to recover the role.
-    const admins = await get<{ c: number }>("SELECT COUNT(*)::int AS c FROM users WHERE role = 'admin' AND deleted_at IS NULL");
-    if ((admins?.c ?? 0) <= 1) return reply.code(409).send({ error: 'ultimo_admin', msg: 'No puedes dejar la plataforma sin admins.' });
-  }
-  await run('UPDATE users SET role = ? WHERE id = ?', [role, target.id]);
-  await run('INSERT INTO role_audit (actor_id,user_id,from_role,to_role) VALUES (?,?,?,?)',
-    [actor.id, target.id, target.role, role]);
-  const fresh = await get<UserRow>(USER_BY_ID, [target.id]);
-  return { user: shape(fresh!) };
+app.get('/api/subscriptions/me', async (req, reply) => {
+  const user = await requireUser(req, reply); if (!user) return;
+  return relay(reply, await callPayments(`/v1/subscriptions/${user.id}`));
+});
+
+app.post('/api/subscriptions/cancel', async (req, reply) => {
+  const user = await requireUser(req, reply); if (!user) return;
+  return relay(reply, await callPayments(`/v1/subscriptions/${user.id}/cancel`, { method: 'POST' }));
+});
+
+// Publico a proposito: dice si el checkout puede cobrar, nada mas. /pago se
+// renderiza sin sesion, y sin este dato pintaba los botones de pago aunque no
+// hubiera con que cobrar; el usuario solo se enteraba al final, tras elegir
+// metodo y pulsar «Suscribirme», con un aviso generico de error.
+app.get('/api/payments/estado', async () => {
+  const response = await callPayments('/health');
+  return { disponible: response.ok };
 });
 
 app.get('/api/admin/payments', async (req, reply) => {
-  const u = await requireRole(req, reply, ['admin']); if (!u) return;
-  return { payments: await all('SELECT * FROM payments ORDER BY at DESC LIMIT 100') };
+  const user = await requireRole(req, reply, ['admin']); if (!user) return;
+  return relay(reply, await callPayments('/v1/admin/payments'));
 });
 
-// ---------- Mercado Pago ----------
-// With no credentials there is no checkout: it answers 501, it does not fake a
-// payment. This is where the payer comes back to after finishing on Mercado Pago.
-const RETURN_ORIGIN = (process.env.PUBLIC_ORIGIN ?? 'http://localhost:4321').replace(/\/+$/, '');
-
-app.post('/api/payments/mercadopago/preference', async (req, reply) => {
-  const u = await requireUser(req, reply); if (!u) return;
-  const token = process.env.MP_ACCESS_TOKEN;
-  if (!token) {
-    return reply.code(501).send({ error: 'sin_credenciales', msg: 'MP_ACCESS_TOKEN is missing. Checkout Bricks also needs MP_PUBLIC_KEY in the frontend.' });
-  }
-  const res = await fetch('https://api.mercadopago.com/checkout/preferences', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      items: [{ title: 'IA desde cero · Fundamentos Vol. 1', quantity: 1, unit_price: 9.99, currency_id: 'USD' }],
-      payer: { email: u.email },
-      metadata: { user_id: u.id },
-      external_reference: String(u.id),
-      // Without back_urls the payer is left stranded on Mercado Pago's screen.
-      back_urls: {
-        success: `${RETURN_ORIGIN}/pago/gracias`,
-        pending: `${RETURN_ORIGIN}/pago/gracias?estado=pendiente`,
-        failure: `${RETURN_ORIGIN}/pago/error`,
-      },
-      // Mercado Pago rejects auto_return over http, so it is not sent locally.
-      ...(RETURN_ORIGIN.startsWith('https://') ? { auto_return: 'approved' } : {}),
-    }),
-  });
-  if (!res.ok) return reply.code(502).send({ error: 'mp_error', status: res.status, body: await res.text() });
-  const pref = await res.json() as { id?: string };
-  return { preferenceId: pref.id, publicKey: process.env.MP_PUBLIC_KEY ?? null };
-});
-
-// How far a webhook's signed timestamp may be from our clock. Five minutes
-// absorbs ordinary skew and retry latency; anything older is a replay.
-const WEBHOOK_WINDOW_S = Math.max(30, Number(process.env.MP_WEBHOOK_VENTANA_S ?? 300));
-
-interface WebhookBody { data?: { id?: unknown } }
-
-app.post<{ Body: WebhookBody; Querystring: Record<string, string> }>(
+// Compatibility gateway while Mercado Pago is reconfigured to call the payments
+// service directly. Signature verification still happens only in /payments.
+app.post<{ Body: unknown; Querystring: Record<string, string> }>(
   '/api/payments/mercadopago/webhook', async (req, reply) => {
-  const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) return reply.code(501).send({ error: 'sin_secreto' });
-  const { createHmac, timingSafeEqual: tse } = await import('node:crypto');
-  const sigHeader = String(req.headers['x-signature'] ?? '');
-  const reqId = String(req.headers['x-request-id'] ?? '');
-  const parts = Object.fromEntries(sigHeader.split(',').map((p) => p.split('=').map((s) => s.trim()))) as Record<string, string | undefined>;
-  const dataId = String(req.query?.['data.id'] ?? req.body?.data?.id ?? '');
-  const manifest = `id:${dataId};request-id:${reqId};ts:${parts.ts};`;
-  const expected = createHmac('sha256', secret).update(manifest).digest('hex');
-  const got = Buffer.from(String(parts.v1 ?? ''), 'hex');
-  const exp = Buffer.from(expected, 'hex');
-  if (got.length !== exp.length || !tse(got, exp)) {
-    return reply.code(401).send({ error: 'firma_invalida' });
+    const query = new URLSearchParams(req.query ?? {}).toString();
+    const response = await fetch(`${PAYMENTS_URL}/v1/webhooks/mercadopago${query ? `?${query}` : ''}`, {
+      method: 'POST', headers: { 'content-type': 'application/json',
+        'x-signature': String(req.headers['x-signature'] ?? ''),
+        'x-request-id': String(req.headers['x-request-id'] ?? '') },
+      body: JSON.stringify(req.body ?? {}),
+    }).catch(() => new Response(JSON.stringify({ error: 'payments_unavailable' }), { status: 503 }));
+    return relay(reply, response);
+  });
+
+app.post<{ Body: { eventKey?: unknown; userId?: unknown; active?: unknown; source?: unknown;
+  externalId?: unknown; occurredAt?: unknown; periodEnd?: unknown } }>('/api/internal/entitlements', async (req, reply) => {
+  const bearer = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+  if (!PAYMENTS_SECRET || !timingSafeEqual(secretDigest(bearer), secretDigest(PAYMENTS_SECRET))) {
+    return reply.code(401).send({ error: 'unauthorized' });
   }
-  // The manifest SIGNS the timestamp and nothing ever compared it to the clock,
-  // so a captured webhook stayed replayable forever. Today that replay is a
-  // no-op — enqueue() is idempotent on (tipo, clave) and nothing prunes the jobs
-  // table — but "harmless because of a property of another module" is not a
-  // security boundary. The day job retention lands, the row disappears and the
-  // same captured request enqueues real work again.
-  //
-  // Checked AFTER the HMAC on purpose: the signature covers ts, so a verified
-  // signature is what makes the timestamp trustworthy enough to compare.
-  const ts = Number(parts.ts);
-  // Mercado Pago sends seconds; some of their examples show milliseconds. Both
-  // are accepted, nothing else is.
-  const tsSeconds = Number.isFinite(ts) ? (ts > 1e12 ? ts / 1000 : ts) : NaN;
-  const age = Math.abs(Date.now() / 1000 - tsSeconds);
-  if (!Number.isFinite(tsSeconds) || age > WEBHOOK_WINDOW_S) {
-    app.log.warn({ dataId, ageS: Number.isFinite(age) ? Math.round(age) : null },
-      'webhook: signature valid but timestamp outside the window');
-    return reply.code(401).send({ error: 'firma_vencida', ventanaSegundos: WEBHOOK_WINDOW_S });
+  const body = req.body ?? {};
+  const event = { eventKey: String(body.eventKey ?? ''), userId: Number(body.userId),
+    active: body.active === true, source: String(body.source ?? ''),
+    externalId: String(body.externalId ?? ''), occurredAt: String(body.occurredAt ?? ''),
+    periodEnd: body.periodEnd === undefined || body.periodEnd === null ? '' : String(body.periodEnd) };
+  if (!event.eventKey || !Number.isSafeInteger(event.userId) || event.userId < 1 ||
+      !event.source || !event.externalId || !Number.isFinite(Date.parse(event.occurredAt))) {
+    return reply.code(400).send({ error: 'invalid_entitlement_event' });
   }
-  // Signature valid: it is RECORDED and 200 is answered straight away. Calling the
-  // Mercado Pago API here was the problem — if it is slow, they time out and
-  // retry, and the buyer's paid=1 was left at the mercy of their retry policy.
-  // The key is the payment id: their retry does not enqueue a second job.
-  const { nuevo } = await enqueue('pago.mercadopago', { dataId: String(dataId) }, String(dataId));
-  return { ok: true, encolado: nuevo };
+  // Una fecha que no se puede leer NO se acepta como "sin vencimiento": eso
+  // convertiria un error de tipeo del emisor en una suscripcion perpetua, que
+  // es exactamente el fallo que este cambio existe para cerrar. Se rechaza.
+  if (event.periodEnd && !Number.isFinite(Date.parse(event.periodEnd))) {
+    return reply.code(400).send({ error: 'invalid_entitlement_event' });
+  }
+  return auth.applyEntitlement(event);
 });
 
 app.get('/api/version', async () => ({
@@ -1033,73 +959,9 @@ app.get('/api/version', async () => ({
 }));
 
 app.get('/api/health', async () => {
-  const labs = await get<{ c: number }>('SELECT COUNT(*)::int AS c FROM labs');
+  const labs = await one<{ c: number }>('lab.count');
   return { ok: true, labs: labs?.c ?? 0, cola: await queueState() };
 });
-
-// ---------- Background work ----------
-//
-// `paid` is DERIVED, never toggled.
-//
-// It used to be `UPDATE users SET paid = 1` on an approved payment, and the
-// string `paid = 0` appeared nowhere in the repository — while 'refunded' is a
-// status the payments table declares and expects. So: pay, get in, ask for a
-// refund or file a chargeback, the webhook lands, payments.status becomes
-// refunded, users.paid stays 1, access is permanent and free.
-//
-// Recomputing from the rows instead of flipping a flag is what makes two
-// payments and one refund resolve correctly: the question is "does this person
-// have ANY approved payment right now", and the answer is re-derived every time
-// a payment row moves. A withdrawal needs no separate code path — the same
-// statement that grants also revokes.
-//
-// PAID_STATUSES is the list of statuses that BUY access. Anything else —
-// refunded, cancelled, charged_back, in_mediation, rejected, pending — does not,
-// by omission rather than by enumeration, so a status nobody anticipated fails
-// closed instead of granting.
-const PAID_STATUSES = ['approved'];
-
-/** Re-derives users.paid for one person from their payment rows. Returns the new value. */
-export async function recomputeAccess(userId: number | null | undefined): Promise<boolean | null> {
-  if (!userId) return null;
-  const u = await get<{ paid: number }>(
-    `UPDATE users SET paid = CASE WHEN EXISTS (
-       SELECT 1 FROM payments WHERE user_id = ? AND status = ANY(?)
-     ) THEN 1 ELSE 0 END
-     WHERE id = ? RETURNING paid`, [userId, PAID_STATUSES, userId]);
-  return u ? Boolean(u.paid) : null;
-}
-
-// The handler does what the webhook used to do, but outside its response and with
-// retries. If the Mercado Pago API is down it throws: jobs.ts reschedules it with
-// exponential backoff and the payment eventually lands.
-register('pago.mercadopago', async ({ dataId }) => {
-  const token = process.env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN is missing');
-  const res = await fetch(`https://api.mercadopago.com/v1/payments/${String(dataId)}`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`mercadopago ${res.status}`);
-  const pay = await res.json() as {
-    status?: string; transaction_amount?: number; currency_id?: string;
-    metadata?: { user_id?: number };
-  };
-  const userId = pay?.metadata?.user_id ?? null;
-  await run(`INSERT INTO payments (user_id,ext_id,status,amount,currency,raw) VALUES (?,?,?,?,?,?)
-             ON CONFLICT (ext_id) DO UPDATE SET status = excluded.status, raw = excluded.raw`,
-    [userId, String(dataId), String(pay.status), Number(pay.transaction_amount ?? 0),
-     String(pay.currency_id ?? 'USD'), JSON.stringify(pay)]);
-  if (userId) await recomputeAccess(userId);
-});
-
-// The schema is checked at boot: in Docker the backend can come up before the
-// database.
-await migrate();
-
-// The worker starts AFTER migrate(): without the jobs table its first query would
-// fail and the log would open with an error that means nothing.
-const stopWorker = worker({ log: app.log });
-for (const s of ['SIGTERM', 'SIGINT']) process.once(s, () => { stopWorker(); process.exit(0); });
 
 const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? '127.0.0.1';

@@ -37,6 +37,17 @@
 !data/cmd/
 !api/src/ontologia.json
 
+# api now imports the sole auth implementation from the sibling /auth folder,
+# so its Docker build also uses the root context.
+!package.json
+!api/package.json
+!api/pnpm-lock.yaml
+!api/tsconfig.json
+!api/prisma.config.ts
+!api/prisma/
+!api/src/
+!auth/
+
 # Never, under any allowlist. Listed explicitly because a future `!something`
 # broad enough to catch them would be a secret baked into an image layer, which
 # survives deletion of the file.

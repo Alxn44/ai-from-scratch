@@ -73,7 +73,7 @@ func TestAPIClaimsSpeaksTheWireContractApiExpects(t *testing.T) {
 	var gotSecret, gotAction, gotKey, gotOwner string
 	var gotLease float64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotSecret = r.Header.Get("x-ia-secreto")
+		gotSecret = r.Header.Get("x-queue-secreto")
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		gotAction, _ = body["action"].(string)
@@ -89,9 +89,9 @@ func TestAPIClaimsSpeaksTheWireContractApiExpects(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("claim = %v, %v", ok, err)
 	}
-	// The header name stays Spanish because api and ai already send it.
+	// Queue has its own header so this credential cannot call the AI bridge.
 	if gotSecret != "s3cret" {
-		t.Fatalf("x-ia-secreto = %q", gotSecret)
+		t.Fatalf("x-queue-secreto = %q", gotSecret)
 	}
 	if gotAction != "claim" || gotKey != "league:2026-08-17" || gotOwner != "queue-1" || gotLease != 300 {
 		t.Fatalf("body = %q %q %q %v", gotAction, gotKey, gotOwner, gotLease)

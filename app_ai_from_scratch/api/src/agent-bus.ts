@@ -1,6 +1,6 @@
 // The agent bus: one queue, one stack and one memo per session.
 //
-// WHY IT EXISTS. With 37 tools the problem stops being «what can it do» and
+// WHY IT EXISTS. With 39 tools the problem stops being «what can it do» and
 // becomes «how many turns does it spend doing it». The harness cap is 4 model
 // turns; an ordinary question («what do I do now?») could cost five calls:
 // profile, progress, lessons, attempts, league. This module is what makes those

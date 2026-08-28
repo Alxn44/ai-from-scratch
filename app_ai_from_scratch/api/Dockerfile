@@ -16,11 +16,16 @@ FROM node:22-alpine AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+WORKDIR /app/api
+# auth/ is compiled as part of this image but lives outside api/. Its nearest
+# package manifest must therefore travel into the image, otherwise TypeScript
+# treats it as CommonJS and the ESM seed cannot import its named exports.
+COPY package.json /app/package.json
+COPY api/package.json api/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
-COPY tsconfig.json ./
-COPY src ./src
+COPY api/tsconfig.json ./
+COPY api/src ./src
+COPY auth /app/auth
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
@@ -36,14 +41,18 @@ FROM node:22-alpine AS migrate
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+WORKDIR /app/api
+COPY api/package.json api/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
-COPY prisma.config.ts ./
-COPY prisma ./prisma
-COPY --from=build /app/dist ./dist
+COPY api/prisma.config.ts ./
+COPY api/prisma ./prisma
+COPY --from=build /app/api/dist ./dist
+# Prisma downloads its architecture-specific engine on first CLI invocation.
+# The migration service runs as `node`, so the dependency tree must be writable
+# by that account rather than failing on a fresh arm64 host.
+RUN chown -R node:node /app/api
 USER node
-CMD ["sh", "-c", "pnpm db:deploy && node dist/src/seed.js"]
+CMD ["sh", "-c", "pnpm db:deploy && node dist/api/src/seed.js"]
 
 # ---------------------------------------------------------------------------
 # runtime
@@ -53,11 +62,11 @@ FROM node:22-alpine
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+WORKDIR /app/api
+COPY api/package.json api/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/api/dist ./dist
 
 ENV HOST=0.0.0.0 PORT=8787
 EXPOSE 8787
@@ -68,4 +77,4 @@ EXPOSE 8787
 # cannot patch dist/ to survive a restart, and cannot rewrite node_modules to
 # backdoor a dependency. Nothing under /app is written at runtime.
 USER node
-CMD ["node", "dist/src/server.js"]
+CMD ["node", "dist/api/src/server.js"]

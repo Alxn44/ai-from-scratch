@@ -1,6 +1,6 @@
 ---
 export const prerender = false;
-import { getUser } from '../lib/session';
+import { getUser, apiTry } from '../lib/session';
 import { publicPrefs } from '../lib/prefs';
 import { t, resolveLang } from '../lib/i18n';
 import { grafo, org, curso } from '../lib/seo';
@@ -27,6 +27,12 @@ const canonical = new URL(Astro.url.pathname, SITE).href;
 const { mercado, pais } = mercadoDe(Astro.request);
 const N = narrativaDe(mercado, lang);
 const jsonld = grafo(org(), curso(lang));
+// Si el servicio de cobros no contesta, no hay con que cobrar. Antes la pagina
+// pintaba los metodos, el cupon y «Suscribirme» igual, y el usuario solo se
+// enteraba tras rellenarlo todo y pulsar: un 503 convertido en «hubo un error».
+// Un boton que no puede cobrar no se dibuja.
+const cobros = await apiTry<{ disponible: boolean }>('/api/payments/estado', Astro.request);
+const hayCobro = cobros.data?.disponible === true;
 ---
 <!doctype html>
 <html lang={lang} data-theme={theme}>
@@ -104,16 +110,18 @@ const jsonld = grafo(org(), curso(lang));
     <section class="pay-box" style="padding:44px 40px;background:var(--panel);display:flex;flex-direction:column;gap:20px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <p class="lbl">{P.metodo}</p>
-        <span class="lbl" style="color:var(--ac)">MERCADO PAGO</span>
+        {hayCobro && <span class="lbl" style="color:var(--ac)">MERCADO PAGO</span>}
       </div>
 
-      {!user && (
+      {hayCobro && !user && (
         <div class="card" data-tut="pago-1" style="border-color:var(--or);display:flex;gap:12px;align-items:flex-start">
           <Fragment set:html={icon('alert', 18, 'var(--or)')} />
           <div><div class="h3">{P.cuentaPrimero}</div><p class="s" style="color:var(--l2);margin-top:4px"><a href="/registro">{P.registrarme}</a> — {P.cuentaPrimeroB}</p></div>
         </div>
       )}
 
+      {hayCobro ? (
+      <Fragment>
       <div data-tut="pago-2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
         <button class="chip" data-m="card" data-on>{P.tarjeta}</button>
         {mercado !== 'us' && mercado !== 'eu' && <button class="chip" data-m="wallet">{P.wallet}</button>}
@@ -138,6 +146,17 @@ const jsonld = grafo(org(), curso(lang));
 
       <button class="btn pay" id="pay" data-tut="pago-3" style="margin-top:auto">{P.pagar}</button>
       <p class="s" style="text-align:center">{P.terminos}</p>
+      </Fragment>
+      ) : (
+      <div class="card" style="border-color:var(--or);border-left:2px solid var(--or);display:flex;gap:12px;align-items:flex-start;margin-top:auto">
+        <Fragment set:html={icon('alert', 18, 'var(--or)')} />
+        <div>
+          <div class="h3">{P.sinCheckout}</div>
+          <p class="s" style="color:var(--l2);margin-top:4px">{P.sinCheckoutB}</p>
+          {!user && <p class="s" style="margin-top:10px"><a href="/registro">{P.crearCuenta}</a></p>}
+        </div>
+      </div>
+      )}
     </section>
   </div>
   <div id="toasts"></div>
@@ -151,6 +170,10 @@ const jsonld = grafo(org(), curso(lang));
     };
     const coupon = document.getElementById('coupon');
     const couponStatus = document.getElementById('coupon-status');
+    // Sin cobros el bloque de pago no se renderiza, asi que estos nodos no
+    // existen. Sin esta salida el primer addEventListener lanzaba sobre null y
+    // se llevaba por delante el resto del script, tutorial incluido.
+    if (coupon) {
     const couponCode = () => coupon.value.trim();
     document.getElementById('apply-coupon').addEventListener('click', () => {
       const code = couponCode();
@@ -169,7 +192,9 @@ const jsonld = grafo(org(), curso(lang));
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ couponCode: couponCode() }) });
       if (res.status === 422) { toast('bad', P.cuponInvalido, P.cuponInvalidoB); return; }
-      if (res.status === 501) { toast('warn', P.sinCred, P.sinCredB); return; }
+      // 501 = el servicio de pagos existe pero sin credencial; 503 = el servicio
+      // no contesta. Distinta causa, misma consecuencia: hoy no se puede pagar.
+      if (res.status === 501 || res.status === 503) { toast('warn', P.sinCred, P.sinCredB); return; }
       if (!res.ok) { toast('bad', P.mpErr, P.mpErrB); return; }
       const result = await res.json();
       if (result.granted) { toast('ok', P.cuponOtorgado, P.cuponOtorgadoB); window.location.assign('/panel'); return; }
@@ -179,6 +204,7 @@ const jsonld = grafo(org(), curso(lang));
       toast('info', P.prefOk, preferenceId);
       window.location.assign(initPoint);
     });
+    }
   </script>
   <script type="application/json" id="tutorial-txt" is:inline set:html={jsonSafe({
     aria: L.tutorial.aria, skip: L.tutorial.skip, next: L.tutorial.next, done: L.tutorial.done,

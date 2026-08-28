@@ -131,6 +131,12 @@ if (correr('docker', ['compose', 'up', '-d', '--wait', 'db']).status !== 0) {
   process.exit(1);
 }
 
+paso('Levantando Postgres de mensajes (log del chat, JSONB)');
+if (correr('docker', ['compose', 'up', '-d', '--wait', 'messages-db']).status !== 0) {
+  aviso('messages-db no quedó sano. El chat responde; los turnos no se guardan.');
+  aviso('Causa habitual: MESSAGES_DB_PASSWORD sin definir  ->  scripts/keys.sh');
+}
+
 // El broker sí se levanta, pero su caída NO para el arranque. Mismo criterio que
 // el servicio de IA: RabbitMQ es el transporte ENTRE servicios (worker de api,
 // worker de ia). Las pantallas del curso no pasan por él, y `bus.ts` reporta
@@ -288,6 +294,23 @@ if (conUv) {
 // apuntar a donde quedó la api: si se mueve uno y no el otro, la web arranca y
 // cada petición muere en ECONNREFUSED, que desde el navegador parece un fallo de
 // la api y no de la configuración.
+paso('Arrancando el almacén de mensajes (127.0.0.1:8786)');
+if (existsSync(resolve(RAIZ, 'messages/package.json')) && existsSync(resolve(RAIZ, 'messages/.env'))) {
+  const p = spawn('pnpm', ['--dir', 'messages', 'dev'], {
+    cwd: RAIZ, stdio: ['ignore', 'pipe', 'pipe'], env: process.env,
+  });
+  const marca = '\x1b[33m[messages]\x1b[0m ';
+  const pintar = (buf) => String(buf).split('\n').filter(Boolean).forEach((l) => console.log(marca + l));
+  p.stdout.on('data', pintar);
+  p.stderr.on('data', pintar);
+  p.on('exit', (code) => {
+    if (!cerrando) aviso(`messages salió con código ${code}. El chat responde; los turnos no se guardan.`);
+  });
+  hijos.push(p);
+} else {
+  aviso('Sin messages/.env: los turnos de chat no se guardan.  ->  scripts/keys.sh');
+}
+
 paso(`Arrancando api (127.0.0.1:${API}) y web (localhost:${WEB})`);
 lanzar('api', 'api', '35', null, { PORT: String(API) });
 lanzar('web', 'web', '34', ['pnpm', '--dir', 'web', 'exec', 'astro', 'dev', '--port', String(WEB)],

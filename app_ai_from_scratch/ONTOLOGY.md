@@ -3,13 +3,13 @@
 > Generated from `ai/src/course_ai/ontology/data.py` by `ai-doc`.
 > Regenerate with `pnpm ontology`. Do not edit by hand — edit `data.py`.
 
-12 tables · 90 columns · 40 tools · 46 `jamas` columns · 8 `de_pago` columns
+16 tables · 120 columns · 44 tools · 62 `jamas` columns · 13 `de_pago` columns
 
 ## Isolation is not in the prompt
 
 A user cannot obtain another user's data through the agent, and the reason is not that the prompt asks nicely: it is that **no tool accepts a user identifier**. The id comes off the session cookie, on the server. The model has no way to express «somebody else's data», so the classic attack — putting instructions inside your own alias or a lab answer — has nowhere to go: at worst the agent returns the asker's own data again.
 
-There is no SQL either. There are 40 functions with declared arguments, and an argument key that is not declared is **discarded and written to the server log**. Nothing about it comes back in the response. That is deliberate: the rejected key used to be echoed to the model as `_ignorado`, which told it exactly which name had just been refused — an invitation to try the next one — while leaving no trace an operator could read. A rejected identity argument is the highest-signal event this surface produces, so it goes where the operator looks and nowhere else.
+There is no SQL either. There are 44 functions with declared arguments, and an argument key that is not declared is **discarded and written to the server log**. Nothing about it comes back in the response. That is deliberate: the rejected key used to be echoed to the model as `_ignorado`, which told it exactly which name had just been refused — an invitation to try the next one — while leaving no trace an operator could read. A rejected identity argument is the highest-signal event this surface produces, so it goes where the operator looks and nowhere else.
 
 ## Two axes, and they are orthogonal
 
@@ -41,7 +41,7 @@ P4 is the youngest and the reason the second axis exists: P1..P3 were green whil
 
 Read from the registry itself, by `scripts/emit-tool-catalog.mjs`, which imports `api/src/tools/index.ts` rather than scanning it. The families are the registry's own grouping, in its own order. The `native` section below it is not in that registry: those tools are executed by this service, and `runner` in `data.py` is what says so.
 
-### family `contenido` · 7
+### family `contenido` · 11
 
 | tool | what it does | arguments | scope | paywalled |
 |---|---|---|---|---|
@@ -51,14 +51,18 @@ Read from the registry itself, by `scripts/emit-tool-catalog.mjs`, which imports
 | `buscar_en_curso` | Busca una palabra o una idea en las 12 lecciones y en los enunciados de los labs, y dice en que leccion esta. Usala antes de responder de memoria. | `consulta` (texto libre: «tokens», «por que inventa cosas») | `sesion` | yes |
 | `glosario` | Que significa un termino del curso (token, perilla, temperatura, contexto...) y en que leccion se explica. Sin argumento devuelve la lista de terminos. | `termino` (opcional · una palabra o expresion) | `publico` | — |
 | `lab_ficha` | Un lab suelto: enunciado, nivel, como se responde su mecanica y si esta persona ya lo resolvio. Nunca la solucion. | `lab_id` (texto como «5.2») | `sesion` | yes |
+| `quiz_leccion` | El quiz rapido de una leccion: tres preguntas de opcion, sin las respuestas. Dice si esta persona ya las acerto. | `n` (entero 1..12) | `sesion` | yes |
+| `examen` | Un examen de bloque (1: lecciones 1-4, 2: 5-8, 3: 9-12): preguntas sin respuestas, nota de corte y si esta persona ya lo aprobo. | `n` (entero 1..3) | `sesion` | yes |
 | `requisitos_leccion` | Si esta persona puede saltar a una leccion: que deberia traer entendido, como va en la anterior y si tiene la leccion abierta. | `n` (entero 1..12) | `sesion` | — |
+| `consulta_campos` | La superficie del planificador seguro: tablas, columnas legibles, operadores y limites. | — | `publico` | — |
+| `consulta` | Compone una lectura segura con tabla, columnas, filtros, agregados, orden y limite; nunca recibe SQL ni un identificador de persona. | `table` (tabla declarada por consulta_campos) · `select` (columnas legibles) · `where` (filtros AND sobre columnas legibles) · `group` (columnas seleccionadas para agrupar) · `aggregate` (count, sum, avg, min o max) · `order` (columnas devueltas y direccion) · `limit` (entero 1..500) | `sesion` | — |
 
 ### family `propio` · 16
 
 | tool | what it does | arguments | scope | paywalled |
 |---|---|---|---|---|
 | `mi_panorama` | TODO el estado de esta persona de una sola vez: perfil, progreso, racha, siguiente paso, liga y que tiene en la cola. Empieza por aqui: ahorra cuatro llamadas. | — | `agregado` | — |
-| `mi_progreso` | Cuantas lecciones y labs lleva resueltos la persona de esta sesion, leccion por leccion. | — | `sesion` | — |
+| `mi_progreso` | Cuantas lecciones, labs, quizzes y examenes lleva resueltos la persona de esta sesion, leccion por leccion. | — | `sesion` | — |
 | `mis_intentos` | Los intentos de la persona de esta sesion en un lab, con lo que respondio. | `lab_id` (texto como «5.2») | `sesion` | yes |
 | `mi_perfil` | Nombre de pila, rol, idioma y si compro el curso. Solo de la sesion actual. | — | `sesion` | — |
 | `mi_siguiente_paso` | Que lab concreto sigue ahora, respetando candados y borradores. La respuesta a «que hago?». Deja el lab en la cola. | — | `sesion` | — |
@@ -137,7 +141,7 @@ The bus is indexed by the session's `userId`, so one person's queue is not reach
 
 **Soft delete:** deleted_at set = the row is kept so the attempts still add up, but the person no longer exists as far as the system is concerned.
 
-**One join away:** `attempts`, `payments`, `ranking_optin`, `role_audit`
+**One join away:** `attempts`, `question_attempts`, `payments`, `ranking_optin`, `role_audit`, `entitlement_events`, `auth_throttles`
 
 | column | clase | muro | nota |
 |---|---|---|---|
@@ -162,7 +166,7 @@ The bus is indexed by the session's `userId`, so one person's queue is not reach
 
 **Per-user scope:** Identico para todos: no hay nada personal aqui.
 
-**One join away:** `labs`
+**One join away:** `labs`, `questions`
 
 | column | clase | muro | nota |
 |---|---|---|---|
@@ -196,6 +200,28 @@ The bus is indexed by the session's `userId`, so one person's queue is not reach
 | `explanation` | `publico` | `de_pago` | Condicionada: solo para labs que esa persona ya intento. |
 | `draft` | `publico` | `gratis` | 1 = sin escribir. Evita que el agente invente contenido. |
 
+### `questions`
+
+**Purpose:** Los quizzes rapidos (3 por leccion) y los tres examenes de bloque. Corregidos en el servidor.
+
+**Per-user scope:** El enunciado es igual para todos. La explicacion solo se entrega si esa persona ya intento esa pregunta.
+
+**One join away:** `lessons`, `question_attempts`
+
+| column | clase | muro | nota |
+|---|---|---|---|
+| `id` | `publico` | `gratis` | «q01.2» o «e1.3». |
+| `kind` | `publico` | `gratis` | quiz \| exam. |
+| `pack` | `publico` | `gratis` | «q01»..«q12» o «e1»..«e3». |
+| `idx` | `publico` | `gratis` | Orden dentro del pack. |
+| `lesson_n` | `publico` | `gratis` | La leccion de la que sale la pregunta. |
+| `prompt_es` | `publico` | `de_pago` | El enunciado en espanol. |
+| `prompt_en` | `publico` | `de_pago` | El enunciado en ingles. |
+| `payload` | `publico` | `de_pago` | Opciones. El id correcto no se deduce del orden: van barajadas. |
+| `solution` | `jamas` | `gratis` | La respuesta. Si el agente la lee, el quiz deja de ensenar. |
+| `explanation_es` | `publico` | `de_pago` | Condicionada: solo si esa persona ya intento. |
+| `explanation_en` | `publico` | `de_pago` | Condicionada: solo si esa persona ya intento. |
+
 ### `attempts`
 
 **Purpose:** Cada intento de cada persona en cada lab. Es de donde sale el progreso.
@@ -212,6 +238,23 @@ The bus is indexed by the session's `userId`, so one person's queue is not reach
 | `answer` | `propio` | `gratis` | Lo que respondio. Aqui esta el valor real del agente: ve el patron del error. |
 | `correct` | `propio` | `gratis` | 1 acerto, 0 fallo. |
 | `at` | `propio` | `gratis` | Cuando. Sirve para «llevas dos semanas sin abrirlo». |
+
+### `question_attempts`
+
+**Purpose:** Cada intento de cada persona en cada pregunta de quiz o examen.
+
+**Per-user scope:** Solo las filas propias.
+
+**One join away:** `users`, `questions`
+
+| column | clase | muro | nota |
+|---|---|---|---|
+| `id` | `jamas` | `gratis` | Identificador interno. |
+| `user_id` | `jamas` | `gratis` | Sale de la sesion. El agente no lo ve. |
+| `question_id` | `propio` | `gratis` | Que pregunta se intento. |
+| `answer` | `propio` | `gratis` | Lo que respondio. |
+| `correct` | `propio` | `gratis` | 1 acerto, 0 fallo. |
+| `at` | `propio` | `gratis` | Cuando. |
 
 ### `payments`
 
@@ -232,6 +275,41 @@ The bus is indexed by the session's `userId`, so one person's queue is not reach
 | `currency` | `jamas` | `gratis` | Dato financiero. |
 | `raw` | `jamas` | `gratis` | Respuesta completa de Mercado Pago: trae datos del pagador y metadatos de la tarjeta. |
 | `at` | `jamas` | `gratis` | Dato financiero. |
+
+### `entitlement_events`
+
+**Purpose:** Eventos idempotentes con los que payments concede o revoca acceso.
+
+**Per-user scope:** Nunca llega al agente. Auth deriva users.paid de la ultima transicion por fuente.
+
+**One join away:** `users`
+
+| column | clase | muro | nota |
+|---|---|---|---|
+| `id` | `jamas` | `gratis` | — |
+| `event_key` | `jamas` | `gratis` | — |
+| `user_id` | `jamas` | `gratis` | — |
+| `active` | `jamas` | `gratis` | — |
+| `source` | `jamas` | `gratis` | — |
+| `external_id` | `jamas` | `gratis` | — |
+| `occurred_at` | `jamas` | `gratis` | — |
+| `received_at` | `jamas` | `gratis` | — |
+| `period_end` | `jamas` | `gratis` | — |
+
+### `auth_throttles`
+
+**Purpose:** Controles temporales que auth aplica tras una decision acotada de defense.
+
+**Per-user scope:** Telemetria y contencion de seguridad; ninguna herramienta la expone.
+
+**One join away:** `users`
+
+| column | clase | muro | nota |
+|---|---|---|---|
+| `user_id` | `jamas` | `gratis` | — |
+| `expires_at` | `jamas` | `gratis` | — |
+| `reason` | `jamas` | `gratis` | — |
+| `updated_at` | `jamas` | `gratis` | — |
 
 ### `role_audit`
 
@@ -363,20 +441,24 @@ Its companion `forbiddenColumns(table)` **throws for a table it does not know** 
 |---|---|---|
 | `achievements` | `user_id` | — |
 | `attempts` | `id`, `user_id` | — |
+| `auth_throttles` | `user_id`, `expires_at`, `reason`, `updated_at` | — |
+| `entitlement_events` | `id`, `event_key`, `user_id`, `active`, `source`, `external_id`, `occurred_at`, `received_at`, `period_end` | — |
 | `jobs` | `id`, `tipo`, `clave`, `datos`, `estado`, `intentos`, `error`, `corre_en`, `tomado_en`, `acabado_en`, `creado_en` | — |
 | `labs` | `solution` | `prompt`, `payload`, `explanation` |
 | `league_week` | `user_id`, `cerrada` | — |
 | `lesson_text` | — | `technical`, `analogy`, `examples` |
 | `lessons` | — | `technical`, `analogy` |
 | `payments` | `id`, `user_id`, `provider`, `ext_id`, `status`, `amount`, `currency`, `raw`, `at` | — |
+| `question_attempts` | `id`, `user_id` | — |
+| `questions` | `solution` | `prompt_es`, `prompt_en`, `payload`, `explanation_es`, `explanation_en` |
 | `ranking_optin` | `user_id` | — |
 | `reset_tokens` | `id`, `user_id`, `token_hash`, `created_at`, `expires_at`, `used_at` | — |
 | `role_audit` | `id`, `actor_id`, `user_id`, `from_role`, `to_role`, `at` | — |
 | `users` | `id`, `email`, `pass_hash`, `failed`, `locked_until`, `deleted_at`, `token_version` | — |
 
-Gated tools (7 of 40), which declare that they resolve entitlement before returning: `buscar_en_curso`, `cola_siguiente`, `lab_ficha`, `leccion`, `leccion_texto`, `mis_errores`, `mis_intentos`.
+Gated tools (9 of 44), which declare that they resolve entitlement before returning: `buscar_en_curso`, `cola_siguiente`, `examen`, `lab_ficha`, `leccion`, `leccion_texto`, `mis_errores`, `mis_intentos`, `quiz_leccion`.
 
-**Deletion order** for an account, from the foreign keys — whoever points goes first: `role_audit` → `reset_tokens` → `ranking_optin` → `payments` → `league_week` → `attempts` → `achievements` → `users` → `lesson_text` → `labs` → `lessons` → `jobs`.
+**Deletion order** for an account, from the foreign keys — whoever points goes first: `role_audit` → `reset_tokens` → `ranking_optin` → `question_attempts` → `payments` → `league_week` → `entitlement_events` → `auth_throttles` → `attempts` → `achievements` → `users` → `questions` → `lesson_text` → `labs` → `lessons` → `jobs`.
 
 ## How it is verified
 
@@ -392,7 +474,7 @@ node scripts/check-ontology-drift.mjs # the artifact against schema.prisma
 
 `pnpm --dir api test` runs `isolation.mts`, `agent-bus.mts`, `transport.mts`, `tools.mts`, `queue.mts`, `bridge.mts`, `coach.mts` and `data.mts`. The list is here and the count is not: a number in a document is a copy of something that changes, and this row already claimed a suite that had been deleted.
 
-`isolation.mts` attempts what is forbidden against all 40 tools: slipping `user_id` into every one of them, reading another person's `pass_hash`, e-mail, name and attempts, extracting lab `solution`s, asking for the explanation before the first attempt, injecting SQL into `lab_id`, inventing a tool, passing a non-integer `userId`, and reading another session's queue. None may pass. `agent-bus.mts` checks the structure: FIFO, LIFO, the caps, that the memo tells public from own data, and that two sessions share nothing. `tools.mts` checks the opposite of isolation — that this is useful: that all 40 answer with data, that what one enqueues another consumes, and that the memo saves queries.
+`isolation.mts` attempts what is forbidden against all 44 tools: slipping `user_id` into every one of them, reading another person's `pass_hash`, e-mail, name and attempts, extracting lab `solution`s, asking for the explanation before the first attempt, injecting SQL into `lab_id`, inventing a tool, passing a non-integer `userId`, and reading another session's queue. None may pass. `agent-bus.mts` checks the structure: FIFO, LIFO, the caps, that the memo tells public from own data, and that two sessions share nothing. `tools.mts` checks the opposite of isolation — that this is useful: that all 44 answer with data, that what one enqueues another consumes, and that the memo saves queries.
 
 On the Python side, `ai-prove-isolation` proves P1..P4 over the graph and `test_node_contract.py` checks that this declaration still matches the registry Node executes — names and paywall flags both. Whatever is not declared is proved by nobody, so that comparison is a precondition of writing the artifact, not a test somebody remembers to run.
 

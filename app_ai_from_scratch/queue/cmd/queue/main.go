@@ -81,7 +81,7 @@ func run() error {
 	}
 	log.Info("starting", "config", cfg.Describe(), "version", version)
 	if cfg.SecretIsEphemeral {
-		log.Warn("IA_SECRETO was unset and APP_ENV=development, so an ephemeral secret was minted. " +
+		log.Warn("QUEUE_SECRETO was unset and APP_ENV=development, so an ephemeral secret was minted. " +
 			"Nothing else can call this service until it is told the new value, and every restart changes it")
 	}
 	if !cfg.BrokerConfigured() {
@@ -209,9 +209,8 @@ func run() error {
 // claimStore picks the idempotency store and says which one it picked.
 //
 // The durable one is an HTTP call to api, which owns the row -- this service has
-// no database and must not grow one. The route it posts to does not exist yet
-// (the same note is in ai/src/course_ai/bus.py), so an unset BUS_CLAIM_URL is the
-// normal state today and it is reported loudly rather than assumed away.
+// no database and must not grow one. An unset BUS_CLAIM_URL is supported for
+// local development only and is reported loudly rather than assumed away.
 func claimStore(cfg config.Config, log *slog.Logger) (bus.Claims, bool) {
 	if cfg.ClaimURL != "" {
 		return &bus.APIClaims{

@@ -92,7 +92,10 @@ export interface ChatMessage { role: string; content: string }
 
 /** One full turn. `sesion` is the raw cookie: it travels opaque. */
 export async function talkToAi(
-  { sesion, mensajes, lang }: { sesion: string; mensajes: ChatMessage[]; lang: string },
+  { sesion, mensajes, lang, proveedor, esfuerzo }: {
+    sesion: string; mensajes: ChatMessage[]; lang: string;
+    proveedor?: string; esfuerzo?: string;
+  },
   timeoutMs = 120000): Promise<AiTurn> {
   if (!AI_SECRET) return { error: 'sin_secreto', msg: 'Falta IA_SECRETO en la API y en el servicio de IA.' };
   const ctl = new AbortController();
@@ -101,7 +104,9 @@ export async function talkToAi(
     const res = await fetch(`${AI_URL}/agente/turno`, {
       method: 'POST', signal: ctl.signal,
       headers: { 'content-type': 'application/json', 'x-ia-secreto': AI_SECRET },
-      body: JSON.stringify({ sesion, mensajes, lang }),
+      body: JSON.stringify({ sesion, mensajes, lang,
+        ...(proveedor ? { proveedor } : {}),
+        ...(esfuerzo ? { esfuerzo } : {}) }),
     });
     // Same as in aiHealth: the body may not be an object. A service behind a proxy
     // answering "Bad Gateway" in plain text is the normal case of this, not a rare

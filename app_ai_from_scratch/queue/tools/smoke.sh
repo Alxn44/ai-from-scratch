@@ -14,11 +14,11 @@ cd "$(dirname "$0")/../.."
 
 fail() { echo "FAILED: $*" >&2; exit 1; }
 
-secret="${IA_SECRETO:-}"
+secret="${QUEUE_SECRETO:-}"
 if [ -z "${secret}" ]; then
-  secret="$(grep -E '^IA_SECRETO=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)"
+  secret="$(grep -E '^QUEUE_SECRETO=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)"
 fi
-[ -n "${secret}" ] || fail "IA_SECRETO is not set and is not in .env. Run scripts/keys.sh"
+[ -n "${secret}" ] || fail "QUEUE_SECRETO is not set and is not in .env. Run scripts/keys.sh"
 
 echo "=== 1. health ==="
 # The health endpoint is the first gate on purpose: if it does not say ok, every
@@ -50,7 +50,7 @@ published="$(docker compose exec -T api node --input-type=module -e '
 const [url, secret, key] = process.argv.slice(1);
 const res = await fetch(url, {
   method: "POST",
-  headers: { "content-type": "application/json", "x-ia-secreto": secret },
+  headers: { "content-type": "application/json", "x-queue-secreto": secret },
   body: JSON.stringify({ type: "bus.echo", idempotency_key: key, payload: { from: "smoke.sh" } }),
 });
 const body = await res.json();
@@ -77,7 +77,7 @@ echo "=== 7. this service's counters ==="
 # message arrived and had no handler.
 docker compose exec -T api node --input-type=module -e '
 const [url, secret] = process.argv.slice(1);
-const res = await fetch(url, { headers: { "x-ia-secreto": secret } });
+const res = await fetch(url, { headers: { "x-queue-secreto": secret } });
 const body = await res.json();
 console.log(JSON.stringify(body.stats));
 if (!body.stats || body.stats.done < 1) {

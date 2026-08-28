@@ -12,7 +12,7 @@
     // test/ and no scripts/) infers ./src, flattens the layout to dist/*.js and then fails
     // with TS5011. Fixed at the project root, the entrypoint is dist/src/server.js whether
     // test/ and scripts/ are there or not.
-    "rootDir": ".",
+    "rootDir": "..",
     "allowJs": true,
     "checkJs": true,
     "noEmit": false,
@@ -32,6 +32,6 @@
     "useUnknownInCatchVariables": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "test/**/*.mts", "scripts/**/*.mjs"],
+  "include": ["src/**/*.ts", "test/**/*.mts", "scripts/**/*.mjs", "../auth/src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

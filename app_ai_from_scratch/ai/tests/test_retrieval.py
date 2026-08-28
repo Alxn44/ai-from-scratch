@@ -6,20 +6,20 @@ against a FIXTURE index so the routing half needs no database:
 
                             all 138        HELD OUT (121)     in the map (17)
     router alone            61  44%        45  37%            16
-    substring search        70  51%        66  55%             4
-    COMPOSED               103  75%        87  72%            16
+    substring search        71  51%        65  54%             6
+    COMPOSED               106  77%        89  74%            17
     router precision        61/64  95%     45/48  94%
     the hard subset          7/12          search 0/12
 
 READ THE HELD-OUT COLUMN. 17 of the 138 are verbatim phrasings in `concepts.py`,
 because the map was authored with this fixture visible; on those the map finds
-itself (16 of 17) and the substring search gets 4. That subset is not evidence of
+itself (16 of 17) and the substring search gets 6. That subset is not evidence of
 anything except internal consistency, and a number that includes it goes UP every
 time somebody writes a new phrasing — measuring the author, not the router. So
 every floor below is asserted on the 121 the map was NOT written for, and the
 in-map subset is counted separately and pinned so it cannot quietly grow.
 
-THE ROUTER ALONE DOES NOT BEAT SUBSTRING COUNTING. 45 against 66 on held-out
+THE ROUTER ALONE DOES NOT BEAT SUBSTRING COUNTING. 45 against 65 on held-out
 questions, and this file asserts that it does not, because the opposite claim was
 made here for a while and it was false. What the router is good at is one thing
 only: being RIGHT when it speaks (94% precision) and quiet the rest of the time. It
@@ -27,7 +27,7 @@ answers 48 of 121 and declines 73.
 
 THE COMPOSITION IS THE VALUE, and it is the strategy the tools actually implement:
 route if the map knows the words, else `sin_ruta` + `siguiente: "buscar_en_curso"`.
-87 against 66 on held-out questions, +21. Not because the map is a better scorer,
+89 against 65 on held-out questions, +24. Not because the map is a better scorer,
 but because 94% precision makes a decline worth handing on rather than guessing at.
 
 BOTH COLUMNS COME FROM THE SAME 138 SENTENCES, and the substring column is
@@ -108,18 +108,18 @@ from course_ai.retrieval.tools import (
 # assertions are on the 121 the map was not written for, `CEILING_IN_MAP` pins the
 # in-map subset so it cannot grow silently, and the all-138 numbers are RECORDED
 # here for the docstring's table rather than asserted as achievements.
-FLOOR_HELD_OUT_COMPOSED = 87   # THE NUMBER. router if it routes, else the search.
+FLOOR_HELD_OUT_COMPOSED = 89   # THE NUMBER. router if it routes, else the search.
 FLOOR_HELD_OUT_ROUTER = 45     # the router alone. Below the search, and asserted so.
-HELD_OUT_SEARCH = 66           # generated, not typed. Equality: see the test.
+HELD_OUT_SEARCH = 65           # generated, not typed. Equality: see the test.
 HELD_OUT_TOTAL = 121
 CEILING_IN_MAP = 17            # the fixture's overlap with the map. It may not grow.
+IN_MAP_SEARCH = 6              # generated substring hits on the 17 in-map rows.
 
 FLOOR_TOTAL = 61          # router alone, over all 138. Recorded, not the claim.
 FLOOR_ES = 32
 FLOOR_EN = 29
-FLOOR_SEARCH = 70         # the generated baseline over all 138. 51%, not the 54%
-                          # a hand-typed column used to claim.
-FLOOR_COMPOSED = 103
+FLOOR_SEARCH = 71         # the generated baseline over all 138.
+FLOOR_COMPOSED = 106
 FLOOR_PRECISION = 0.93    # 61/64 = 95%. What makes declining worth more than
                           # guessing, and the only property the router is good at.
 CEILING_ROUTED = 64       # answering MORE often is a regression until precision
@@ -242,7 +242,7 @@ def _report(misses) -> str:
 def test_the_substring_baseline_is_measured_and_not_transcribed():
     """Asserted BEFORE anything is compared against it, and it is now GENERATED.
 
-    70 of 138 = 51%. The number this replaced was 75 (54%), typed by hand and wrong
+    71 of 138 = 51%. The number this replaced was 75 (54%), typed by hand and wrong
     on 53 of its 138 entries; the test that guarded it asserted that the typed dict
     summed to the number the docstring quoted, which is the copy checked against
     itself. This one runs the scorer.
@@ -299,8 +299,8 @@ def test_a_baseline_answer_that_is_not_a_lesson_number_refuses():
 
 
 def test_the_held_out_composition_is_the_claim():
-    """THE NUMBER: 87 of the 121 questions the map was NOT written for, against the
-    substring search's 66. +21.
+    """THE NUMBER: 89 of the 121 questions the map was NOT written for, against the
+    substring search's 65. +24.
 
     Held out, because the other 17 are phrasings somebody copied into `concepts.py`
     from this very fixture and the map scores 16 of them — a floor including those
@@ -325,7 +325,7 @@ def test_the_held_out_composition_is_the_claim():
 def test_the_router_alone_does_NOT_beat_substring_counting():
     """The unflattering finding, asserted so it cannot be quietly re-claimed.
 
-    45 against 66 on held-out questions. This file asserted the OPPOSITE for a
+    45 against 65 on held-out questions. This file asserted the OPPOSITE for a
     while — «the router alone beats substring counting», 62% against 54% — and both
     halves of that were wrong: the 54% came from a hand-typed baseline that was
     wrong on 53 of 138 entries, and the 62% was inflated by the 17 fixture questions
@@ -388,7 +388,7 @@ def test_the_questions_it_was_written_for_cannot_grow():
 
     The map was authored with this fixture visible, so 17 of the 138 are verbatim
     phrasings in `concepts.py`, where the router scores 16 and the substring search
-    scores 4. That 16 is the map finding itself: it is evidence of internal
+    scores 6. That 16 is the map finding itself: it is evidence of internal
     consistency and of nothing else.
 
     The ceiling is what makes it safe to report. Adding phrasings copied out of this
@@ -410,7 +410,7 @@ def test_the_questions_it_was_written_for_cannot_grow():
         f"floors are the ones that count.")
     seen_router, seen_search, _c, _r, _m = _tally(seen)
     assert seen_router >= 16, f"the map can no longer find its own phrasings: {seen_router}/17"
-    assert seen_search == 4, f"the in-map baseline moved: {seen_search}"
+    assert seen_search == IN_MAP_SEARCH, f"the in-map baseline moved: {seen_search}"
 
 
 def test_the_questions_that_quote_the_course_are_declined_rather_than_guessed():

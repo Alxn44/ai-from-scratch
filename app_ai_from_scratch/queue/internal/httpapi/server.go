@@ -55,6 +55,7 @@ type Deps struct {
 type Broker interface {
 	Configured() bool
 	Health() broker.Health
+	EnsureConnected(context.Context) error
 	Publish(ctx context.Context, exchange, key string, env bus.Envelope) error
 	Declare(ctx context.Context, topo bus.Topology) error
 	Verify(ctx context.Context, topo bus.Topology) ([]broker.Missing, error)
@@ -123,6 +124,14 @@ func New(d Deps) *fiber.App {
 	// It can FAIL, which is the entire point. A health endpoint that always
 	// answers ok is decoration: it turns a broker outage into a green dashboard.
 	app.Get("/health", func(c fiber.Ctx) error {
+		// A publisher reconnects lazily on its next write. Probe it here with a
+		// short deadline so a broker restart becomes a truthful health result
+		// instead of a permanent false negative while the consumer is healthy.
+		if d.Client.Configured() && !d.Client.Health().Connected {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			_ = d.Client.EnsureConnected(ctx)
+			cancel()
+		}
 		pub := d.Client.Health()
 		body := fiber.Map{
 			"service":        "queue",
@@ -346,8 +355,8 @@ func New(d Deps) *fiber.App {
 // constant-time compare entirely. Hashing removes the length from the comparison
 // instead of branching on it.
 //
-// The header stays `x-ia-secreto` and the variable stays `IA_SECRETO`: api and ai
-// already speak that name and renaming it here would break both.
+// Queue's HTTP surface uses `x-queue-secreto` and `QUEUE_SECRETO`, distinct from
+// the AI bridge identity. The API claim route is the only caller of this secret.
 func requireService(d Deps) fiber.Handler {
 	want := sha256.Sum256([]byte(d.Config.Secret))
 	configured := d.Config.Secret != ""
@@ -358,9 +367,9 @@ func requireService(d Deps) fiber.Handler {
 		// unreachable -- and it still refuses rather than allowing.
 		if !configured {
 			return c.Status(fiber.StatusServiceUnavailable).
-				JSON(fiber.Map{"error": "this service has no IA_SECRETO and cannot authenticate anybody"})
+				JSON(fiber.Map{"error": "this service has no QUEUE_SECRETO and cannot authenticate anybody"})
 		}
-		got := sha256.Sum256([]byte(c.Get("x-ia-secreto")))
+		got := sha256.Sum256([]byte(c.Get("x-queue-secreto")))
 		if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 			// The same answer for absent, malformed and wrong. Distinguishing
 			// them tells a prober which half of the problem to work on.

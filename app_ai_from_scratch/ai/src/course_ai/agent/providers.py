@@ -21,6 +21,22 @@ from typing import Any, Literal
 import httpx
 
 Format = Literal["anthropic", "openai"]
+Lane = Literal["flash", "razon"]
+Effort = Literal["bajo", "medio", "alto"]
+
+# The four models the UI offers as buttons. `anthropic` is accepted as an alias
+# for the sonnet lane: the button shows claude-sonnet-5, not Haiku.
+SELECTABLE = frozenset({"sonnet", "deepseek", "kimi", "together", "anthropic"})
+_EFFORT = {
+    "bajo": (768, 30.0, "low"),
+    "medio": (1536, 45.0, "medium"),
+    "alto": (4096, 90.0, "high"),
+}
+
+# Haiku is the fast default (the "flash" slot). Sonnet and Grok reason.
+# Opus is never a default and is rewritten away if someone pastes it.
+FLASH = "claude-haiku-4-5"
+SONNET = "claude-sonnet-5"
 
 _log = logging.getLogger(__name__)
 
@@ -30,6 +46,13 @@ def _env(k: str) -> str | None:
     return v.strip() if v and v.strip() else None
 
 
+def _model(raw: str | None, fallback: str) -> str:
+    """Opus is refused: it is not in this product. Anything else, including an
+    explicit env override, is kept."""
+    m = (raw or fallback).strip() or fallback
+    return fallback if "opus" in m.lower() else m
+
+
 @dataclass(frozen=True, slots=True)
 class Provider:
     id: str
@@ -37,6 +60,7 @@ class Provider:
     base: str
     key: str
     model: str
+    lane: Lane = "flash"
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,40 +96,48 @@ def _upstream_error(prov: Provider, r: httpx.Response) -> ProviderError:
 def providers() -> tuple[Provider, ...]:
     """A declarative catalog. Order = priority.
 
-    Default chain, in this order (overridable with PROVEEDOR_ORDEN):
-        deepseek  -> primary chat model
-        kimi      -> fallback, the one asked for reasoning
-        anthropic -> escalation, "call a specialist" (Sonnet)
-    The rest stay behind them: they are spare wheels, not part of the chain.
-    Every model id below is still the file's own default and is still overridable
-    by the same env var it always used — the chain changed the ORDER, not the ids.
+    Two lanes, flash first:
+        anthropic  -> Haiku, the default (fast / cheap, the "flash" slot)
+        deepseek   -> flash fallback
+        kimi       -> flash fallback
+        grok       -> reasoning
+        sonnet     -> reasoning (same Anthropic key, Claude Sonnet 5)
+    Opus is not a lane. The rest stay behind as spare wheels.
+    PROVEEDOR_ORDEN still wins when set.
     """
-    rows = [
+    ant = _env("ANTHROPIC_API_KEY")
+    rows: list[tuple[str, Format, str, str | None, str, Lane]] = [
+        ("anthropic", "anthropic", "https://api.anthropic.com/v1/messages",
+         ant, _model(_env("ANTHROPIC_MODEL"), FLASH), "flash"),
         ("deepseek", "openai", "https://api.deepseek.com/chat/completions",
-         _env("DEEPSEEK_API_KEY"), _env("DEEPSEEK_MODEL") or "deepseek-chat"),
+         _env("DEEPSEEK_API_KEY"), _model(_env("DEEPSEEK_MODEL"), "deepseek-chat"), "flash"),
         ("kimi", "openai", "https://api.moonshot.ai/v1/chat/completions",
          _env("KIMI_API_KEY") or _env("MOONSHOT_API_KEY"),
          # kimi-k3 verified with tool calling. The previous default
          # (kimi-k2-0905-preview) no longer shows up in Moonshot's /v1/models.
-         _env("KIMI_MODEL") or "kimi-k3"),
-        ("anthropic", "anthropic", "https://api.anthropic.com/v1/messages",
-         _env("ANTHROPIC_API_KEY"), _env("ANTHROPIC_MODEL") or "claude-sonnet-5"),
-        ("openrouter", "openai", "https://openrouter.ai/api/v1/chat/completions",
-         _env("OPENROUTER_API_KEY"), _env("OPENROUTER_MODEL") or "anthropic/claude-sonnet-4.5"),
+         _model(_env("KIMI_MODEL"), "kimi-k3"), "flash"),
+        ("grok", "openai", _env("XAI_BASE_URL") or "https://api.x.ai/v1/chat/completions",
+         _env("XAI_API_KEY"), _model(_env("XAI_MODEL"), "grok-4.6"), "razon"),
+        ("sonnet", "anthropic", "https://api.anthropic.com/v1/messages",
+         ant, _model(_env("ANTHROPIC_SONNET_MODEL"), SONNET), "razon"),
+        ("omniroute", "openai", _env("OMNIROUTE_BASE_URL") or "http://127.0.0.1:20128/v1/chat/completions",
+         _env("OMNIROUTE_API_KEY"), _model(_env("OMNIROUTE_MODEL"), "openrouter/auto"), "flash"),
+        ("openrouter", "openai", _env("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1/chat/completions",
+         _env("OPENROUTER_API_KEY"), _model(_env("OPENROUTER_MODEL"), "openrouter/auto"), "flash"),
         ("huggingface", "openai", "https://router.huggingface.co/v1/chat/completions",
          _env("HF_TOKEN") or _env("HUGGINGFACE_API_KEY"),
-         _env("HF_MODEL") or "Qwen/Qwen3-235B-A22B-Instruct"),
+         _model(_env("HF_MODEL"), "Qwen/Qwen3-235B-A22B-Instruct"), "flash"),
         # Together: default model verified with real tool calling. Qwen3.7-Plus does
         # NOT work here: Together answers «requires prompt storage» and the turn dies
         # — it is a model that routes to a third party and demands consent.
         ("together", "openai", "https://api.together.xyz/v1/chat/completions",
          _env("TOGETHER_API_KEY") or _env("API_KEY_TOGETHER"),
-         _env("TOGETHER_MODEL") or "moonshotai/Kimi-K2.7-Code"),
+         _model(_env("TOGETHER_MODEL"), "moonshotai/Kimi-K2.7-Code"), "flash"),
         ("opencode", "openai",
          _env("OPENCODE_BASE_URL") or "http://127.0.0.1:4096/v1/chat/completions",
-         _env("OPENCODE_API_KEY"), _env("OPENCODE_MODEL") or "claude-sonnet-5"),
+         _env("OPENCODE_API_KEY"), _model(_env("OPENCODE_MODEL"), FLASH), "flash"),
     ]
-    active = [Provider(i, f, b, k, m) for i, f, b, k, m in rows if k]  # type: ignore[arg-type]
+    active = [Provider(i, f, b, k, m, lane) for i, f, b, k, m, lane in rows if k]
     order = [s.strip() for s in (_env("PROVEEDOR_ORDEN") or "").split(",") if s.strip()]
     if not order:
         return tuple(active)
@@ -114,6 +146,28 @@ def providers() -> tuple[Provider, ...]:
 
 def has_provider() -> bool:
     return len(providers()) > 0
+
+
+def pick_chain(wanted: str | None, active: Sequence[Provider] | None = None) -> tuple[Provider, ...]:
+    """Put the requested provider first. Unknown names are ignored: the full
+    chain stays. `anthropic` means the sonnet lane (claude-sonnet-5)."""
+    chain = tuple(active) if active is not None else providers()
+    if not wanted:
+        return chain
+    name = wanted.strip().lower()
+    if name not in SELECTABLE:
+        return chain
+    if name == "anthropic":
+        name = "sonnet"
+    chosen = next((p for p in chain if p.id == name), None)
+    if chosen is None:
+        return chain
+    return (chosen, *tuple(p for p in chain if p.id != chosen.id))
+
+
+def effort_budget(effort: str | None) -> tuple[int, float, str]:
+    """max_tokens, timeout_s, native effort name. Unknown → medium."""
+    return _EFFORT.get(effort or "", _EFFORT["medio"])
 
 
 _NUMBER = re.compile(r"entero|n[uú]mero", re.IGNORECASE)
@@ -140,27 +194,37 @@ def as_tools(catalog: Sequence[Mapping[str, Any]], fmt: Format) -> list[dict[str
 
 async def turn(client: httpx.AsyncClient, prov: Provider, *, system: str,
                messages: Sequence[Mapping[str, Any]], catalog: Sequence[Mapping[str, Any]],
-               max_tokens: int = 1024, timeout_s: float = 45.0) -> Turn:
+               max_tokens: int = 1024, timeout_s: float = 45.0,
+               effort: str | None = None) -> Turn:
     """One model turn, in a common shape so the loop knows nothing about providers."""
+    tokens, timeout, effort_name = effort_budget(effort)
+    if effort:
+        max_tokens, timeout_s = tokens, timeout
     if prov.fmt == "anthropic":
+        body: dict[str, Any] = {
+            "model": prov.model, "max_tokens": max_tokens,
+            # The system prompt and the tool schemas do not change between
+            # turns of the SAME exchange, nor between exchanges. Without the
+            # cache they are re-billed in full every time: measured, 2816
+            # input_tokens on turn 1 and 3371 on turn 2, with cache_read at 0.
+            # The marker goes on the system block because the cache order is
+            # tools -> system -> messages: marking system covers the tools too,
+            # and those are half of those bytes.
+            #
+            # If the prompt falls below the model's minimum cacheable size the
+            # field is ignored without an error — there is no risk in asking.
+            "system": [{"type": "text", "text": system,
+                        "cache_control": {"type": "ephemeral"}}],
+            "tools": as_tools(catalog, "anthropic"), "messages": list(messages),
+        }
+        # Effort is a Claude 4.5 knob. Haiku (the flash lane) does not take it.
+        if prov.lane == "razon" or "sonnet" in prov.model:
+            body["effort"] = effort_name
         r = await client.post(
             prov.base, timeout=timeout_s,
             headers={"content-type": "application/json", "x-api-key": prov.key,
                      "anthropic-version": "2023-06-01"},
-            json={"model": prov.model, "max_tokens": max_tokens,
-                  # The system prompt and the tool schemas do not change between
-                  # turns of the SAME exchange, nor between exchanges. Without the
-                  # cache they are re-billed in full every time: measured, 2816
-                  # input_tokens on turn 1 and 3371 on turn 2, with cache_read at 0.
-                  # The marker goes on the system block because the cache order is
-                  # tools -> system -> messages: marking system covers the tools too,
-                  # and those are half of those bytes.
-                  #
-                  # If the prompt falls below the model's minimum cacheable size the
-                  # field is ignored without an error — there is no risk in asking.
-                  "system": [{"type": "text", "text": system,
-                              "cache_control": {"type": "ephemeral"}}],
-                  "tools": as_tools(catalog, "anthropic"), "messages": list(messages)})
+            json=body)
         if r.status_code >= 400:
             raise _upstream_error(prov, r)
         d = r.json()

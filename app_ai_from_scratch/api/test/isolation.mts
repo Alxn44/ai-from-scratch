@@ -1,6 +1,6 @@
 // Tries to get another user's data out of the tools. If any of this happens, the
 // agent cannot ship.
-import { all, get, run, pool } from '../src/db.ts';
+import { all, run, pool } from '../src/db.ts';
 import type { UserRow } from '../src/db.ts';
 import { run as runTool, catalog, families, setLogger } from '../src/tools/index.ts';
 import type { Ctx, ToolResult } from '../src/tools/index.ts';
@@ -23,6 +23,7 @@ const ARGS: Record<string, Record<string, unknown>> = {
   plan_estudio: { sesiones: 3 },
   cola_encolar: { tipo: 'lab', ref: '5.1', motivo: 'prueba' },
   foco_apilar: { tipo: 'leccion', ref: '5', nota: 'prueba' },
+  consulta: { table: 'lessons', select: ['n', 'title'], order: [{ column: 'n', dir: 'asc' }], limit: 3 },
 };
 const args = (name: string): Record<string, unknown> => ({ ...(ARGS[name] ?? {}) });
 
@@ -38,23 +39,31 @@ const mal = (t: string, extra?: string): void => {
 };
 
 // --- prepare: the victim leaves a recognisable trail ------------------------
+const fixtures = await all<Pick<UserRow, 'id' | 'email' | 'name' | 'pass_hash' | 'role'>>(
+  "SELECT id, email, name, pass_hash, role FROM users WHERE deleted_at IS NULL AND paid = 1 AND role IN ('student', 'tutor') ORDER BY id LIMIT 2");
+if (fixtures.length < 2) throw new Error('isolation needs two seeded non-admin fixtures');
+const [actor, victim] = fixtures;
+const ACTOR_ID = actor.id;
+const VICTIM_ID = victim.id;
 const VICTIMA = 'RESPUESTA-SECRETA-DE-PAULA';
-await run('DELETE FROM attempts WHERE user_id = 2');
-await run('INSERT INTO attempts (user_id, lab_id, answer, correct) VALUES (2, ?, ?, 1)', ['5.1', JSON.stringify(VICTIMA)]);
+await run('DELETE FROM attempts WHERE user_id = ?', [VICTIM_ID]);
+await run('INSERT INTO attempts (user_id, lab_id, answer, correct) VALUES (?, ?, ?, 1)', [VICTIM_ID, '5.1', JSON.stringify(VICTIMA)]);
 
-const paula = await get<Pick<UserRow, 'id' | 'email' | 'name' | 'pass_hash'>>(
-  'SELECT id, email, name, pass_hash FROM users WHERE id = 2');
+const paula = victim;
 const solutions = (await all<{ id: string; solution: string }>('SELECT id, solution FROM labs')).map((r) => r.solution);
+const questionSolutions = (await all<{ id: string; solution: string }>('SELECT id, solution FROM questions')).map((r) => r.solution);
 const SECRETOS: [string, string][] = [
   ['answer de otro usuario', VICTIMA],
   ['pass_hash de otro usuario', paula!.pass_hash],
   ['email de otro usuario', paula!.email],
   ['nombre completo de otro usuario', paula!.name],
   ...solutions.slice(0, 6).map((s, i): [string, string] => [`solution del lab #${i + 1}`, s]),
+  ...questionSolutions.map((s, i): [string, string] => [`solution de question #${i + 1}`, s]),
 ];
 
-const CTX: Ctx = { userId: 1, role: 'student', lang: 'es', turn: 'T-prueba' };
-const CONTAMINADO = { user_id: 2, userId: 2, id: 2, uid: 2, where: "1=1 OR user_id=2", sql: 'SELECT * FROM users' };
+const CTX: Ctx = { userId: ACTOR_ID, role: actor.role, lang: 'es', turn: 'T-prueba' };
+const CONTAMINADO = { user_id: VICTIM_ID, userId: VICTIM_ID, id: VICTIM_ID, uid: VICTIM_ID,
+  where_sql: "1=1 OR user_id=2", sql: 'SELECT * FROM users' };
 
 console.log('\n1) Ninguna salida contiene secretos de terceros ni soluciones');
 const salidas: [string, string][] = [];
@@ -103,13 +112,13 @@ for (const h of catalog()) {
 forgetAll();
 
 console.log('\n3) Cada usuario ve solo sus intentos');
-const r1 = await runTool({ userId: 1, role: 'student' }, 'mis_intentos', { lab_id: '5.1' });
-const r2 = await runTool({ userId: 2, role: 'tutor' }, 'mis_intentos', { lab_id: '5.1' });
+const r1 = await runTool({ userId: ACTOR_ID, role: 'student' }, 'mis_intentos', { lab_id: '5.1' });
+const r2 = await runTool({ userId: VICTIM_ID, role: 'student' }, 'mis_intentos', { lab_id: '5.1' });
 JSON.stringify(r1).includes(VICTIMA) ? mal('el usuario 1 vio el intento del usuario 2') : ok('el usuario 1 no ve los intentos del 2');
 JSON.stringify(r2).includes(VICTIMA) ? ok('el usuario 2 sí ve su propio intento') : mal('el usuario 2 no ve su propio intento');
 
 console.log('\n4) La explicación no llega antes del primer intento');
-await run('DELETE FROM attempts WHERE user_id = 1 AND lab_id = ?', ['9.3']);
+await run('DELETE FROM attempts WHERE user_id = ? AND lab_id = ?', [ACTOR_ID, '9.3']);
 const sinIntento = await runTool(CTX, 'mis_intentos', { lab_id: '9.3' });
 sinIntento.explicacion === null && sinIntento.nota ? ok('sin intentos: explicación null + aviso al modelo')
   : mal('entregó explicación sin que la persona lo intentara', JSON.stringify(sinIntento).slice(0, 160));
@@ -187,7 +196,7 @@ cat.length === Object.values(fam).flat().length
 
 console.log('\n8) La cola de una persona no es alcanzable desde otra sesión');
 forgetAll();
-await runTool({ userId: 2, lang: 'es', turn: 'T-otra' }, 'cola_encolar', { tipo: 'tema', ref: 'secreto-de-paula' });
+await runTool({ userId: VICTIM_ID, lang: 'es', turn: 'T-otra' }, 'cola_encolar', { tipo: 'tema', ref: 'secreto-de-paula' });
 const miCola = JSON.stringify(await runTool(CTX, 'cola_estado', {}));
 miCola.includes('secreto-de-paula') ? mal('la cola del usuario 2 se vio desde la sesión del 1')
   : ok('la cola del usuario 2 no aparece en la del 1');
@@ -195,7 +204,7 @@ const memoAjeno = JSON.stringify(await runTool(CTX, 'mi_progreso', {}));
 memoAjeno.includes(VICTIMA) ? mal('el memo sirvió un dato de otra sesión') : ok('el memo no cruza sesiones');
 forgetAll();
 
-await run('DELETE FROM attempts WHERE user_id = 2');
+await run('DELETE FROM attempts WHERE user_id = ?', [VICTIM_ID]);
 await pool.end();
 console.log(fallos ? `\n${fallos} FALLO(S)` : '\nsin fallos');
 process.exit(fallos ? 1 : 0);

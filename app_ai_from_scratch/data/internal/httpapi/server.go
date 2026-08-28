@@ -48,8 +48,9 @@ import (
 // deliberate exception to the English rule because renaming one breaks two
 // services at once.
 const (
-	HeaderSecret = "x-data-secreto"
-	HeaderActor  = "x-data-actor"
+	HeaderSecret    = "x-data-secreto"
+	HeaderActor     = "x-data-actor"
+	HeaderAuthority = "x-data-authority"
 )
 
 // Server is the HTTP surface.
@@ -126,8 +127,13 @@ func (s *Server) handleOp(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "bad_actor", err.Error())
 		return
 	}
+	authority, err := identityHeader(r, HeaderAuthority)
+	if err != nil {
+		fail(w, http.StatusBadRequest, "bad_authority", err.Error())
+		return
+	}
 
-	res, err := s.st.Call(r.Context(), req.Op, actor, req.Args)
+	res, err := s.st.Call(r.Context(), req.Op, actor, authority, req.Args)
 	switch {
 	case errors.Is(err, store.ErrUnknownOperation):
 		// The refusal that makes the catalogue closed. It names what IS
@@ -322,7 +328,11 @@ func (s *Server) authorised(r *http.Request) bool {
 // value a caller sets, and the whole scope model depends on that being
 // impossible.
 func actorOf(r *http.Request) (int64, error) {
-	raw := r.Header.Get(HeaderActor)
+	return identityHeader(r, HeaderActor)
+}
+
+func identityHeader(r *http.Request, header string) (int64, error) {
+	raw := r.Header.Get(header)
 	if raw == "" {
 		// Not an error: public operations take no actor, and requiring one would
 		// mean inventing an identity for a request about the lesson list.
@@ -330,7 +340,7 @@ func actorOf(r *http.Request) (int64, error) {
 	}
 	n, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || n <= 0 {
-		return 0, fmt.Errorf("%s must be a positive integer", HeaderActor)
+		return 0, fmt.Errorf("%s must be a positive integer", header)
 	}
 	return n, nil
 }

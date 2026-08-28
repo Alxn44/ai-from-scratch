@@ -1,15 +1,18 @@
 # AI from Scratch (IA desde cero)
 
-Curso interactivo de IA desde cero: web (Astro) + API (Fastify/Postgres) con
-lecciones, labs corregidos en servidor, ontología de conceptos y pagos (Mercado Pago).
+Curso interactivo y vendible de IA desde cero: web Astro, API Fastify, auth,
+IA, defensa y un servicio independiente de pagos con Mercado Pago.
 
 ## Stack
 
 - **web/** — Astro. Frontend del curso (lecciones, labs, checkout).
-- **api/** — Fastify 5 + Node 22. Sin ORM, `pg` directo a Postgres 17. Auth con
-  `node:crypto` (scrypt + HMAC). Corrección de labs vive en el servidor
-  (`api/src/grading.ts`), nunca en el cliente.
-- **db** — Postgres 17 (contenedor `db` en `docker-compose.yml`).
+- **api/** — Fastify 5 + Node 22. HTTP, contenido, grading y puente entre servicios.
+- **auth/** — login, registro, recuperación, cookies/JWT, roles, sesiones y entitlements.
+- **payments/** — servicio TS7/`tsgo` extraíble a su propio repositorio, con base
+  separada, checkout, suscripciones, webhooks verificados y reintentos.
+- **ai/**, **data/**, **queue/**, **defense/** — agente, acceso cerrado a datos,
+  coordinación durable y respuesta de seguridad.
+- **db** y **payments-db** — dos Postgres 17 con límites de persistencia separados.
 - **scripts/** — orquestación de dev (`dev.mjs`) y generación de ontología.
 
 ## Requisitos
@@ -21,16 +24,17 @@ lecciones, labs corregidos en servidor, ontología de conceptos y pagos (Mercado
 ## Correrlo — opción rápida (Docker, todo incluido)
 
 ```bash
+pnpm keys
+# completa MP_ACCESS_TOKEN y MP_WEBHOOK_SECRET en .env
 docker compose up --build
 ```
 
-Levanta `db` (Postgres), `api` (puerto 8787) y `web` (puerto 4321). La siembra
-(`seed`) corre sola y es idempotente.
+Levanta la plataforma completa. La siembra corre sola y es idempotente.
 
 ## Correrlo — modo desarrollo (local, con hot reload)
 
 ```bash
-pnpm setup          # instala deps de api/ y web/
+pnpm setup          # instala deps de api/, payments/, web/ y ai/
 pnpm db              # solo levanta Postgres en Docker
 cp api/.env.example api/.env   # setear JWT_SECRET real
 pnpm seed            # 12 lecciones, 36 labs, 3 usuarios de prueba
@@ -40,20 +44,23 @@ pnpm dev             # levanta api + web con reload
 - Web: http://localhost:4321
 - API: http://127.0.0.1:8787
 
-## Variables de entorno (`api/.env`)
+## Variables de entorno principales
 
 | Variable | Obligatoria | Qué hace |
 |---|---|---|
 | `JWT_SECRET` | sí | El server no arranca sin esto. |
-| `DATABASE_URL` | sí (o la inyecta docker compose) | Conexión a Postgres. |
+| `DATA_URL` / `DATA_SECRETO` | sí para API/worker | Contrato cerrado con `data`; la API no recibe `DATABASE_URL`. |
+| `DATABASE_URL` | solo `init`/`pnpm seed` | Credencial de Postgres, exclusiva del servicio de datos y migraciones. |
 | `WEB_ORIGIN` | sí | CORS, origen del frontend. |
-| `MP_ACCESS_TOKEN` / `MP_PUBLIC_KEY` / `MP_WEBHOOK_SECRET` | no | Sin estas, `/api/payments/...` responde `501` (no se puede pagar, resto de la app funciona igual). |
+| `PAYMENTS_URL` / `PAYMENTS_SECRET` | sí | Contrato autenticado entre API y pagos. |
+| `PAYMENTS_DB_PASSWORD` | sí en Compose | Base exclusiva del servicio de pagos. |
+| `MP_ACCESS_TOKEN` / `MP_WEBHOOK_SECRET` | sí para vender | Viven en `payments`, nunca en la API. `MP_PUBLIC_KEY` es opcional. |
 
 ## Comandos útiles
 
 ```bash
 pnpm reset                # borra DB, la levanta de nuevo y reseed
-pnpm test:aislamiento     # test de aislamiento de datos entre usuarios
+pnpm test:isolation       # test de aislamiento de datos entre usuarios
 pnpm ontologia            # regenera el grafo de ontología de conceptos
 pnpm stop                 # apaga web local + contenedores docker
 ```
@@ -71,8 +78,13 @@ pnpm stop                 # apaga web local + contenedores docker
 ## Estructura
 
 ```
-api/        Fastify API — auth, contenido, grading, ontología, pagos
+api/        Fastify API — contenido, grading y contratos entre servicios
+auth/       Autenticación, sesiones, roles y entitlements
+payments/   Pagos TS7/tsgo, suscripciones y webhooks Mercado Pago
 web/        Astro frontend
+ai/ data/ queue/ defense/ servicios internos
 scripts/    dev.mjs (orquesta api+web), gen-ontologia.mjs
-docker-compose.yml   db + api + web, un comando
+docker-compose.yml   plataforma completa, un comando
 ```
+
+El checklist de salida comercial está en `docs/SAAS-READINESS.md`.

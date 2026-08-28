@@ -24,7 +24,10 @@
 #                `latest` cannot answer it.
 #   WEB_ORIGIN   the real public origin, for CORS and cookies
 #   plus every secret the base file already demands: POSTGRES_PASSWORD,
-#   RABBITMQ_PASSWORD, JWT_SECRET, IA_SECRETO.
+#   RABBITMQ_PASSWORD, JWT_SECRET, IA_SECRETO, QUEUE_SECRETO, DATA_SECRETO,
+#   PAYMENTS_SECRET, PAYMENTS_DB_PASSWORD, MESSAGES_SECRET,
+#   MESSAGES_DB_PASSWORD, MP_ACCESS_TOKEN and
+#   MP_WEBHOOK_SECRET.
 
 services:
   init:
@@ -49,6 +52,18 @@ services:
       # laptop and wrong for a server: a cookie scoped to localhost never
       # arrives, so every request looks unauthenticated.
       WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN to the public origin}
+    restart: unless-stopped
+
+  payments:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/payments:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
+    environment:
+      PUBLIC_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN to the public origin}
+    restart: unless-stopped
+
+  messages:
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/messages:${TAG:?set TAG to a commit sha, not latest}
+    pull_policy: always
     restart: unless-stopped
 
   ia:

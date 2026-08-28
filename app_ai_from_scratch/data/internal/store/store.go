@@ -108,12 +108,12 @@ type Result struct {
 // Call runs one named operation. `actor` is the authenticated caller's own id,
 // established by the server from a verified identity -- never from the request
 // body.
-func (s *Store) Call(ctx context.Context, name string, actor int64, args map[string]any) (*Result, error) {
+func (s *Store) Call(ctx context.Context, name string, actor, authority int64, args map[string]any) (*Result, error) {
 	o, ok := s.ops[name]
 	if !ok {
 		return nil, ErrUnknownOperation
 	}
-	params, err := bind(o, actor, args)
+	params, err := bind(o, actor, authority, args)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (s *Store) Call(ctx context.Context, name string, actor int64, args map[str
 	defer cancel()
 
 	sql := o.SQL()
-	if o.Write {
+	if o.Write && len(o.Returns) == 0 {
 		tag, err := s.pool.Exec(ctx, sql, params...)
 		if err != nil {
 			return nil, fmt.Errorf("operation %s failed: %w", name, err)
@@ -272,7 +272,7 @@ func (s *Store) PlannableTables() map[string]string {
 // NULL silently changes what a WHERE clause matches, and `WHERE lab_id = NULL`
 // matches nothing, which reads as "you have no attempts" rather than as "the
 // caller sent a broken request".
-func bind(o op.Operation, actor int64, args map[string]any) ([]any, error) {
+func bind(o op.Operation, actor, authority int64, args map[string]any) ([]any, error) {
 	out := make([]any, 0, len(o.Params))
 	for i, p := range o.Params {
 		n := i + 1
@@ -284,6 +284,12 @@ func bind(o op.Operation, actor int64, args map[string]any) ([]any, error) {
 					"unauthenticated call cannot be served by substituting a value", o.Name)
 			}
 			out = append(out, actor)
+			continue
+		case op.Authority:
+			if authority <= 0 {
+				return nil, fmt.Errorf("operation %s needs an authenticated authority and the request carried none", o.Name)
+			}
+			out = append(out, authority)
 			continue
 		}
 		raw, present := args[p.Name]
@@ -351,7 +357,7 @@ func bind(o op.Operation, actor int64, args map[string]any) ([]any, error) {
 	for k := range args {
 		found := false
 		for _, p := range o.Params {
-			if p.Name == k && p.Kind != op.Actor {
+			if p.Name == k && p.Kind != op.Actor && p.Kind != op.Authority {
 				found = true
 				break
 			}

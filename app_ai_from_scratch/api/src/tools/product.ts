@@ -7,7 +7,7 @@
 //
 // The `descripcion` and `nota` strings stay Spanish: they are read by the model
 // (docs/NAMING.md).
-import { get } from '../db.ts';
+import { many, one } from '../data.ts';
 import {
   HOW_IT_WORKS, PRICE, ROUTES, SUPPORT, faqFor, inLanguage, routesFor,
 } from '../product.ts';
@@ -76,17 +76,18 @@ export const PRODUCT_TOOLS: Registry = {
     async fn(ctx: Ctx): Promise<ToolResult> {
       const u = await me(ctx);
       if (!u) return { error: 'sin_sesion' };
-      const attempts = await get<{ intentos: number }>(
-        'SELECT COUNT(*)::int AS intentos FROM attempts WHERE user_id = ?', [ctx.userId]);
-      const achievements = await get<{ c: number }>(
-        'SELECT COUNT(*)::int AS c FROM achievements WHERE user_id = ?', [ctx.userId]);
-      const alias = await get<{ alias: string }>(
-        'SELECT alias FROM ranking_optin WHERE user_id = ?', [ctx.userId]);
+      const [attempts, questionAttempts, achievements, alias] = await Promise.all([
+        one<{ intentos: number }>('attempt.count_mine', {}, ctx.userId),
+        one<{ intentos: number }>('qattempt.count_mine', {}, ctx.userId),
+        many<{ code: string }>('achievement.codes', {}, ctx.userId),
+        one<{ alias: string }>('ranking.mine', {}, ctx.userId),
+      ]);
       return {
         deTi: {
           nombreDePila: String(u.name).split(' ')[0], rol: u.role, idioma: u.lang, tema: u.theme,
-          pagado: !!u.paid, cuentaDesde: u.created_at, intentosGuardados: attempts?.intentos ?? 0,
-          logros: achievements?.c ?? 0, aliasPublico: alias?.alias ?? null,
+          pagado: !!u.paid, cuentaDesde: u.created_at,
+          intentosGuardados: (attempts?.intentos ?? 0) + (questionAttempts?.intentos ?? 0),
+          logros: achievements.length, aliasPublico: alias?.alias ?? null,
         },
         loQueElAgenteNoVe: ['el correo', 'la contraseña', 'los datos del pago', 'los datos de cualquier otra persona'],
         loQuePuedeVerOtraPersona: alias?.alias

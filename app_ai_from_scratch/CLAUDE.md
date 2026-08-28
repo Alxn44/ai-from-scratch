@@ -23,6 +23,8 @@ never edit it). Everything else is background reading in
 | `ai/` | Python + FastAPI, **uv** | The agent loop, model providers, and the ontology — the source of truth |
 | `web/` | Astro | The lessons, labs, chat, and the 12 animated lesson scenes |
 | `queue/` | Go + Fiber | The RabbitMQ topology between services |
+| `payments/` | TypeScript | Mercado Pago checkout and entitlements. Own Postgres. |
+| `messages/` | TypeScript | AI chat log. Own Postgres used as a JSONB document store. |
 | `scripts/` | Node + bash | Anything spanning more than one service |
 
 Postgres (Prisma owns the schema, `pg` runs the queries — no query engine in the

@@ -31,7 +31,8 @@ if [ -z "${RABBITMQ_PASSWORD:-}" ] && ! grep -qE '^RABBITMQ_PASSWORD=' .env 2>/d
 fi
 
 # --rm so a one-shot tool does not leave a stopped container behind on every run.
-# The service definition supplies AMQP_URL and IA_SECRETO from the environment.
+# The service definition supplies AMQP_URL from the environment; topology tools
+# do not call the queue HTTP surface and need no service secret.
 exec docker compose run --rm --no-deps \
   --entrypoint /queue-topology \
   queue "$@"

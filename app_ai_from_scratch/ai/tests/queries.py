@@ -12,7 +12,7 @@ suite a derivative of the paid corpus just as surely as holding them in
 WHERE NODE'S SEARCH LANDS IS NOT IN THIS FILE ANY MORE, and that is the point of
 the change. It used to be a third column here, a dict of 138 entries documented as
 «the measured output of the real ranking over the real content, frozen». It was
-wrong on 53 of them. The true substring hit rate is 70/138 (51%), not the 75 (54%)
+wrong on 53 of them. The true substring hit rate is 71/138 (51%), not the 75 (54%)
 this file claimed, so every comparison in the package was quoted against a column
 no run produces — and the test guarding it only checked that the typed dict summed
 to the number the docstring quoted, i.e. it compared the copy against itself.

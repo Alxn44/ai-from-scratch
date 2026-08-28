@@ -1,10 +1,11 @@
 {
   "name": "ia-desde-cero",
   "private": true,
+  "type": "module",
   "version": "1.0.0",
   "packageManager": "pnpm@10.15.0",
   "scripts": {
-    "setup": "pnpm --dir api install && pnpm --dir web install && uv --directory ai sync --extra dev",
+    "setup": "pnpm --dir api install && pnpm --dir payments install && pnpm --dir messages install && pnpm --dir web install && uv --directory ai sync --extra dev",
     "keys": "bash scripts/keys.sh",
     "dev": "node scripts/dev.mjs",
     "docker": "docker compose up --build",
@@ -24,6 +25,8 @@
     "concepts": "uv --directory ai run ai-check-concepts",
     "audit:passwords": "node --experimental-strip-types --env-file-if-exists=api/.env api/scripts/audit-passwords.mjs",
     "check:types": "pnpm --dir api check",
+    "check:payments": "pnpm --dir payments check && pnpm --dir payments test",
+    "check:messages": "pnpm --dir messages check && pnpm --dir messages test",
     "check:web": "pnpm --dir web exec astro check",
     "check:ontology": "node scripts/check-ontology-drift.mjs",
     "check:catalog": "node --experimental-strip-types scripts/emit-tool-catalog.mjs",

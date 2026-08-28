@@ -75,6 +75,9 @@ JWT="$(secreto "$BYTES")"
 # corta en el primer byte distinto. Un comentario que describe la implementacion
 # vieja es peor que ninguno: manda a revisar el sitio equivocado.)
 IA="$(secreto 32)"
+# Queue is a separate trust boundary. This value is accepted only by the
+# durable bus-claim route and is never valid for AI tools or chat.
+QUEUE="$(secreto 32)"
 # Sin simbolos porque va dentro de una URL de conexion: un + o un / ahi hay que
 # percent-encodearlo y la mitad de los clientes no lo hacen. Se piden 48 bytes y
 # se cortan 32 caracteres: tr -dc descarta +/= y con 24 bytes salia de 28 a 32,
@@ -94,6 +97,14 @@ MQPASS="$(secreto 48 | tr -dc 'A-Za-z0-9' | cut -c1-32)"
 # con menos de 32 o con una palabra de relleno dentro: no hay valor por defecto
 # que sirva, ni siquiera en desarrollo.
 DATASEC="$(secreto 32)"
+# Payment integration has its own trust and persistence boundaries. Reusing the
+# database or AI secret would make a leak in one service valid in another.
+PAYSEC="$(secreto 32)"
+PAYDBPASS="$(secreto 48 | tr -dc 'A-Za-z0-9' | cut -c1-32)"
+# AI chat logs live in their own Postgres. Reusing PAYMENTS_SECRET or IA_SECRETO
+# would make a leak in one service valid to read every conversation.
+MSGSEC="$(secreto 32)"
+MSGDBPASS="$(secreto 48 | tr -dc 'A-Za-z0-9' | cut -c1-32)"
 
 # What this run ACTUALLY did, so the closing report can tell the truth instead
 # of announcing a rotation that escribe() skipped. Space-separated, paths
@@ -139,6 +150,7 @@ NODE_ENV=development
 # secreto es compartido: tiene que ser el MISMO en api/.env y en ai/.env.
 IA_URL=http://127.0.0.1:8799
 IA_SECRETO=$IA
+QUEUE_SECRETO=$QUEUE
 
 # --- Servicio de datos (data/, Go) ------------------------------------------
 # api NO deberia tener DATABASE_URL: la credencial vive solo en data/ y en el
@@ -147,13 +159,32 @@ IA_SECRETO=$IA
 DATA_URL=http://127.0.0.1:8788
 DATA_SECRETO=$DATASEC
 
-# --- Mercado Pago: ESTOS TRES NO SE GENERAN --------------------------------
-# Los emite Mercado Pago y son de tu cuenta. Pegalos del panel:
-#   https://www.mercadopago.com.co/developers/panel/app
-# Sin los dos primeros, /api/payments responde 501 en vez de fingir un pago.
+# --- Pagos (repositorio/servicio independiente) -----------------------------
+PAYMENTS_URL=http://127.0.0.1:8785
+PAYMENTS_SECRET=$PAYSEC
+MESSAGES_URL=http://127.0.0.1:8786
+MESSAGES_SECRET=$MSGSEC"
+
+PAYMENTS_ENV="# Generado por scripts/keys.sh — servicio payments/.
+NODE_ENV=development
+HOST=127.0.0.1
+PORT=8785
+DATABASE_URL=postgres://payments:$PAYDBPASS@localhost:5433/payments
+PAYMENTS_SECRET=$PAYSEC
+PUBLIC_ORIGIN=http://localhost:4321
+ENTITLEMENTS_URL=http://localhost:8787/api/internal/entitlements
+
+# Los emite Mercado Pago; el generador no puede inventarlos.
 MP_ACCESS_TOKEN=
 MP_PUBLIC_KEY=
 MP_WEBHOOK_SECRET="
+
+MESSAGES_ENV="# Generado por scripts/keys.sh — servicio messages/.
+NODE_ENV=development
+HOST=127.0.0.1
+PORT=8786
+DATABASE_URL=postgres://messages:$MSGDBPASS@localhost:5436/messages
+MESSAGES_SECRET=$MSGSEC"
 
 WEB_ENV="# Generado por scripts/keys.sh
 API_URL=http://localhost:8787
@@ -182,16 +213,21 @@ PROVEEDOR_ORDEN="
 # only place Compose looks for interpolation values. The three secrets below are
 # declared with ${VAR:?} in docker-compose.yml, so a missing one aborts
 # `docker compose up` instead of silently starting with a known value.
-# POSTGRES_PASSWORD feeds BOTH the db service and the api's DATABASE_URL — it
-# used to be a literal `curso` in the yaml, which is why rotating it here did
-# nothing at all.
-ROOT_ENV="# Lo que lee docker-compose.yml por interpolacion. Sin estas cinco,
+# POSTGRES_PASSWORD feeds the db/data/init services. API and api-worker no longer
+# receive DATABASE_URL; they authenticate to data through DATA_SECRETO.
+ROOT_ENV="# Lo que lee docker-compose.yml por interpolacion. Sin estos secretos,
 # 'docker compose up' aborta: en el yaml van como \${VAR:?}, no con valor por defecto.
 JWT_SECRET=$JWT
 IA_SECRETO=$IA
+QUEUE_SECRETO=$QUEUE
 POSTGRES_PASSWORD=$DBPASS
 RABBITMQ_PASSWORD=$MQPASS
 DATA_SECRETO=$DATASEC
+PAYMENTS_SECRET=$PAYSEC
+PAYMENTS_DB_PASSWORD=$PAYDBPASS
+MESSAGES_SECRET=$MSGSEC
+MESSAGES_DB_PASSWORD=$MSGDBPASS
+PUBLIC_ORIGIN=http://localhost:4321
 MP_ACCESS_TOKEN=
 MP_PUBLIC_KEY=
 MP_WEBHOOK_SECRET="
@@ -199,9 +235,14 @@ MP_WEBHOOK_SECRET="
 if [ "$PRINT" -eq 1 ]; then
   echo "JWT_SECRET=$JWT"
   echo "IA_SECRETO=$IA"
+  echo "QUEUE_SECRETO=$QUEUE"
   echo "POSTGRES_PASSWORD=$DBPASS"
   echo "RABBITMQ_PASSWORD=$MQPASS"
   echo "DATA_SECRETO=$DATASEC"
+  echo "PAYMENTS_SECRET=$PAYSEC"
+  echo "PAYMENTS_DB_PASSWORD=$PAYDBPASS"
+  echo "MESSAGES_SECRET=$MSGSEC"
+  echo "MESSAGES_DB_PASSWORD=$MSGDBPASS"
   exit 0
 fi
 
@@ -226,7 +267,24 @@ fi
 escribe "$RAIZ/api/.env" "$API_ENV"
 escribe "$RAIZ/web/.env" "$WEB_ENV"
 escribe "$RAIZ/ai/.env"  "$AI_ENV"
+escribe "$RAIZ/payments/.env" "$PAYMENTS_ENV"
+escribe "$RAIZ/messages/.env" "$MESSAGES_ENV"
 escribe "$RAIZ/.env"     "$ROOT_ENV"
+
+# Existing installs: keys.sh does not rewrite .env files. Append the new
+# messages keys if they are missing so a second run without --force still
+# produces a working service.
+anadir_si_falta() {
+  local dest="$1" clave="$2" linea="$3"
+  [ -f "$dest" ] || return 0
+  grep -q "^${clave}=" "$dest" 2>/dev/null && return 0
+  printf '\n%s\n' "$linea" >> "$dest"
+  echo "  anadido $clave a ${dest#$RAIZ/}"
+}
+anadir_si_falta "$RAIZ/api/.env" "MESSAGES_URL" "MESSAGES_URL=http://127.0.0.1:8786"
+anadir_si_falta "$RAIZ/api/.env" "MESSAGES_SECRET" "MESSAGES_SECRET=$MSGSEC"
+anadir_si_falta "$RAIZ/.env" "MESSAGES_SECRET" "MESSAGES_SECRET=$MSGSEC"
+anadir_si_falta "$RAIZ/.env" "MESSAGES_DB_PASSWORD" "MESSAGES_DB_PASSWORD=$MSGDBPASS"
 
 if [ "$RSA" -eq 1 ]; then
   D="$RAIZ/scripts/keys"
@@ -245,7 +303,7 @@ fi
 
 # .gitignore: un secreto correcto en un archivo versionado no es un secreto.
 GI="$RAIZ/.gitignore"
-for l in '.env' '*.env' 'api/.env' 'web/.env' 'ai/.env' '.env.bak.*' 'scripts/keys/' 'ai/.venv/' '__pycache__/' '.pytest_cache/'; do
+for l in '.env' '*.env' 'api/.env' 'web/.env' 'ai/.env' 'payments/.env' 'messages/.env' '.env.bak.*' 'scripts/keys/' 'ai/.venv/' '__pycache__/' '.pytest_cache/'; do
   grep -qxF "$l" "$GI" 2>/dev/null || echo "$l" >> "$GI"
 done
 echo "  .gitignore cubre los .env y scripts/keys/"
@@ -257,7 +315,7 @@ echo
 # control: it stops anyone from looking. Only claim what actually happened.
 if [ -n "$ESCRITOS" ]; then
   echo "escrito en esta corrida:$ESCRITOS"
-  echo "  con JWT_SECRET ($BITS bits), IA_SECRETO y DATA_SECRETO (256 bits), POSTGRES_PASSWORD y RABBITMQ_PASSWORD (32 caracteres)"
+  echo "  con JWT_SECRET, IA_SECRETO, QUEUE_SECRETO, DATA_SECRETO, PAYMENTS_SECRET y MESSAGES_SECRET (256 bits), y claves separadas de Postgres/RabbitMQ"
 else
   echo "NO se escribio nada: los cuatro .env ya existian."
   echo "  los secretos generados en esta corrida se DESCARTAN. Nada roto."

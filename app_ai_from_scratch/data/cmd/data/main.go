@@ -161,7 +161,7 @@ func smoke(lg *slog.Logger) error {
 		if o.ActorIndex() > 0 {
 			actor = a.actor
 		}
-		res, err := st.Call(ctx, o.Name, actor, a.args)
+		res, err := st.Call(ctx, o.Name, actor, 0, a.args)
 		if err != nil {
 			fmt.Printf("  FAIL  %-32s %v\n", o.Name, err)
 			failed++
@@ -232,11 +232,15 @@ func probeArgs(ctx context.Context, dsn string) (map[string]probe, error) {
 	}
 	defer pool.Close()
 
-	var labID, email string
+	var labID, email, questionID string
 	var actor int64
 	if err := pool.QueryRow(ctx,
 		"SELECT id FROM labs ORDER BY lesson_n, idx LIMIT 1").Scan(&labID); err != nil {
 		return nil, fmt.Errorf("smoke: no labs in the database, so nothing can be exercised: %w", err)
+	}
+	if err := pool.QueryRow(ctx,
+		"SELECT id FROM questions ORDER BY pack, idx LIMIT 1").Scan(&questionID); err != nil {
+		return nil, fmt.Errorf("smoke: no questions in the database: %w", err)
 	}
 	if err := pool.QueryRow(ctx,
 		"SELECT email FROM users WHERE deleted_at IS NULL ORDER BY id LIMIT 1").Scan(&email); err != nil {
@@ -256,26 +260,69 @@ func probeArgs(ctx context.Context, dsn string) (map[string]probe, error) {
 	byID := map[string]any{"id": labID}
 	byLab := map[string]any{"lab_id": labID}
 	return map[string]probe{
-		"lesson.list":                 {args: map[string]any{}},
-		"lesson.get":                  {args: n},
-		"lesson.card":                 {args: n},
-		"lesson.index_with_text_flag": {args: map[string]any{}},
-		"lesson.search_corpus":        {args: map[string]any{}},
-		"lab.index":                   {args: map[string]any{}},
-		"lab.list_for_lesson":         {args: lesson},
-		"lab.list_for_lesson_locked":  {args: lesson},
-		"lab.get":                     {args: byID},
-		"lab.prompts":                 {args: map[string]any{}},
-		"lab.explanation":             {args: byID},
-		"lab.solution_for_grading":    {args: byID},
-		"lesson_text.get":             {args: map[string]any{"lesson_n": float64(3), "lang": "es"}},
-		"lesson_text.by_lang":         {args: map[string]any{"lang": "es"}},
-		"attempt.mine_for_lab":        {args: byLab, actor: actor},
-		"attempt.best_by_lab":         {args: map[string]any{}, actor: actor},
-		"attempt.count_for_lab":       {args: byLab, actor: actor},
-		"achievement.mine":            {args: map[string]any{}, actor: actor},
-		"user.me":                     {args: map[string]any{}, actor: actor},
-		"user.credentials_by_email":   {args: map[string]any{"login": email}},
+		"lesson.list":                    {args: map[string]any{}},
+		"lesson.get":                     {args: n},
+		"lesson.card":                    {args: n},
+		"lesson.index_with_text_flag":    {args: map[string]any{}},
+		"lesson.search_corpus":           {args: map[string]any{}},
+		"lab.index":                      {args: map[string]any{}},
+		"lab.list_for_lesson":            {args: lesson},
+		"lab.list_for_lesson_locked":     {args: lesson},
+		"lab.get":                        {args: byID},
+		"lab.prompts":                    {args: map[string]any{}},
+		"lab.explanation":                {args: byID},
+		"lab.solution_for_grading":       {args: byID},
+		"lesson_text.get":                {args: map[string]any{"lesson_n": float64(3), "lang": "es"}},
+		"lesson_text.by_lang":            {args: map[string]any{"lang": "es"}},
+		"attempt.mine_for_lab":           {args: byLab, actor: actor},
+		"attempt.best_by_lab":            {args: map[string]any{}, actor: actor},
+		"attempt.count_for_lab":          {args: byLab, actor: actor},
+		"achievement.mine":               {args: map[string]any{}, actor: actor},
+		"achievement.progress_by_lesson": {args: map[string]any{}, actor: actor},
+		"achievement.codes":              {args: map[string]any{}, actor: actor},
+		"ranking.table":                  {args: map[string]any{}},
+		"ranking.mine":                   {args: map[string]any{}, actor: actor},
+		"ranking.alias_clash":            {args: map[string]any{"alias": "smoke-never"}, actor: actor},
+		"lab.card_by_id":                 {args: byID},
+		"lab.count":                      {args: map[string]any{}},
+		"question.list_for_pack":         {args: map[string]any{"pack": "q01"}},
+		"question.card_by_id":            {args: map[string]any{"id": questionID}},
+		"question.explanation":           {args: map[string]any{"id": questionID}, actor: actor},
+		"question.solution_for_grading":  {args: map[string]any{"id": questionID}},
+		"question.packs":                 {args: map[string]any{}},
+		"qattempt.best_by_question":      {args: map[string]any{}, actor: actor},
+		"qattempt.count_mine":            {args: map[string]any{}, actor: actor},
+		"attempt.stuck_summary":          {args: map[string]any{}},
+		"progress.pending_labs":          {args: map[string]any{}, actor: actor},
+		"progress.active_days":           {args: map[string]any{"zone": "America/Bogota"}, actor: actor},
+		"progress.inactivity_gap":        {args: map[string]any{"zone": "America/Bogota"}, actor: actor},
+		"progress.failed_labs":           {args: map[string]any{}, actor: actor},
+		"progress.wrong_attempts":        {args: map[string]any{}, actor: actor},
+		"progress.weekly_pace":           {args: map[string]any{"zone": "America/Bogota"}, actor: actor},
+		"progress.solved_count":          {args: map[string]any{}, actor: actor},
+		"progress.history":               {args: map[string]any{"days": float64(7)}, actor: actor},
+		"attempt.count_mine":             {args: map[string]any{}, actor: actor},
+		"league.flow":                    {args: map[string]any{"zone": "America/Bogota"}},
+		"league.current_week":            {args: map[string]any{"zone": "America/Bogota"}},
+		"league.previous":                {args: map[string]any{"zone": "America/Bogota"}, actor: actor},
+		"counter.read":                   {args: map[string]any{"key": "smoke-counter-never-used"}},
+		"job.state_counts":               {args: map[string]any{}},
+		"job.oldest_due":                 {args: map[string]any{}},
+		"job.orphans":                    {args: map[string]any{"handled": ""}},
+		"tutor.students_all":             {args: map[string]any{}},
+		"tutor.students_cohort":          {args: map[string]any{"cohort": "smoke-never"}},
+		"tutor.stuck_all":                {args: map[string]any{}},
+		"tutor.stuck_cohort":             {args: map[string]any{"cohort": "smoke-never"}},
+		"auth.user":                      {args: map[string]any{}, actor: actor},
+		"auth.user_by_email":             {args: map[string]any{"login": email}},
+		"auth.throttle":                  {args: map[string]any{}, actor: actor},
+		"auth.recovery_by_email":         {args: map[string]any{"login": email}},
+		"auth.reset_rate":                {args: map[string]any{}, actor: actor},
+		"auth.reset_lookup":              {args: map[string]any{"token": "smoke-token-never-used"}},
+		"auth.admin_count":               {args: map[string]any{}},
+		"auth.admin_users":               {args: map[string]any{}},
+		"user.me":                        {args: map[string]any{}, actor: actor},
+		"user.credentials_by_email":      {args: map[string]any{"login": email}},
 	}, nil
 }
 

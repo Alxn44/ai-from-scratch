@@ -7,7 +7,7 @@
 //
 // The `descripcion` and `nota` strings stay Spanish: they are read by the model
 // (docs/NAMING.md).
-import { all, get } from '../db.ts';
+import { many, one } from '../data.ts';
 import type { AchievementRow, AttemptRow, LessonRow } from '../db.ts';
 import { assertNoForbidden } from '../ontology.ts';
 import { LESSON_GRADES, MAX_RANK, achievementsFor, lessonCode, rankCode } from '../achievements.ts';
@@ -15,7 +15,7 @@ import { MIN_LEAGUE, METALS, ZONE, assignMetals, currentWeek, flow } from '../le
 import { PRICE } from '../product.ts';
 import { bus, enqueue, seed, top, viewQueue } from '../agent-bus.ts';
 import {
-  COLS_LAB, FREE_LESSONS, LAB_ID, TOTAL_LABS, activeDays, completed, computeStreak,
+  FREE_LESSONS, LAB_ID, TOTAL_LABS, activeDays, completed, computeStreak,
   hasAccess, language, leagueFor, lockedByPaywall, me, mechanicIn, memoKey, nextStep,
   pending, perLesson, readableLessons, truncate,
 } from './access.ts';
@@ -64,13 +64,34 @@ export const PROGRESS_TOOLS: Registry = {
 
   mi_progreso: {
     familia: 'propio', publico: false,
-    descripcion: 'Cuántas lecciones y labs lleva resueltos la persona de esta sesión, lección por lección.',
+    descripcion: 'Cuántas lecciones, labs, quizzes y exámenes lleva resueltos la persona de esta sesión, lección por lección.',
     args: {},
     async fn(ctx: Ctx): Promise<ToolResult> {
       const rows = await perLesson(ctx);
+      const [packs, best] = await Promise.all([
+        many<{ pack: string; kind: string; total: number }>('question.packs'),
+        many<{ question_id: string; solved: number | null }>('qattempt.best_by_question', {}, ctx.userId),
+      ]);
+      const solved = new Set(best.filter((b) => b.solved === 1).map((b) => b.question_id));
+      const currentIds = new Map(await Promise.all(packs.map(async (p) => [
+        p.pack, new Set((await many<{ id: string }>('question.list_for_pack', { pack: p.pack })).map((r) => r.id)),
+      ] as const)));
+      const quizPacks = packs.filter((p) => p.kind === 'quiz');
+      const examPacks = packs.filter((p) => p.kind === 'exam');
+      const quizzesHechos = quizPacks.filter((p) =>
+        [...solved].filter((id) => currentIds.get(p.pack)?.has(id)).length >= (currentIds.get(p.pack)?.size ?? 0)).length;
+      const examenes = examPacks.map((p) => {
+        const ids = currentIds.get(p.pack) ?? new Set<string>();
+        const acertadas = [...solved].filter((id) => ids.has(id)).length;
+        const corte = Math.ceil(ids.size * 0.7);
+        return { n: Number(p.pack.slice(1)), acertadas, total: ids.size, corte, aprobado: acertadas >= corte };
+      });
       return {
         labsResueltos: rows.reduce((s, r) => s + r.resueltos, 0), totalLabs: TOTAL_LABS,
         leccionesCerradas: completed(rows), porLeccion: rows,
+        quizzesHechos, quizzesTotal: quizPacks.length,
+        examenesAprobados: examenes.filter((e) => e.aprobado).length,
+        examenes,
       };
     },
   },
@@ -82,22 +103,27 @@ export const PROGRESS_TOOLS: Registry = {
     async fn(ctx: Ctx, { lab_id }): Promise<ToolResult> {
       const id = String(lab_id ?? '');
       if (!LAB_ID.test(id)) return { error: 'lab_invalido' };
-      const attempts = await all<Pick<AttemptRow, 'lab_id' | 'answer' | 'correct' | 'at'>>(
-        'SELECT lab_id, answer, correct, at FROM attempts WHERE user_id = ? AND lab_id = ? ORDER BY at',
-        [ctx.userId, id]);
-      const lab = await get<SafeLab>(`SELECT ${COLS_LAB} FROM labs WHERE id = ?`, [id]);
-      if (!lab) return { error: 'no_existe' };
+      const card = await one<Pick<SafeLab, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>>(
+        'lab.card_by_id', { id });
+      if (!card) return { error: 'no_existe' };
       // Found by obligation P4, not by a person: this tool returns labs.prompt,
       // labs.payload and labs.explanation, all three behind the paywall, and it
       // never checked. Own attempts are not a licence to read the statement of a
       // lesson this account cannot open.
-      if (!(await readableLessons(ctx)).has(Number(lab.lesson_n))) return lockedByPaywall(Number(lab.lesson_n));
+      if (!(await readableLessons(ctx)).has(Number(card.lesson_n))) return lockedByPaywall(Number(card.lesson_n));
+      const [lab, attemptsDesc] = await Promise.all([
+        one<SafeLab>('lab.get', { id }),
+        many<Pick<AttemptRow, 'lab_id' | 'answer' | 'correct' | 'at'>>(
+          'attempt.mine_for_lab', { lab_id: id }, ctx.userId),
+      ]);
+      if (!lab) return { error: 'no_existe' };
+      const attempts = attemptsDesc.reverse();
       assertNoForbidden('labs', lab);
       // The explanation behaves the same as in the interface: it appears once
       // there has been an attempt, not before. With no attempts there is nothing
       // to explain.
       const explanation = attempts.length
-        ? assertNoForbidden('labs', await get<{ explanation: string }>('SELECT explanation FROM labs WHERE id = ?', [id]))?.explanation ?? null
+        ? assertNoForbidden('labs', await one<{ explanation: string }>('lab.explanation', { id }))?.explanation ?? null
         : null;
       return {
         lab, intentos: attempts, resuelto: attempts.some((i) => i.correct === 1),
@@ -161,19 +187,13 @@ export const PROGRESS_TOOLS: Registry = {
     descripcion: 'Los labs que intentó y no ha resuelto, con lo que respondió y qué mecánica se le atraviesa. Aquí está el patrón del error. Los deja en la cola.',
     args: {},
     async fn(ctx: Ctx): Promise<ToolResult> {
-      const failed = await all<{
-        lab_id: string; intentos: number; ultimo: Date;
+      const failed = await many<{
+        lab_id: string; intentos: number; ultimo: string;
         lesson_n: number; level: string; kind: string; prompt: string;
-      }>(`
-        SELECT a.lab_id, COUNT(*)::int AS intentos, MAX(a.at) AS ultimo, l.lesson_n, l.level, l.kind, l.prompt
-        FROM attempts a JOIN labs l ON l.id = a.lab_id
-        WHERE a.user_id = ?
-        GROUP BY a.lab_id, l.lesson_n, l.level, l.kind, l.prompt
-        HAVING MAX(a.correct) = 0
-        ORDER BY MAX(a.at) DESC`, [ctx.userId]);
+      }>('progress.failed_labs', {}, ctx.userId);
       if (!failed.length) return { atascados: 0, labs: [], porMecanica: [], nota: 'No hay labs intentados sin resolver.' };
-      const wrong = await all<Pick<AttemptRow, 'lab_id' | 'answer' | 'at'>>(
-        'SELECT lab_id, answer, at FROM attempts WHERE user_id = ? AND correct = 0 ORDER BY at DESC', [ctx.userId]);
+      const wrong = await many<Pick<AttemptRow, 'lab_id' | 'answer' | 'at'>>(
+        'progress.wrong_attempts', {}, ctx.userId);
       const perLab = new Map<string, { respuesta: string; at: Date }[]>();
       for (const m of wrong) {
         const xs = perLab.get(m.lab_id) ?? [];
@@ -228,16 +248,12 @@ export const PROGRESS_TOOLS: Registry = {
     descripcion: 'Cuántos labs resuelve por semana y, a ese ritmo, cuánto le falta para terminar los 36. Responde «¿cuánto me queda?».',
     args: {},
     async fn(ctx: Ctx): Promise<ToolResult> {
-      const weeks = await all<{ semana: string; labs: number }>(`
-        SELECT to_char(date_trunc('week', (p.cuando AT TIME ZONE ?)), 'YYYY-MM-DD') AS semana,
-               COUNT(*)::int AS labs
-        FROM (SELECT lab_id, MIN(at) AS cuando FROM attempts WHERE user_id = ? AND correct = 1 GROUP BY lab_id) p
-        GROUP BY 1 ORDER BY 1 DESC LIMIT 6`, [ZONE, ctx.userId]);
+      const weeks = await many<{ semana: string; labs: number }>(
+        'progress.weekly_pace', { zone: ZONE }, ctx.userId);
       // The total is counted separately: adding up the six weeks in the list would
       // tell someone who started a year ago that they are missing labs they have
       // already solved.
-      const total = await get<{ c: number }>(
-        'SELECT COUNT(DISTINCT lab_id)::int AS c FROM attempts WHERE user_id = ? AND correct = 1', [ctx.userId]);
+      const total = await one<{ c: number }>('progress.solved_count', {}, ctx.userId);
       const done = total?.c ?? 0;
       const recent = weeks.slice(0, 4);
       const mean = recent.length ? recent.reduce((s, r) => s + r.labs, 0) / recent.length : 0;
@@ -258,11 +274,8 @@ export const PROGRESS_TOOLS: Registry = {
     async fn(ctx: Ctx, { dias }): Promise<ToolResult> {
       const d = dias === undefined || dias === null || dias === '' ? 7 : Number(dias);
       if (!Number.isInteger(d) || d < 1 || d > 30) return { error: 'dias_invalido' };
-      const rows = await all<{ lab_id: string; correct: number; at: Date; lesson_n: number }>(`
-        SELECT a.lab_id, a.correct, a.at, l.lesson_n
-        FROM attempts a JOIN labs l ON l.id = a.lab_id
-        WHERE a.user_id = ? AND a.at >= now() - (? || ' days')::interval
-        ORDER BY a.at DESC LIMIT 40`, [ctx.userId, d]);
+      const rows = await many<{ lab_id: string; correct: number; at: string; lesson_n: number }>(
+        'progress.history', { days: d }, ctx.userId);
       return {
         dias: d, intentos: rows.length,
         aciertos: rows.filter((f) => f.correct === 1).length,
@@ -279,7 +292,7 @@ export const PROGRESS_TOOLS: Registry = {
     async fn(ctx: Ctx): Promise<ToolResult> {
       const u = await me(ctx);
       if (!u) return { error: 'sin_sesion' };
-      const lessons = await all<Pick<LessonRow, 'n' | 'title'>>('SELECT n, title FROM lessons ORDER BY n');
+      const lessons = await many<Pick<LessonRow, 'n' | 'title'>>('lesson.list');
       const open = lessons.filter((l) => hasAccess(u, l.n)).map((l) => l.n);
       const locked = lessons.filter((l) => !hasAccess(u, l.n)).map((l) => l.n);
       return {
@@ -300,9 +313,8 @@ export const PROGRESS_TOOLS: Registry = {
     async fn(ctx: Ctx): Promise<ToolResult> {
       const rows = await perLesson(ctx);
       const done = completed(rows);
-      const earned = await all<Pick<AchievementRow, 'code' | 'kind' | 'lesson_n' | 'earned_at'>>(
-        'SELECT code, kind, lesson_n, earned_at FROM achievements WHERE user_id = ? ORDER BY earned_at DESC LIMIT 8',
-        [ctx.userId]);
+      const earned = (await many<Pick<AchievementRow, 'code' | 'kind' | 'lesson_n' | 'earned_at'>>(
+        'achievement.mine', {}, ctx.userId)).slice(0, 8);
       earned.forEach((g) => assertNoForbidden('achievements', g));
       return {
         leccionesCerradas: done,
@@ -322,8 +334,8 @@ export const PROGRESS_TOOLS: Registry = {
     async fn(ctx: Ctx): Promise<ToolResult> {
       const rows = await perLesson(ctx);
       const should = achievementsFor(rows.map((r) => ({ n: r.n, solved: r.resueltos, total: r.total })));
-      const has = new Set((await all<{ code: string }>(
-        'SELECT code FROM achievements WHERE user_id = ?', [ctx.userId])).map((r) => r.code));
+      const has = new Set((await many<{ code: string }>(
+        'achievement.codes', {}, ctx.userId)).map((r) => r.code));
       const missing: { code: string; kind: string; leccion?: number; comoSeGana: string; teFaltan: number }[] = [];
       for (const r of rows) {
         for (let i = 0; i < LESSON_GRADES.length; i++) {
@@ -388,7 +400,7 @@ export const PROGRESS_TOOLS: Registry = {
       // The user_id never goes out: the alias is the only public thing about
       // another person.
       const table = assignMetals(rows).map(({ user_id, ...r }) => r);
-      const mine = await get<{ alias: string }>('SELECT alias FROM ranking_optin WHERE user_id = ?', [ctx.userId]);
+      const mine = await one<{ alias: string }>('ranking.mine', {}, ctx.userId);
       return {
         activa: true, semana: week, zona: ZONE, metales: METALS, participantes: table.length,
         tabla: table.slice(0, 30), miAlias: mine?.alias ?? null, ruta: '/ligas',
@@ -403,20 +415,11 @@ export const PROGRESS_TOOLS: Registry = {
     async fn(ctx: Ctx): Promise<ToolResult> {
       // Alias only: no tool exposes the alias -> name/email mapping, so «who is
       // kata.mono» has no answer down this path.
-      const table = await all<{ alias: string; lecciones: number }>(`
-        SELECT o.alias, COUNT(DISTINCT hechas.lesson_n)::int AS lecciones
-        FROM ranking_optin o
-        LEFT JOIN (
-          SELECT a.user_id, l.lesson_n
-          FROM labs l
-          JOIN attempts a ON a.lab_id = l.id AND a.correct = 1
-          GROUP BY a.user_id, l.lesson_n
-          HAVING COUNT(DISTINCT a.lab_id) = (SELECT COUNT(*) FROM labs x WHERE x.lesson_n = l.lesson_n)
-        ) hechas ON hechas.user_id = o.user_id
-        GROUP BY o.alias, o.joined_at
-        ORDER BY lecciones DESC, o.joined_at ASC
-        LIMIT 20`);
-      const mine = await get<{ alias: string }>('SELECT alias FROM ranking_optin WHERE user_id = ?', [ctx.userId]);
+      const [allRows, mine] = await Promise.all([
+        many<{ alias: string; lecciones: number; labs: number }>('ranking.table'),
+        one<{ alias: string }>('ranking.mine', {}, ctx.userId),
+      ]);
+      const table = allRows.slice(0, 20).map(({ alias, lecciones }) => ({ alias, lecciones }));
       return {
         disponible: true,
         apuntado: !!mine,

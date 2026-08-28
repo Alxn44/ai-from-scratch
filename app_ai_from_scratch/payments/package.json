@@ -1,0 +1,23 @@
+{
+  "name": "@course/payments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "node --experimental-strip-types --env-file-if-exists=.env --watch src/server.ts",
+    "build": "tsgo -p tsconfig.json",
+    "check": "tsgo -p tsconfig.json --noEmit",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.18.0",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2"
+  }
+}

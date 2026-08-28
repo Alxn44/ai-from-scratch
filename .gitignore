@@ -97,3 +97,13 @@ claves/
 /landing-full.png
 /registro-en-oscuro.png
 /cotizacion-*.html
+
+# --- Ruido de herramientas locales ---
+# Nada de esto es del proyecto: son artefactos de las herramientas con las que
+# trabajo en esta maquina. Se nombran porque `git status` los lista en cada
+# commit y acaban entrando por un `git add -A` distraido.
+.commandcode/
+.playwright-cli/
+opencode.json
+tmp/
+app_ai_from_scratch/output/

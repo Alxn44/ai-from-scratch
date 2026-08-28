@@ -513,54 +513,32 @@ export function publishOn(
 //   · done              -> skip, forever
 // A failed handler DELETES its own claim, so the scheduled retry is not mistaken
 // for a duplicate.
-const CLAIM_TYPE = 'bus.claim';
 const PRUNE_MS = 60 * 60 * 1000;
 let pruned = 0;
-
-// db.ts is imported lazily so that this module can be loaded by a test with no
-// DATABASE_URL: importing it eagerly builds a pool and, outside development,
-// throws at import time. A transport library must be readable without a database.
-const dbGet = async <T>(sql: string, params: readonly (string | number)[]): Promise<T | null> =>
-  (await import('./db.ts')).get<T>(sql, params);
-const dbRun = async (sql: string, params: readonly (string | number)[]): Promise<unknown> =>
-  (await import('./db.ts')).run(sql, params);
 
 /** Postgres-backed claims. */
 export function pgClaims({ worker, leaseS = 300 }: { worker: string; leaseS?: number }): Claims {
   return {
     async claim(key) {
-      const row = await dbGet<{ ok: number }>(
-        `INSERT INTO jobs (tipo, clave, datos, estado, acabado_en)
-         VALUES (?, ?, jsonb_build_object('state','running','owner',?::text,'at',to_jsonb(now())), 'hecho', now())
-         ON CONFLICT (tipo, clave) DO UPDATE
-            SET datos = jsonb_build_object('state','running','owner',?::text,'at',to_jsonb(now()))
-          WHERE jobs.datos->>'state' = 'running'
-            AND (jobs.datos->>'owner' = ?::text
-                 OR (jobs.datos->>'at')::timestamptz < now() - make_interval(secs => ?::double precision))
-         RETURNING 1 AS ok`,
-        [CLAIM_TYPE, String(key), worker, worker, worker, leaseS]);
+      const { writeMany, write } = await import('./data.ts');
+      const rows = await writeMany<{ clave: string }>('bus.claim', {
+        key: String(key), worker, lease: leaseS,
+      });
       // Nothing else prunes this table, so old 'done' rows are swept at most
       // once an hour per process — same policy as the counters in jobs.ts.
       if (Date.now() - pruned > PRUNE_MS) {
         pruned = Date.now();
-        await dbRun(`DELETE FROM jobs WHERE tipo = ? AND creado_en < now() - interval '30 days'`, [CLAIM_TYPE]);
+        await write('bus.prune');
       }
-      return Boolean(row);
+      return rows.length > 0;
     },
     async complete(key) {
-      await dbRun(
-        `UPDATE jobs
-            SET datos = jsonb_build_object('state','done','owner',?::text,'at',to_jsonb(now())),
-                acabado_en = now()
-          WHERE tipo = ? AND clave = ?`,
-        [worker, CLAIM_TYPE, String(key)]);
+      const { write } = await import('./data.ts');
+      await write('bus.complete', { key: String(key), worker });
     },
     async release(key) {
-      await dbRun(
-        `DELETE FROM jobs
-          WHERE tipo = ? AND clave = ?
-            AND datos->>'state' = 'running' AND datos->>'owner' = ?::text`,
-        [CLAIM_TYPE, String(key), worker]);
+      const { write } = await import('./data.ts');
+      await write('bus.release', { key: String(key), worker });
     },
   };
 }

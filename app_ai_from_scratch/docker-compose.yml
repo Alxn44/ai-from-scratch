@@ -37,6 +37,88 @@ services:
       timeout: 3s
       retries: 20
 
+  # Separate persistence boundary for the extractable payments repository.
+  # It stores provider payloads and webhook history; the course database sees
+  # only idempotent entitlement events and never receives Mercado Pago secrets.
+  payments-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: ${PAYMENTS_DB_PASSWORD:?run scripts/keys.sh first}
+      POSTGRES_DB: payments
+    volumes:
+      - paymentsdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments -d payments"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  payments:
+    build: ./payments
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8785"
+      DATABASE_URL: postgres://payments:${PAYMENTS_DB_PASSWORD:?run scripts/keys.sh first}@payments-db:5432/payments
+      PAYMENTS_SECRET: ${PAYMENTS_SECRET:?run scripts/keys.sh first}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:?configure Mercado Pago first}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:?configure Mercado Pago first}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:4321}
+      ENTITLEMENTS_URL: http://api:8787/api/internal/entitlements
+    depends_on:
+      payments-db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    expose: ["8785"]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8785/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # Separate persistence boundary for AI chat. JSONB documents, no person
+  # tables, no foreign keys into curso. The API injects userId from the cookie.
+  messages-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: messages
+      POSTGRES_PASSWORD: ${MESSAGES_DB_PASSWORD:?run scripts/keys.sh first}
+      POSTGRES_DB: messages
+    volumes:
+      - messagesdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U messages -d messages"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  messages:
+    build: ./messages
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8786"
+      DATABASE_URL: postgres://messages:${MESSAGES_DB_PASSWORD:?run scripts/keys.sh first}@messages-db:5432/messages
+      MESSAGES_SECRET: ${MESSAGES_SECRET:?run scripts/keys.sh first}
+    depends_on:
+      messages-db:
+        condition: service_healthy
+    expose: ["8786"]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8786/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   # ---------------------------------------------------------------------------
   # init: applies the schema, then seeds content. Runs ONCE and exits.
   #
@@ -68,11 +150,11 @@ services:
     volumes:
       - brokerdata:/var/lib/rabbitmq
     ports:
-      # Management UI on loopback ONLY. Published on 0.0.0.0 it is a credentialed
-      # admin console reachable from the network, and on Linux Docker's DNAT skips
-      # host INPUT rules. AMQP itself is not published at all: only sibling
-      # containers speak it.
+      # Management and AMQP stay on loopback ONLY. Morpheus runs in the host
+      # namespace to inspect real listeners, so it reaches AMQP through this
+      # loopback binding; neither endpoint is exposed to the LAN.
       - "127.0.0.1:15672:15672"
+      - "127.0.0.1:5672:5672"
     healthcheck:
       # CMD-SHELL, not CMD: the exec form passes `&&` as a literal ARGUMENT, so
       # the first written version failed with `too many arguments` and the service
@@ -90,11 +172,19 @@ services:
 
   init:
     build:
-      context: ./api
+      context: .
+      dockerfile: api/Dockerfile
       target: migrate
     environment:
       DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
+      # Prisma loads prisma.config.ts before running migrate deploy. The command
+      # does not use the shadow database, but the config requires this variable
+      # to exist while it is being evaluated.
+      SHADOW_DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso_shadow
       NODE_ENV: production
+      # seed imports the auth KDF to create any explicitly enabled demo account;
+      # auth validates its session key at module load even when demo seeding is off.
+      JWT_SECRET: ${JWT_SECRET:?run scripts/keys.sh first}
       # Demo accounts stay off unless asked for, and refuse to exist under
       # NODE_ENV=production at all. This used to plant an admin with a password
       # committed to the repository, on every single start.
@@ -147,20 +237,19 @@ services:
     restart: unless-stopped
 
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     environment:
-      # Same secret the db service gets, interpolated from the compose .env —
-      # not a literal. A literal here is what made scripts/keys.sh rotate a
-      # password nothing read. The generator keeps it alphanumeric on purpose:
-      # a + or a / inside a connection URL needs percent-encoding.
-      DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
-      WEB_ORIGIN: http://localhost:4321
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:4321}
       HOST: 0.0.0.0
       PORT: "8787"
-      # Sin estas dos el checkout responde 501 en vez de fingir un pago.
-      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
-      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
-      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+      # The API has no provider credential. It authenticates to the independent
+      # payments service and receives only checkout/entitlement contracts.
+      PAYMENTS_URL: http://payments:8785
+      PAYMENTS_SECRET: ${PAYMENTS_SECRET:?run scripts/keys.sh first}
+      MESSAGES_URL: http://messages:8786
+      MESSAGES_SECRET: ${MESSAGES_SECRET:?run scripts/keys.sh first}
       NODE_ENV: production
       # No default. A known signing key is a forgeable admin session; compose
       # refuses to start rather than hand out one everybody can read.
@@ -168,16 +257,15 @@ services:
       # Secreto compartido con el servicio de IA. Sin el, /api/chat responde 501.
       IA_URL: http://ia:8799
       IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
-      # Servicio de datos. Mientras la migracion siga en curso api conserva
-      # DATABASE_URL arriba; el objetivo es borrarlo y quedarse solo con esto.
+      # Separate service identity, accepted only by the durable bus-claim route.
+      QUEUE_SECRETO: ${QUEUE_SECRETO:?run scripts/keys.sh first}
+      # The only database path. API has no DATABASE_URL by construction.
       DATA_URL: http://data:8788
       DATA_SECRETO: ${DATA_SECRETO:?run scripts/keys.sh first}
       AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
     # No command override: the image's CMD is just the server now. Schema and
     # seed belong to the `init` service.
     depends_on:
-      db:
-        condition: service_healthy
       # service_completed_successfully, not service_started: the API must not
       # accept traffic against a schema that has not been applied. If init fails,
       # api never starts — which is the correct outcome, loudly.
@@ -190,8 +278,12 @@ services:
         condition: service_healthy
       data:
         condition: service_healthy
+      payments:
+        condition: service_healthy
+      messages:
+        condition: service_healthy
     ports:
-      - "8787:8787"
+      - "${API_HOST_BIND:-0.0.0.0}:${API_HOST_PORT:-8787}:8787"
     # /api/health touches the labs table, so a green answer means: seed finished,
     # migrations applied, the pool works and the port is bound. That is exactly
     # the gate web needs — without it web served pages mid-seed.
@@ -206,6 +298,9 @@ services:
 
   ia:
     build: ./ai
+    env_file:
+      - path: ./ai/.env
+        required: false
     environment:
       # El puente de vuelta: la IA pide a la API que ejecute las herramientas,
       # porque la API es la unica que tiene la sesion del usuario.
@@ -213,13 +308,6 @@ services:
       IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
       PORT: "8799"
       # Basta UNA. El orden se fija con PROVEEDOR_ORDEN.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      KIMI_API_KEY: ${KIMI_API_KEY:-}
-      HF_TOKEN: ${HF_TOKEN:-}
-      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
-      PROVEEDOR_ORDEN: ${PROVEEDOR_ORDEN:-}
       AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
     # No se publica puerto al host a proposito: solo lo llama la API por la red
     # interna. Es un servicio interno, no una API publica.
@@ -244,16 +332,16 @@ services:
   # except the broker.
   # ---------------------------------------------------------------------------
   api-worker:
-    build: ./api
-    command: ["node", "dist/src/worker.js"]
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    command: ["node", "dist/api/src/worker.js"]
     environment:
-      DATABASE_URL: postgres://curso:${POSTGRES_PASSWORD:?run scripts/keys.sh first}@db:5432/curso
       NODE_ENV: production
       JWT_SECRET: ${JWT_SECRET:?run scripts/keys.sh first}
       IA_URL: http://ia:8799
       IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
-      # Servicio de datos. Mientras la migracion siga en curso api conserva
-      # DATABASE_URL arriba; el objetivo es borrarlo y quedarse solo con esto.
+      # The worker uses the same closed data catalogue as the HTTP runtime.
       DATA_URL: http://data:8788
       DATA_SECRETO: ${DATA_SECRETO:?run scripts/keys.sh first}
       AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
@@ -269,17 +357,13 @@ services:
   ai-worker:
     build: ./ai
     command: ["python", "-m", "course_ai.worker"]
+    env_file:
+      - path: ./ai/.env
+        required: false
     environment:
       NODE_URL: http://api:8787
       IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
       AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      KIMI_API_KEY: ${KIMI_API_KEY:-}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      HF_TOKEN: ${HF_TOKEN:-}
-      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
-      PROVEEDOR_ORDEN: ${PROVEEDOR_ORDEN:-}
     depends_on:
       broker:
         condition: service_healthy
@@ -294,21 +378,18 @@ services:
     build: ./queue
     environment:
       AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@broker:5672/
-      # NOTE: this is the AI service's shared secret, reused. One credential across two
-      # trust boundaries — see the finding in docs/SECURITY-AUDIT.md. Kept as-is because
-      # queue/internal/config/config.go reads this name; splitting it is a coordinated
-      # change across keys.sh, compose and Go, and is cheapest now while nothing calls
-      # this service.
-      IA_SECRETO: ${IA_SECRETO:?run scripts/keys.sh first}
+      # Queue authenticates as queue, never as the AI service.
+      QUEUE_SECRETO: ${QUEUE_SECRETO:?run scripts/keys.sh first}
       APP_ENV: production
       PORT: "8790"
       # The at-most-once claim store. Empty means in-memory claims, which the service
       # reports as a warning on /health rather than hiding: a redelivery after a restart
-      # can then run a handler twice. It points at api's claim route, which does not
-      # exist yet.
-      BUS_CLAIM_URL: ${BUS_CLAIM_URL:-}
+      # can then run a handler twice. Production is wired to the durable API route.
+      BUS_CLAIM_URL: http://api:8787/api/v3/interno/bus/claim
     depends_on:
       broker:
+        condition: service_healthy
+      api:
         condition: service_healthy
     # Not published, like `ia`. Putting an enqueue endpoint on the host buys nothing —
     # queue/tools/ reaches it from inside the network. If you ever need host curl access,
@@ -326,12 +407,16 @@ services:
     restart: unless-stopped
 
   web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        PUBLIC_SITE: ${PUBLIC_SITE:-${PUBLIC_ORIGIN:-http://localhost:4321}}
     environment:
       API_URL: http://api:8787
       HOST: 0.0.0.0
       PORT: "4321"
       MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+      PUBLIC_SITE: ${PUBLIC_SITE:-${PUBLIC_ORIGIN:-http://localhost:4321}}
     depends_on:
       # Was a bare `- api`, i.e. service_started: web accepted traffic while the
       # api was still seeding, and every page that reads the session got a
@@ -339,7 +424,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "4321:4321"
+      - "${WEB_HOST_BIND:-0.0.0.0}:${WEB_HOST_PORT:-4321}:4321"
     # /robots.txt is server-rendered but talks to nothing: it proves the Astro
     # node server is answering without making web's health depend on the api a
     # second time (depends_on already does that).
@@ -385,14 +470,17 @@ services:
     network_mode: host
     environment:
       APP_ENV: production
-      # host networking means no DNS name for the broker; the published port on
-      # the host is not open, so morpheus reports on stdout and the audit log.
-      AMQP_URL: ""
+      # Host networking has no Compose DNS. broker publishes AMQP only on
+      # loopback, so this agent can report without exposing AMQP to the LAN.
+      AMQP_URL: amqp://app:${RABBITMQ_PASSWORD:?run scripts/keys.sh first}@127.0.0.1:5672/
       DEFENSE_MODE: propose
       DEFENSE_SCAN_EVERY: 15m
       DEFENSE_AUDIT: /var/lib/defense/audit.jsonl
     volumes:
       - defenseaudit:/var/lib/defense
+    depends_on:
+      broker:
+        condition: service_healthy
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -479,7 +567,7 @@ services:
   # DEFENSE_MODE stays `propose` until the thresholds in cmd/oracle have been
   # watched against real traffic. Flipping it to `enforce` is a deliberate,
   # documented act: see defense/README.md. Even then the ceiling is ten
-  # reversible, self-expiring actions per ten minutes, from a five-entry
+  # reversible, self-expiring actions per ten minutes, from a closed
   # allowlist, none of which can touch cloudflared, db, broker or mosquitto.
   neo:
     build:
@@ -507,6 +595,8 @@ services:
 
 volumes:
   pgdata:
+  paymentsdata:
+  messagesdata:
   brokerdata:
   # The audit log. A named volume rather than a bind mount so it survives
   # `docker compose down` -- the records worth having are the ones written just

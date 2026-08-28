@@ -4,6 +4,28 @@ import { migrate, pool, run } from './db.ts';
 import { LESSON_CONTENT } from './content.ts';
 import type { LessonText } from './content.ts';
 import { hashPassword } from './auth.ts';
+import { QUESTIONS, storedOptions } from './quizzes.ts';
+
+// The root/root account, refused before this file opens a connection.
+//
+// `root` is four characters and it is an admin, so NODE_ENV is not a strong
+// enough gate: it is unset by default, and the box that forgets to set it is
+// exactly the box that must not get this row. The database host is the fact
+// that cannot be forgotten, so this also refuses any host that is not a local
+// Postgres. Both checks run before the first query, so a misdirected seed
+// stops with this message instead of connecting and failing later somewhere
+// less obvious. It exists so a laptop has a two-keystroke admin; it is not a
+// credential and it must never leave the laptop.
+const rootUser = process.env.SEED_ROOT_USER === '1';
+if (rootUser) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SEED_ROOT_USER=1 with NODE_ENV=production. root/root is a local-only account.');
+  }
+  const dbHost = new URL(process.env.DATABASE_URL ?? 'postgres://sin-configurar/x').hostname;
+  if (dbHost !== 'localhost' && dbHost !== '127.0.0.1' && dbHost !== '::1') {
+    throw new Error(`SEED_ROOT_USER=1 against ${dbHost}. root/root only goes into a local database.`);
+  }
+}
 
 /** One row of the LESSONS table below: n, eyebrow, title, summary, math, math_cap. */
 type LessonSeed = [number, string, string, string, string, string];
@@ -14,9 +36,9 @@ const LESSONS: LessonSeed[] = [
   [3,'DÓNDE LO GUARDA','Todo queda en perillas','Lo aprendido no son fotos ni frases: son millones de numeritos ajustados.','70.000.000.000','perillas tiene un modelo grande. Cada una es solo un número.'],
   [4,'POR QUÉ NO CAMBIA','Contigo no aprende','Estudiar y responder son dos momentos separados. Cuando le hablas, el estudio ya terminó.','1 vez','se entrena, y cuesta millones. Responder cuesta centavos.'],
   [5,'CÓMO LEE','Lee pedacitos: tokens','No ve palabras ni letras. Parte tu texto en trozos y trabaja con esos.','3 palabras = 5 tokens','todo se mide y se cobra en tokens.'],
-  [6,'CÓMO ESCRIBE','Adivina la que sigue','Le da un puntaje a cada palabra posible, escoge una y repite.','31 de 100','los puntajes de todas las opciones suman 100.'],
+  [6,'CÓMO ESCRIBE','Elige el siguiente token','Calcula opciones, elige un token y vuelve a calcular con el texto nuevo.','31 de 100','las probabilidades de todas las opciones suman 100.'],
   [7,'CÓMO PEDIRLE','La fórmula del buen pedido','No adivina lo que tienes en la cabeza. Tu explicación es todo lo que recibe.','qué + para quién + cómo','esa es toda la fórmula. Lo que no digas, lo rellena genérico.'],
-  [8,'SU MEMORIA','La mesa se llena','Solo tiene presente cierta cantidad de conversación a la vez.','≈ 120.000','palabras le caben: un libro mediano. Lo viejo se cae.'],
+  [8,'SU MEMORIA','La mesa se llena','Solo puede mantener presente una cantidad limitada de conversación a la vez.','tokens','el límite cambia por modelo. Lo más antiguo puede quedar fuera.'],
   [9,'SU PERILLA','Seria o creativa: tú eliges','La temperatura decide si va a lo seguro o se arriesga con opciones raras.','99 de 100','veces gana la opción top con la perilla abajo.'],
   [10,'SU PELIGRO','Inventa con seguridad','No tiene botón de «no sé». Si le falta el dato, arma uno que suena perfecto.','suena ≠ cierto','su puntaje mide qué tan bien suena, no qué tan cierto es.'],
   [11,'SU FECHA','Su memoria tiene fecha','Estudió hasta un día concreto. Lo de después no existe… salvo que busque.','memoria: ayer','internet: hoy. Conectada deja de adivinar.'],
@@ -159,7 +181,7 @@ const REAL: Record<string, LabSeed> = {
     prompt:'La conversación se hace larguísima. ¿Qué pasa?',
     payload:{ options:['Se pone lenta pero recuerda todo','Lo más viejo se cae de la mesa','Guarda el resto en tu cuenta','Te avisa antes de olvidar'] },
     solution:{ value:'Lo más viejo se cae de la mesa' },
-    explanation:'Le caben unas 120.000 palabras a la vez: un libro mediano. Cuando se llena, lo primero que escribiste deja de existir para ella — y no te avisa.' },
+    explanation:'La ventana de contexto se mide en tokens y cambia según el modelo. Cuando se llena, la aplicación puede dejar fuera o resumir lo primero que escribiste.' },
   '8.2': { kind:'order',
     prompt:'Ordena de lo primero que se cae de la mesa a lo último',
     payload:{ steps:[
@@ -409,7 +431,8 @@ for (const [n, byLanguage] of Object.entries(LESSON_CONTENT)) {
 }
 
 const INS_USER = `INSERT INTO users (email,name,pass_hash,role,paid,cohort) VALUES (?,?,?,?,?,?)
-  ON CONFLICT (email) DO NOTHING`;
+  ON CONFLICT (email) DO UPDATE SET pass_hash = excluded.pass_hash, role = excluded.role,
+    paid = excluded.paid, cohort = excluded.cohort, deleted_at = NULL`;
 // Demo accounts.
 //
 // These used to be created on every boot with a password committed to this
@@ -430,9 +453,8 @@ if (demoUsers) {
   // `await hashPassword`, not `hashPassword`. It has been async since the KDF
   // moved off the calling thread (auth.ts), and without the await the Promise
   // itself was passed to pg: a fresh seed wrote the string "[object Promise]"
-  // into users.pass_hash and the demo accounts could not log in. Existing rows
-  // were not affected — ON CONFLICT (email) DO NOTHING never rewrote them — which
-  // is why nothing failed until a database was created from scratch.
+  // into users.pass_hash and the demo accounts could not log in. Opt-in demo
+  // rows are refreshed on conflict so a new ephemeral test password remains usable.
   const hash = await hashPassword(password);
   for (const u of [
     ['ricardo@velez.co', 'Ricardo Vélez', 'student', 1, 'agosto'],
@@ -444,5 +466,28 @@ if (demoUsers) {
   }
 }
 
-console.log(`seeded: ${LESSONS.length} lessons · ${real} written labs · ${draft} draft labs · ${texts} lesson texts · ${seeded} demo users`);
+if (rootUser) {
+  await run(INS_USER, ['root', 'root', await hashPassword('root'), 'root', 1, null]);
+  seeded++;
+}
+
+const INS_Q = `INSERT INTO questions (id,kind,pack,idx,lesson_n,prompt_es,prompt_en,payload,solution,explanation_es,explanation_en)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?)
+  ON CONFLICT (id) DO UPDATE SET kind = excluded.kind, pack = excluded.pack, idx = excluded.idx,
+    lesson_n = excluded.lesson_n, prompt_es = excluded.prompt_es, prompt_en = excluded.prompt_en,
+    payload = excluded.payload, solution = excluded.solution,
+    explanation_es = excluded.explanation_es, explanation_en = excluded.explanation_en`;
+let quizzes = 0;
+for (const item of QUESTIONS) {
+  await run(INS_Q, [
+    item.id, item.kind, item.pack, item.idx, item.lesson_n,
+    item.prompt_es, item.prompt_en,
+    JSON.stringify({ options: storedOptions(item) }),
+    JSON.stringify({ value: item.answer }),
+    item.explanation_es, item.explanation_en,
+  ]);
+  quizzes++;
+}
+
+console.log(`seeded: ${LESSONS.length} lessons · ${real} written labs · ${draft} draft labs · ${texts} lesson texts · ${quizzes} quiz/exam items · ${seeded} demo users`);
 await pool.end();
