@@ -115,11 +115,14 @@ void main(){
   return () => { live = false; cancelAnimationFrame(raf); c.remove(); };
 }
 
-function actor(size: number, pose: 'carga' | 'saluda' | 'sentado' = 'carga'): HTMLElement {
+// 'anda' por defecto, no 'carga'. `carga` es el gato de FRENTE con dos patas
+// balanceandose como un pendulo: eso es un trote de dibujo animado. La marcha de
+// verdad — cuatro patas, secuencia lateral — vive en la pose de perfil.
+function actor(size: number, pose: 'anda' | 'carga' | 'saluda' | 'sentado' = 'anda'): HTMLElement {
   css();
   const el = document.createElement('div');
   el.id = 'trazo-actor';
-  el.className = pose === 'carga' ? 'trazo-anda' : '';
+  el.className = pose === 'anda' || pose === 'carga' ? 'trazo-anda' : '';
   el.setAttribute('aria-hidden', 'true');
   const cuerpo = document.createElement('div');
   cuerpo.className = 'trazo-cuerpo';
@@ -169,7 +172,7 @@ async function entregarUno(job: Entrega): Promise<void> {
     dest?.append(job.cargo);
     return;
   }
-  const el = actor(size, 'carga');
+  const el = actor(size, 'anda');
   const hold = el.querySelector('.trazo-hold') as HTMLElement;
   const cargo = job.cargo;
   cargo.style.width = cargo.style.width || (cargo.classList.contains('toast') ? '280px' : '');

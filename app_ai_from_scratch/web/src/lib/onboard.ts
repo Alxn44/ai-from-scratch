@@ -141,7 +141,7 @@ export function abrirTour(copy: TourCopy, nombre: string): () => void {
   document.documentElement.style.overflow = 'hidden';
 
   const size = Math.min(128, Math.round(window.innerWidth * 0.22));
-  const cat = montarActor(size, 'carga');
+  const cat = montarActor(size, 'anda');
   cat.style.zIndex = '201';
   cat.style.pointerEvents = 'auto';
   cat.style.cursor = 'pointer';

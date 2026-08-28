@@ -171,7 +171,7 @@ export function abrirTutorial(page: string, pasos: PasoTut[], copy: TutorialCopy
   document.documentElement.style.overflow = 'hidden';
 
   const size = Math.min(96, Math.round(window.innerWidth * 0.18));
-  const cat = montarActor(size, 'carga');
+  const cat = montarActor(size, 'anda');
   cat.style.zIndex = '212';
   const stopMira = trazoMira(cat, true);
   const stopGlow = trazoGlow(cat, () => {
