@@ -4,43 +4,76 @@ import { grafo, org, curso, faq } from '../lib/seo';
 import { mercadoDe } from '../lib/region';
 import { narrativaDe } from '../lib/narrative';
 import { SITE, MARCA } from '../lib/site';
+import { publicPrefs } from '../lib/prefs';
+import { t } from '../lib/i18n';
+import { modulos, candidatos, preguntas, micro, ticker } from '../data/landing';
+import { jsonSafe } from '../lib/json-safe';
+import PrefToggles from '../components/PrefToggles.astro';
 
+// La landing era español fijo: lang="es" a mano, la copia escrita a pelo y sin
+// selector de idioma — mientras su propio FAQ prometía que «se cambia de idioma
+// desde la barra superior» y el hreflang="en" de más abajo apuntaba a esta misma
+// URL en español. Las tres cosas eran la misma falta: no estaba traducida.
+const { lang, langPref } = publicPrefs(Astro.request);
+const L = t(lang);
+const P = L.pub.land;
 const canonical = `${SITE}/`;
-const desc = 'Curso de fundamentos de IA para gente sin base técnica: 12 lecciones y 36 labs que se resuelven dentro de la lección. Suscripción de USD 9.99 al mes, se cancela cuando quieras, devolución de 14 días.';
+const desc = P.desc;
 // El FAQ no es relleno de SEO: son las preguntas que llegan por correo, con la
 // respuesta exacta. Sirve igual para Google que para un asistente que cite.
-const PREGUNTAS = [
+const PREGUNTAS = lang === 'en' ? [
+  { q: 'Do I need to know how to code to take the course?', a: 'No. Not one line of code, and no maths. The 36 labs are solved by choosing, ordering and assembling inside the lesson.' },
+  { q: 'What does it cost and what is included?', a: 'USD 9.99 a month, cancel anytime. It includes the 12 lessons, the 36 labs, the PDF in Spanish and English, and the Claude Code harness, for as long as the subscription is active.' },
+  { q: 'Is there a refund if it is not for me?', a: 'Yes: 14 days from purchase, no explanation needed, back through the same payment method in under 10 business days.' },
+  { q: 'Is it available in English?', a: 'Yes. The platform, this page and the lesson content are in Spanish and English, and you switch language from the top bar.' },
+  { q: 'What is a token in artificial intelligence?', a: 'A token is the chunk of text the model works with: it sees neither words nor letters, it sees frequent pieces. "Cartagena is beautiful" is three words but five tokens. Everything that gets billed or capped is measured in tokens.' },
+  { q: 'Why does AI invent facts that sound true?', a: 'Because it does not always detect that information is missing: it completes the most likely pattern and can present an invented fact with confidence. That is why any fact with consequences gets checked at the source.' },
+  { q: 'Does AI learn from what I write to it?', a: 'It is not retrained by each conversation. Training and inference are separate moments: when you talk to it, its parameters do not change. If it seems to remember you, the application may have stored your text and included it in the request again.' },
+] : [
   { q: '¿Necesito saber programar para tomar el curso?', a: 'No. No se escribe una línea de código y no hay matemáticas. Los 36 labs se resuelven eligiendo, ordenando y armando dentro de la lección.' },
   { q: '¿Cuánto cuesta y qué incluye?', a: 'USD 9.99 al mes, y se cancela cuando quieras. Incluye las 12 lecciones, los 36 labs, el PDF en español e inglés y el harness de Claude Code, mientras la suscripción esté activa.' },
   { q: '¿Hay devolución si no me sirve?', a: 'Sí: 14 días desde la compra, sin explicar por qué, por el mismo medio de pago y en menos de 10 días hábiles.' },
-  { q: '¿Está disponible en inglés?', a: 'Sí. La plataforma y el contenido de las lecciones están en español e inglés, y se cambia de idioma desde la barra superior.' },
+  { q: '¿Está disponible en inglés?', a: 'Sí. La plataforma, esta página y el contenido de las lecciones están en español e inglés, y se cambia de idioma desde la barra superior.' },
   { q: '¿Qué es un token en inteligencia artificial?', a: 'Un token es el trozo de texto con el que trabaja el modelo: no ve palabras ni letras, ve pedazos frecuentes. «Cartagena es hermosa» son tres palabras pero cinco tokens. Todo lo que se cobra y se limita se mide en tokens.' },
   { q: '¿Por qué la IA inventa datos que suenan ciertos?', a: 'Porque no siempre detecta que le falta información: completa el patrón más probable y puede presentar un dato inventado con seguridad. Por eso, todo dato con consecuencias se verifica en la fuente.' },
   { q: '¿La IA aprende de lo que le escribo?', a: 'No se reentrena con cada conversación. Entrenamiento e inferencia son momentos separados: cuando le hablas, sus parámetros no cambian. Si parece recordarte, la aplicación puede haber guardado tu texto y volver a incluirlo en el pedido.' },
 ];
-const jsonld = grafo(org(), curso('es'), faq(PREGUNTAS));
-// Narrativa según de dónde se conecta. La landing está en español, así que se
-// toma la variante es del mercado detectado; si no se sabe, la neutra.
+const jsonld = grafo(org(), curso(lang), faq(PREGUNTAS));
+// Narrativa según de dónde se conecta, en el idioma de la página.
 const { mercado } = mercadoDe(Astro.request);
-const N = narrativaDe(mercado, 'es');
+const N = narrativaDe(mercado, lang);
+// El script de la landing es INLINE (usa define:vars para nada, pero corre en el
+// navegador), así que no puede importar los datos: llegaban resueltos en build y
+// en un solo idioma. Viajan como JSON, que es el patrón que ya usa /pago para el
+// texto del tutorial.
+const DATOS = {
+  modulos: modulos(lang), candidatos: candidatos(lang), faqs: preguntas(lang),
+  micro: micro(lang), ticker: ticker(lang),
+  txt: { ejemplo: P.aEjemplo, predecible: P.bPredecible,
+         equilibrada: P.bEquilibrada, impredecible: P.bImpredecible },
+};
 ---
 <!doctype html>
-<html lang="es">
+<html lang={lang}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
-<title>IA desde cero — Fundamentos Vol. 1</title>
+<title>{P.titulo}</title>
 <meta name="description" content={desc}>
 <link rel="canonical" href={canonical}>
 <meta property="og:site_name" content={MARCA}>
 <meta property="og:type" content="website">
-<meta property="og:title" content="IA desde cero — Fundamentos Vol. 1">
+<meta property="og:title" content={P.titulo}>
 <meta property="og:description" content={desc}>
 <meta property="og:url" content={canonical}>
-<meta property="og:locale" content="es_CO">
-<meta property="og:locale:alternate" content="en_US">
+<meta property="og:locale" content={lang === 'en' ? 'en_US' : 'es_CO'}>
+<meta property="og:locale:alternate" content={lang === 'en' ? 'es_CO' : 'en_US'}>
 <meta name="twitter:card" content="summary_large_image">
+<!-- Una sola URL que responde en los dos idiomas segun la cookie pref_lang, asi
+     que hreflang es correcto solo si la pagina esta REALMENTE traducida. Antes
+     declaraba "en" apuntando a una pagina en español: una promesa falsa a Google
+     y a cualquier asistente que la cite. -->
 <link rel="alternate" hreflang="es" href={canonical}>
 <link rel="alternate" hreflang="en" href={canonical}>
 <link rel="alternate" hreflang="x-default" href={canonical}>
@@ -113,6 +146,10 @@ section[id]{scroll-margin-top:72px}
   .tokin{font-size:16px!important}
   /* El <br> del h1 esta escrito a mano: en escritorio parte la frase donde se
      quiere, en movil la bloquea. Se desactiva y text-wrap:balance decide. */
+  /* El <br> se oculta, pero delante lleva un espacio de verdad en el marcado:
+     sin el, las dos mitades se pegaban y el titular decia «Entiende la IAen una
+     tarde.» / «Understand AIin one afternoon.». En escritorio ese espacio queda
+     al final de la primera linea, donde no se ve. */
   .hero-h1 br{display:none}
   /* 150px arriba para una nav de 56. */
   .hero-sec{padding-top:104px!important}
@@ -181,12 +218,12 @@ section[id]{scroll-margin-top:72px}
       </div>
     </div>
     <div data-el="introword" style="display:flex;flex-direction:column;align-items:center;gap:10px;clip-path:inset(0 100% 0 0)">
-      <div style="font:700 44px/1 var(--f);letter-spacing:-.04em;color:#fff">IA desde cero</div>
-      <div style="font:600 11px/1 var(--m);letter-spacing:.34em;color:rgba(235,235,245,.45)">FUNDAMENTOS · VOL. 1</div>
+      <div style="font:700 44px/1 var(--f);letter-spacing:-.04em;color:#fff">{P.figMarca}</div>
+      <div style="font:600 11px/1 var(--m);letter-spacing:.34em;color:rgba(235,235,245,.45)">{P.figVol}</div>
     </div>
   </div>
   <div id="skip" class="skip" role="button" tabindex="0" style="position:absolute;right:26px;bottom:24px;z-index:4;display:flex;align-items:center;gap:9px;font:600 11px/1 var(--m);letter-spacing:.20em">
-    <span>SALTAR</span>
+    <span>{P.saltar}</span>
     <svg width="16" height="16" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
   </div>
 </div>
@@ -205,18 +242,28 @@ section[id]{scroll-margin-top:72px}
 <div style="position:fixed;left:0;right:0;top:1px;z-index:60;background:rgba(0,0,0,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--hair);padding-top:env(safe-area-inset-top)">
   <div class="lnav-in" style="max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:20px">
     <div style="display:flex;align-items:center;gap:14px">
-      <span class="lg" style="--lg:24px" role="img" aria-label="IA desde cero">IA</span>
-      <div style="font:700 15px/1 var(--f);letter-spacing:-.01em">IA desde cero</div>
+      <span class="lg" style="--lg:24px" role="img" aria-label={P.figMarca}>IA</span>
+      <div style="font:700 15px/1 var(--f);letter-spacing:-.01em">{P.figMarca}</div>
       <div class="lnav-meta" style="width:1px;height:16px;background:var(--hair)"></div>
-      <div class="lnav-meta" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">FUNDAMENTOS · VOL. 1</div>
+      <div class="lnav-meta" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">{P.figVol}</div>
+      <!-- El selector va en el grupo de la MARCA, no en el de las acciones. Ese
+           grupo pide ya ~375px medidos (marca 142 + ENTRAR 47 + gaps + CTA 144) y
+           por debajo de 520 la nav parte en dos filas, cada una de ancho completo:
+           aqui el toggle cabe, en el otro lado desbordaba.
+           Y va soloIdioma: la landing tiene fondo negro fijo, sin tokens de tema,
+           asi que un boton PAPEL no cambiaria nada — que es exactamente el tipo de
+           boton que hay que quitar, no añadir. -->
+      <div class="lnav-lang" style="display:flex;align-items:center">
+        <PrefToggles lang={langPref} soloIdioma labels={{ auto: L.pub.auto, langAria: L.pub.ariaIdioma }} />
+      </div>
     </div>
     <div style="display:flex;align-items:center;gap:22px">
       <div class="lnav-pct" data-el="pct" style="font:500 10px/1 var(--m);letter-spacing:.14em;color:var(--l3);font-variant-numeric:tabular-nums">000%</div>
-      <a href="#indice" class="navlink lnav-aux" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2)">ÍNDICE</a>
-      <a href="#especimenes" class="navlink lnav-aux" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2)">ESPECÍMENES</a>
-      <a href="/login" class="navlink" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2);text-decoration:none">ENTRAR</a>
+      <a href="#indice" class="navlink lnav-aux" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2)">{P.navIndice}</a>
+      <a href="#especimenes" class="navlink lnav-aux" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2)">{P.navEspec}</a>
+      <a href="/login" class="navlink" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2);text-decoration:none">{P.navEntrar}</a>
       <a href="/pago" class="buy lnav-buy" style="display:flex;align-items:center;justify-content:center;gap:8px;font:600 10px/1 var(--m);letter-spacing:.16em;min-height:44px;padding:0 15px;white-space:nowrap">
-        <span>SUSCRIBIRME · $9.99/MES</span>
+        <span>{P.navCta}</span>
       </a>
     </div>
   </div>
@@ -227,61 +274,61 @@ section[id]{scroll-margin-top:72px}
   <div class="hero-grid" style="border-bottom:1px solid var(--hair);padding-bottom:34px">
     <div style="display:flex;flex-direction:column;gap:26px">
       <div data-anim="1" style="display:flex;align-items:center;gap:14px">
-        <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">CURSO · 12 LECCIONES</div>
+        <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">{P.heroEb}</div>
         <div style="flex:1;height:1px;background:var(--hair)"></div>
-        <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l3)">ES · EN</div>
+        <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l3)">{P.heroEsEn}</div>
       </div>
-      <h1 data-anim="1" class="hero-h1" style="margin:0;font:700 clamp(34px,6.4vw,96px)/.93 var(--f);letter-spacing:-.055em;text-wrap:balance">Entiende la IA<br>en una tarde.</h1>
+      <h1 data-anim="1" class="hero-h1" style="margin:0;font:700 clamp(34px,6.4vw,96px)/.93 var(--f);letter-spacing:-.055em;text-wrap:balance">{P.heroH1a} <br>{P.heroH1b}</h1>
       <div data-anim="1" class="hero-split" style="border-top:1px solid var(--hair)">
         <div style="padding:20px 24px 20px 0;border-right:1px solid var(--hair)">
-          <p style="margin:0;font:400 19px/1.42 var(--f);letter-spacing:-.01em;color:var(--l2);text-wrap:pretty">Doce lecciones ilustradas que explican cómo piensa, por qué se inventa cosas y cómo pedirle bien. Sin código y sin fórmulas.</p>
+          <p style="margin:0;font:400 19px/1.42 var(--f);letter-spacing:-.01em;color:var(--l2);text-wrap:pretty">{P.heroSub}</p>
         </div>
         <div style="padding:20px 0 20px 24px;display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">LECCIONES</span><span>12</span></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">LECTURA</span><span>40 MIN</span></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">FORMATO</span><span>CARRUSEL 4:5</span></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">PRECIO</span><span>$9.99 USD</span></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">ACTUALIZACIONES</span><span>VOL. 1</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">{P.specLec}</span><span>12</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">{P.specLectura}</span><span>{P.specLecturaV}</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">{P.specFormato}</span><span>{P.specFormatoV}</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">{P.specPrecio}</span><span>{P.specPrecioV}</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:var(--l3)">{P.specAct}</span><span>{P.specActV}</span></div>
         </div>
       </div>
-      <p data-anim="1" style="margin:0;font:400 17px/1.45 var(--f);color:var(--l2);max-width:600px">Usas IA, pero no entiendes por qué falla ni cómo pedirle resultados útiles. Este curso te lo muestra sin código ni fórmulas.</p>
+      <p data-anim="1" style="margin:0;font:400 17px/1.45 var(--f);color:var(--l2);max-width:600px">{P.heroPitch}</p>
       <div data-anim="1" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
         <a href="/pago" class="buy" style="display:flex;align-items:center;gap:12px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:19px 26px">
-          <span>QUIERO EL CURSO</span>
+          <span>{P.heroCta}</span>
           <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
         </a>
-        <div style="font:500 11px/1.5 var(--m);letter-spacing:.1em;color:var(--l3)">ANTES $49/MES · HOY $9.99/MES<br>CANCELAS CUANDO QUIERAS · GARANTÍA 14 DÍAS</div>
+        <div style="font:500 11px/1.5 var(--m);letter-spacing:.1em;color:var(--l3)">{P.heroAntes}<br>{P.heroGar}</div>
       </div>
       <div data-anim="1" style="display:flex;align-items:flex-start;gap:14px;border-top:1px solid var(--hair);padding-top:18px">
-        <div style="flex:none;font:600 10px/1.5 var(--m);letter-spacing:.2em;color:var(--ac)">BONUS</div>
-        <div style="font:400 15px/1.5 var(--f);color:var(--l2);max-width:520px">Incluye acceso a <b style="font-weight:600;color:#fff">mi harness de Claude Code</b>: la configuración que uso a diario, los agentes y workflows, y los 9 prompts con sus plantillas. Se actualiza y lo vuelves a descargar sin pagar de nuevo.</div>
+        <div style="flex:none;font:600 10px/1.5 var(--m);letter-spacing:.2em;color:var(--ac)">{P.bonusLbl}</div>
+        <div style="font:400 15px/1.5 var(--f);color:var(--l2);max-width:520px">{P.bonusA} <b style="font-weight:600;color:#fff">{P.bonusB}</b>{P.bonusC}</div>
       </div>
       <div data-anim="1" style="display:flex;align-items:flex-start;gap:14px;border-top:1px solid var(--hair);padding-top:18px">
-        <div style="flex:none;font:600 10px/1.5 var(--m);letter-spacing:.2em;color:var(--ac)">VIVO</div>
-        <div style="font:400 15px/1.5 var(--f);color:var(--l2);max-width:520px">El curso se sigue actualizando: cuando la IA cambia, reescribo las lecciones que quedaron viejas y la versión nueva te llega sin pagar de nuevo. Las actualizaciones cubren el Vol. 1. Aplican términos y condiciones.</div>
+        <div style="flex:none;font:600 10px/1.5 var(--m);letter-spacing:.2em;color:var(--ac)">{P.vivoLbl}</div>
+        <div style="font:400 15px/1.5 var(--f);color:var(--l2);max-width:520px">{P.vivo}</div>
       </div>
     </div>
 
     <div data-anim="1" style="display:flex;flex-direction:column;gap:11px">
       <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)">
-        <span>FIG. 01 — PORTADA</span><span>1080 × 1350</span>
+        <span>{P.figCap}</span><span>1080 × 1350</span>
       </div>
       <div data-el="herocard" style="position:relative;width:100%;height:465px;border:1px solid var(--hair);background:#000;overflow:hidden">
         <canvas data-fx="cover" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>
         <div style="position:relative;z-index:2;height:100%;padding:26px;display:flex;flex-direction:column">
-          <div style="font:600 9px/1 var(--m);letter-spacing:.24em;color:var(--l3)">EBOOK · VOL. 1</div>
+          <div style="font:600 9px/1 var(--m);letter-spacing:.24em;color:var(--l3)">{P.figEbook}</div>
           <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
-            <div style="font:700 36px/.94 var(--f);letter-spacing:-.045em">IA desde cero</div>
-            <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">FUNDAMENTOS · VOL. 1</div>
-            <div style="font:400 13px/1.4 var(--f);color:var(--l2);max-width:230px">Cómo piensa, por qué se inventa cosas y cómo pedirle bien.</div>
+            <div style="font:700 36px/.94 var(--f);letter-spacing:-.045em">{P.figMarca}</div>
+            <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">{P.figVol}</div>
+            <div style="font:400 13px/1.4 var(--f);color:var(--l2);max-width:230px">{P.figSub}</div>
             <div style="display:flex;align-items:center;gap:9px;padding-top:6px;border-top:1px solid var(--hair2);margin-top:6px">
               <span class="lg" style="--lg:18px" aria-hidden="true">IA</span>
-              <div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">@ALXN_DEV_AI · ES / EN</div>
+              <div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">{P.figHand}</div>
             </div>
           </div>
         </div>
       </div>
-      <div style="font:500 10px/1.5 var(--m);letter-spacing:.08em;color:var(--l3)">Monograma reconstruido en 1.600 partículas muestreadas del logotipo.</div>
+      <div style="font:500 10px/1.5 var(--m);letter-spacing:.08em;color:var(--l3)">{P.figNota}</div>
     </div>
   </div>
 </section>
@@ -298,26 +345,26 @@ section[id]{scroll-margin-top:72px}
 <section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
   <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:30px">
     <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 01</div>
-    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Síntomas que ya conoces</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">{P.sintH2}</div>
   </div>
   <div class="sintomas" style="border-top:1px solid var(--hair);border-left:1px solid var(--hair)">
     <div data-anim="1" class="card-h" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px 26px;display:flex;flex-direction:column;gap:16px;min-height:290px">
-      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>SÍNTOMA 01</span><span style="color:var(--ac)">LEC. 10</span></div>
-      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">Te inventó datos y no lo notaste</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Nombres, fechas y cifras que suenan perfectas y no existen. Vas a ver por qué lo hace — y cómo cacharla.</div>
-      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">CAUSA: SUENA ≠ CIERTO</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>{P.s1Lbl}</span><span style="color:var(--ac)">{P.s1Lec}</span></div>
+      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">{P.s1H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.s1D}</div>
+      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">{P.s1C}</div>
     </div>
     <div data-anim="1" class="card-h" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px 26px;display:flex;flex-direction:column;gap:16px;min-height:290px">
-      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>SÍNTOMA 02</span><span style="color:var(--ac)">LEC. 07</span></div>
-      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">Le pides algo y sale genérico</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">"Hazme un correo" devuelve "Estimado usuario". Misma IA, mismo precio: lo único que cambia es cómo se lo explicas.</div>
-      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">CAUSA: FALTA QUÉ + QUIÉN + CÓMO</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>{P.s2Lbl}</span><span style="color:var(--ac)">{P.s2Lec}</span></div>
+      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">{P.s2H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.s2D}</div>
+      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">{P.s2C}</div>
     </div>
     <div data-anim="1" class="card-h" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px 26px;display:flex;flex-direction:column;gap:16px;min-height:290px">
-      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>SÍNTOMA 03</span><span style="color:var(--ac)">LEC. 08</span></div>
-      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">Se pone rara a mitad del chat</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Olvida tu nombre, se contradice, repite. No está fallando: se le llenó la mesa, y la solución cabe en una línea.</div>
-      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">CAUSA: LA MESA SE LLENA</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>{P.s3Lbl}</span><span style="color:var(--ac)">{P.s3Lec}</span></div>
+      <div style="font:700 25px/1.14 var(--f);letter-spacing:-.03em">{P.s3H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.s3D}</div>
+      <div style="margin-top:auto;font:500 11px/1 var(--m);letter-spacing:.12em;color:var(--l3)">{P.s3C}</div>
     </div>
   </div>
 </section>
@@ -327,12 +374,12 @@ section[id]{scroll-margin-top:72px}
   <div data-anim="1" style="display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding-bottom:30px;flex-wrap:wrap">
     <div style="display:flex;align-items:baseline;gap:18px">
       <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 02</div>
-      <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Índice completo</div>
+      <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">{P.indH2}</div>
     </div>
-    <div style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">12 LECCIONES · UNA IDEA CADA UNA</div>
+    <div style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">{P.indSub}</div>
   </div>
   <div class="idx-head" style="display:grid;grid-template-columns:52px 1.05fr 1.25fr 250px;gap:24px;padding:0 0 11px;border-bottom:1px solid var(--hair);font:600 9px/1 var(--m);letter-spacing:.2em;color:var(--l3)">
-    <div>NN</div><div>CONCEPTO</div><div>QUÉ APRENDES</div><div>DATO</div>
+    <div>{P.thNN}</div><div>{P.thConcepto}</div><div>{P.thQue}</div><div>{P.thDato}</div>
   </div>
   <div id="modules"></div>
 </section>
@@ -341,34 +388,34 @@ section[id]{scroll-margin-top:72px}
 <section id="especimenes" style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
   <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:12px">
     <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 03</div>
-  <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Dos especímenes para tocar</div>
+  <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">{P.espH2}</div>
   </div>
-  <div data-anim="1" style="font:400 17px/1.5 var(--f);color:var(--l2);max-width:620px;padding-bottom:30px">Así se explica todo el curso: no te lo cuento, lo mueves tú y lo entiendes solo.</div>
+  <div data-anim="1" style="font:400 17px/1.5 var(--f);color:var(--l2);max-width:620px;padding-bottom:30px">{P.espSub}</div>
   <div class="especimenes" style="border-top:1px solid var(--hair);border-left:1px solid var(--hair)">
     <div data-anim="1" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px;display:flex;flex-direction:column;gap:20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>ESPÉCIMEN A · LEC. 05</span><span style="color:var(--ac)">INTERACTIVO</span></div>
-      <div style="font:700 27px/1.1 var(--f);letter-spacing:-.032em">Escribe algo. Mira cómo lo parte.</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">No ve palabras ni letras: ve trozos. Por eso no sabe contar letras — nunca las vio.</div>
-      <input id="tokin" class="tokin" type="text" placeholder="Cartagena es hermosa" maxlength="46" style="width:100%;background:#000;border:1px solid var(--hair);border-radius:0;padding:15px 16px;font:400 17px/1.2 var(--f);color:var(--l1);outline:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>{P.aLbl}</span><span style="color:var(--ac)">{P.espInter}</span></div>
+      <div style="font:700 27px/1.1 var(--f);letter-spacing:-.032em">{P.aH}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.aD}</div>
+      <input id="tokin" class="tokin" type="text" placeholder={P.aEjemplo} maxlength="46" style="width:100%;background:#000;border:1px solid var(--hair);border-radius:0;padding:15px 16px;font:400 17px/1.2 var(--f);color:var(--l1);outline:none">
       <div id="tokens" style="display:flex;gap:7px;flex-wrap:wrap;min-height:46px"></div>
       <div style="margin-top:auto;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);padding-top:18px;gap:14px">
-        <div style="display:flex;flex-direction:column;gap:6px"><div id="tokenCount" style="font:700 26px/1 var(--m);color:var(--ac);font-variant-numeric:tabular-nums">5</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">TOKENS</div></div>
-        <div style="display:flex;flex-direction:column;gap:6px"><div id="wordCount" style="font:700 26px/1 var(--m);font-variant-numeric:tabular-nums">3</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">PALABRAS</div></div>
-        <div style="display:flex;flex-direction:column;gap:6px"><div id="charCount" style="font:700 26px/1 var(--m);font-variant-numeric:tabular-nums">18</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">LETRAS QUE NO VE</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div id="tokenCount" style="font:700 26px/1 var(--m);color:var(--ac);font-variant-numeric:tabular-nums">5</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">{P.aTokens}</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div id="wordCount" style="font:700 26px/1 var(--m);font-variant-numeric:tabular-nums">3</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">{P.aPalabras}</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div id="charCount" style="font:700 26px/1 var(--m);font-variant-numeric:tabular-nums">18</div><div style="font:500 9px/1 var(--m);letter-spacing:.16em;color:var(--l3)">{P.aLetras}</div></div>
       </div>
     </div>
     <div data-anim="1" style="border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:30px;display:flex;flex-direction:column;gap:20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>ESPÉCIMEN B · LEC. 09</span><span style="color:var(--ac)">INTERACTIVO</span></div>
-      <div style="font:700 27px/1.1 var(--f);letter-spacing:-.032em">Mueve la perilla. Cambia quién gana.</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Le pediste un nombre para tu perro. Abajo, va a lo seguro. Arriba, se arriesga con opciones raras.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)"><span>{P.bLbl}</span><span style="color:var(--ac)">{P.espInter}</span></div>
+      <div style="font:700 27px/1.1 var(--f);letter-spacing:-.032em">{P.bH}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.bD}</div>
       <div id="cands" style="display:flex;flex-direction:column;gap:1px"></div>
       <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--hair);padding-top:18px">
         <div style="display:flex;align-items:center;justify-content:space-between">
-          <div style="font:600 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">TEMPERATURA</div>
+          <div style="font:600 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">{P.bTemp}</div>
           <div id="tempLabel" style="font:600 15px/1 var(--m);color:var(--ac);font-variant-numeric:tabular-nums">0.30</div>
         </div>
         <input id="tempin" class="deslizador" type="range" min="1" max="180" step="1" value="30" style="width:100%">
-        <div style="display:flex;align-items:center;justify-content:space-between;font:500 9px/1 var(--m);letter-spacing:.14em;color:var(--l3)"><div>SEGURO</div><div id="tempVerdict" style="color:var(--l1)">PREDECIBLE</div><div>SE ARRIESGA</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font:500 9px/1 var(--m);letter-spacing:.14em;color:var(--l3)"><div>{P.bSeguro}</div><div id="tempVerdict" style="color:var(--l1)">{P.bPredecible}</div><div>{P.bArriesga}</div></div>
       </div>
     </div>
   </div>
@@ -378,33 +425,33 @@ section[id]{scroll-margin-top:72px}
 <section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
   <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:30px">
     <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 04</div>
-    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Qué te llevas</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">{P.llevasH2}</div>
   </div>
   <div style="border-top:1px solid var(--hair)">
     <div data-anim="1" class="card-h why-row" style="padding:24px 0;border-bottom:1px solid var(--hair2)">
       <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">01</div>
-      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">12 lecciones ilustradas</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Formato de carrusel 1080 × 1350: cada lección es una imagen que entiendes en 40 segundos y guardas en el teléfono.</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">{P.l1H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.l1D}</div>
     </div>
     <div data-anim="1" class="card-h why-row" style="padding:24px 0;border-bottom:1px solid var(--hair2)">
       <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">02</div>
-      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Español e inglés</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Las mismas 12 lecciones en ambos idiomas, adaptadas, no traducidas a la fuerza.</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">{P.l2H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.l2D}</div>
     </div>
     <div data-anim="1" class="card-h why-row" style="padding:24px 0;border-bottom:1px solid var(--hair2)">
       <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">03</div>
-      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Los 9 prompts que uso a diario</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Copiar, pegar y ajustar. Resumir, reescribir, explicar de forma sencilla y responder preguntas difíciles.</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">{P.l3H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.l3D}</div>
     </div>
     <div data-anim="1" class="card-h why-row" style="padding:24px 0;border-bottom:1px solid var(--hair)">
       <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">04</div>
-      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Mientras estés suscrito, el Vol. 1 completo y al día</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">Son USD 9.99 al mes y el curso no se queda quieto: se actualiza cuando la IA cambia. Mientras la suscripción esté activa, cada versión nueva de las 12 lecciones del Vol. 1 te llega sin costo extra. Los volúmenes siguientes se venden aparte.</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">{P.l4H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.l4D}</div>
     </div>
     <div data-anim="1" class="card-h why-row" style="padding:24px 0;border-bottom:1px solid var(--hair)">
       <div style="font:600 11px/1.3 var(--m);letter-spacing:.14em;color:var(--l3)">05</div>
-      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">Mi harness de Claude Code</div>
-      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">El entorno con el que trabajo, en un repositorio al que tienes acceso: la configuración (skills, hooks, slash commands y settings), los agentes y workflows que tengo configurados, y las plantillas de los 9 prompts. Cuando lo actualizo, puedes volver a descargarlo sin costo.</div>
+      <div style="font:700 19px/1.2 var(--f);letter-spacing:-.025em">{P.l5H}</div>
+      <div style="font:400 16px/1.5 var(--f);color:var(--l2)">{P.l5D}</div>
     </div>
   </div>
 </section>
@@ -414,10 +461,10 @@ section[id]{scroll-margin-top:72px}
   <div data-anim="1" class="precio-grid" style="background:#F2F2F2;color:#000">
     <div style="padding:46px 44px;display:flex;flex-direction:column;gap:22px;border-right:1px solid rgba(0,0,0,.14)">
       <div style="display:flex;align-items:center;gap:14px">
-        <div style="font:600 10px/1 var(--m);letter-spacing:.22em">§ 05 · PRECIO DE LANZAMIENTO</div>
+        <div style="font:600 10px/1 var(--m);letter-spacing:.22em">{P.preSec}</div>
         <div style="flex:1;height:1px;background:rgba(0,0,0,.18)"></div>
       </div>
-      <div style="font:700 clamp(30px,3.6vw,50px)/1.02 var(--f);letter-spacing:-.045em;text-wrap:balance">Deja de usar la IA a ciegas por menos de diez dólares</div>
+      <div style="font:700 clamp(30px,3.6vw,50px)/1.02 var(--f);letter-spacing:-.045em;text-wrap:balance">{P.preH2}</div>
       <div style="font:400 17px/1.5 var(--f);color:rgba(0,0,0,.66);max-width:480px">{N.garantiaTxt}</div>
       <div style="display:flex;flex-direction:column;gap:9px;border-left:2px solid #3355FF;padding-left:14px">
         <div style="font:600 10px/1 var(--m);letter-spacing:.2em;color:rgba(0,0,0,.5)">{N.eyebrow}</div>
@@ -427,10 +474,10 @@ section[id]{scroll-margin-top:72px}
         <div style="font:500 11px/1 var(--m);letter-spacing:.1em;color:rgba(0,0,0,.5);margin-top:2px">{N.moneda}</div>
       </div>
       <div style="margin-top:auto;display:flex;flex-direction:column;border-top:1px solid rgba(0,0,0,.14)">
-        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">INCLUYE</span><span>12 LECCIONES ES + EN</span></div>
-        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">INCLUYE</span><span>9 PROMPTS LISTOS</span></div>
-        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">INCLUYE</span><span>ACTUALIZACIONES DEL VOL. 1</span></div>
-        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">NO INCLUYE</span><span>VOL. 2 Y POSTERIORES</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">{P.incluye}</span><span>{P.pre1}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">{P.incluye}</span><span>{P.pre2}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">{P.incluye}</span><span>{P.pre3}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid rgba(0,0,0,.09);font:500 11px/1 var(--m);letter-spacing:.1em"><span style="color:rgba(0,0,0,.55)">{P.noIncluye}</span><span>{P.pre4}</span></div>
       </div>
     </div>
     <div style="padding:46px 40px;display:flex;flex-direction:column;gap:20px">
@@ -438,15 +485,15 @@ section[id]{scroll-margin-top:72px}
         <div style="font:700 68px/.9 var(--f);letter-spacing:-.055em">$9.99</div>
         <div style="font:500 15px/1 var(--m);color:rgba(0,0,0,.45);text-decoration:line-through;padding-bottom:8px">$49</div>
       </div>
-      <div style="font:400 15px/1.45 var(--f);color:rgba(0,0,0,.66)">USD 9.99 al mes. Acceso inmediato después del primer cobro, con las actualizaciones del Vol. 1 incluidas mientras sigas suscrito.</div>
+      <div style="font:400 15px/1.45 var(--f);color:rgba(0,0,0,.66)">{P.preNota}</div>
       <a href="/pago" class="buyblk" style="display:flex;align-items:center;justify-content:center;gap:11px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:21px">
-        <span>SUSCRIBIRME AL CURSO</span>
+        <span>{P.preCta}</span>
         <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
       </a>
       <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px;font:500 10px/1.5 var(--m);letter-spacing:.12em;color:rgba(0,0,0,.55)">
-        <div>GARANTÍA 14 DÍAS · DEVOLUCIÓN TOTAL</div>
-        <div>ACTUALIZACIONES DEL VOL. 1 · APLICAN TÉRMINOS Y CONDICIONES</div>
-        <div>VOL. 1 · @ALXN_DEV_AI</div>
+        <div>{P.preGar}</div>
+        <div>{P.preTerm}</div>
+        <div>{P.preVol}</div>
       </div>
     </div>
   </div>
@@ -456,7 +503,7 @@ section[id]{scroll-margin-top:72px}
 <section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:86px 24px 0">
   <div data-anim="1" style="display:flex;align-items:baseline;gap:18px;padding-bottom:30px">
     <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--ac)">§ 06</div>
-    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">Preguntas frecuentes</div>
+    <div style="font:700 clamp(26px,3vw,40px)/1.05 var(--f);letter-spacing:-.035em">{P.faqH2}</div>
   </div>
   <div id="faqs" style="border-top:1px solid var(--hair)"></div>
 </section>
@@ -464,21 +511,21 @@ section[id]{scroll-margin-top:72px}
 <!-- ===== FINAL CTA ===== -->
 <section style="position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:100px 24px 130px">
   <div data-anim="1" style="display:flex;flex-direction:column;gap:30px;border-top:1px solid var(--hair);padding-top:40px">
-    <div style="font:700 clamp(34px,5.4vw,80px)/.96 var(--f);letter-spacing:-.05em;max-width:900px;text-wrap:balance">La IA no se va a ir. Entenderla cuesta $9.99.</div>
+    <div style="font:700 clamp(34px,5.4vw,80px)/.96 var(--f);letter-spacing:-.05em;max-width:900px;text-wrap:balance">{P.cierreH2}</div>
     <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
       <a href="/pago" class="buy" style="display:flex;align-items:center;gap:12px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:20px 28px">
-        <span>EMPEZAR POR $9.99</span>
+        <span>{P.cierreCta}</span>
         <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
       </a>
-      <div style="font:400 17px/1.45 var(--f);color:var(--l2);max-width:340px">Una tarde de lectura y dejas de pedirle cosas a ciegas.</div>
+      <div style="font:400 17px/1.45 var(--f);color:var(--l2);max-width:340px">{P.cierreSub}</div>
     </div>
     <div class="foot-meta" style="border-top:1px solid var(--hair2);padding-top:26px;font:500 10px/1.6 var(--m);letter-spacing:.14em;color:var(--l3)">
-      <div style="display:flex;align-items:center;gap:11px"><span class="lg" style="--lg:22px" aria-hidden="true">IA</span><span>IA DESDE CERO · VOL. 1</span></div>
-      <div>@ALXN_DEV_AI</div>
-      <div>12 LECCIONES · ES / EN</div>
-      <div>CANCELAS CUANDO QUIERAS · GARANTÍA 14 DÍAS</div>
+      <div style="display:flex;align-items:center;gap:11px"><span class="lg" style="--lg:22px" aria-hidden="true">IA</span><span>{P.pieMarca}</span></div>
+      <div>{P.pieHand}</div>
+      <div>{P.pieMeta1}</div>
+      <div>{P.pieMeta2}</div>
     </div>
-    <div style="font:500 10px/1.6 var(--m);letter-spacing:.14em;color:var(--l3);border-top:1px solid var(--hair2);padding-top:18px">CURSO VIVO · LAS ACTUALIZACIONES APLICAN SOLO AL VOL. 1 · APLICAN TÉRMINOS Y CONDICIONES</div>
+    <div style="font:500 10px/1.6 var(--m);letter-spacing:.14em;color:var(--l3);border-top:1px solid var(--hair2);padding-top:18px">{P.pieLegal}</div>
   </div>
 </section>
 
@@ -488,10 +535,10 @@ section[id]{scroll-margin-top:72px}
     <div style="display:flex;align-items:center;gap:18px">
       <div style="display:flex;align-items:baseline;gap:9px"><div style="font:700 21px/1 var(--f);letter-spacing:-.03em">$9.99</div><div style="font:500 12px/1 var(--m);color:var(--l3);text-decoration:line-through">$49</div></div>
       <div class="sticky-rule" style="width:1px;height:18px;background:var(--hair)"></div>
-      <div class="sticky-copy" style="font:500 10px/1 var(--m);letter-spacing:.16em;color:var(--l2)">12 LECCIONES · $9.99/MES · GARANTÍA 14 DÍAS</div>
+      <div class="sticky-copy" style="font:500 10px/1 var(--m);letter-spacing:.16em;color:var(--l2)">{P.barraMeta}</div>
     </div>
     <a href="/pago" class="buy" style="display:flex;align-items:center;gap:10px;font:600 11px/1 var(--m);letter-spacing:.16em;padding:15px 22px">
-      <span>SUSCRIBIRME AHORA</span>
+      <span>{P.barraCta}</span>
       <svg width="16" height="16" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
     </a>
   </div>
@@ -499,10 +546,28 @@ section[id]{scroll-margin-top:72px}
 
 </div>
 
+<!-- Los datos de la landing, ya resueltos al idioma de esta peticion. El script
+     de abajo los lee de aqui en vez de importarlos: un import se resuelve en
+     build y dejaba la pagina clavada en un idioma. jsonSafe escapa para que un
+     </script> dentro de una cadena no pueda cerrar la etiqueta. -->
+<script type="application/json" id="land-datos" is:inline set:html={jsonSafe(DATOS)}></script>
+
 <script>
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { MODULES, CANDS, FAQS, MICRO, TICKER } from '../data/landing';
+import type { Module, Candidate, Faq } from '../data/landing';
+// Los datos NO se importan: llegaban resueltos en build y en un solo idioma, que
+// es por lo que la landing solo podia estar en español. Viajan como JSON en el
+// documento, el mismo patron que usa /pago para el texto del tutorial.
+// El tipo va a mano porque JSON.parse devuelve `any` y sin esto los .map de mas
+// abajo pierden el tipo del elemento. El import de tipos se borra al compilar,
+// asi que no arrastra el modulo de datos al bundle del navegador.
+type Datos = {
+  modulos: Module[]; candidatos: Candidate[]; faqs: Faq[];
+  micro: string[]; ticker: string[]; txt: Record<string, string>;
+};
+const D = JSON.parse(document.getElementById('land-datos')!.textContent!) as Datos;
+const MODULES = D.modulos, CANDS = D.candidatos, FAQS = D.faqs, MICRO = D.micro, TICKER = D.ticker, TXT = D.txt;
 
 gsap.registerPlugin(ScrollTrigger);
 (window as any).gsap = gsap;
@@ -580,7 +645,7 @@ function renderTokens(){
   document.getElementById("wordCount")!.textContent = txt.trim() ? String(txt.trim().split(/\s+/).length) : "0";
   document.getElementById("charCount")!.textContent = String(txt.replace(/\s/g,"").length);
 }
-tokinEl.value = "Cartagena es hermosa";
+tokinEl.value = TXT.ejemplo;
 tokinEl.addEventListener("input", renderTokens);
 renderTokens();
 
@@ -604,7 +669,7 @@ function renderTemp(){
     </div>`;
   }).join("");
   document.getElementById("tempLabel")!.textContent = T.toFixed(2);
-  document.getElementById("tempVerdict")!.textContent = T < .5 ? "PREDECIBLE" : (T < 1.05 ? "EQUILIBRADA" : "IMPREDECIBLE");
+    document.getElementById("tempVerdict")!.textContent = T < .5 ? TXT.predecible : (T < 1.05 ? TXT.equilibrada : TXT.impredecible);
 }
 tempinEl.addEventListener("input", renderTemp);
 renderTemp();
