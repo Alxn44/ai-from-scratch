@@ -76,6 +76,29 @@ a:hover{color:var(--ac-solid)}
 /* el gris por defecto del navegador da 3.29:1; --l3 esta medido >=4.5 en ambos temas */
 .input::placeholder{color:var(--l3);opacity:1}
 .meter{height:4px;background:var(--fill)}
+.meter > i{display:block;height:100%;width:0;background:var(--rd);transition:width .2s,background .2s}
+/* Primitivas de formulario.
+   Vivian como estilos en linea repetidos en login y registro, y ahi cabe una
+   columna con hueco pero no un error por campo: para eso hace falta un selector
+   ([data-mal]) que pinte a la vez el borde del campo y su mensaje, y un atributo
+   no puede reaccionar a un estado. El registro necesitaba las dos cosas. */
+.field{display:flex;flex-direction:column;gap:7px}
+/* .lbl da 10px mayusculas monoespaciadas con .18em de tracking. Sirve para una
+   etiqueta ambiental; para la que dice QUE ESCRIBIR en un campo es demasiado
+   pequena y demasiado separada. Esta se lee. */
+.flbl{font:600 12px/1.2 var(--f);color:var(--l1);margin:0}
+.fgrupo{display:flex;flex-direction:column;gap:15px;padding:16px 16px 18px;border:1px solid var(--hair2)}
+.fgrupo-t{display:flex;align-items:baseline;gap:9px;margin:0 0 1px}
+.fgrupo-n{display:grid;place-items:center;width:19px;height:19px;flex:none;border:1px solid var(--hair);font:600 10px/1 var(--m);color:var(--l2)}
+/* Reservado siempre: sin esto la tarjeta salta 18px cada vez que aparece un
+   error y el boton se mueve bajo el dedo justo cuando se va a pulsar. */
+.fnota{font:400 12px/1.35 var(--f);color:var(--l3);margin:0;min-height:16px}
+.fnota[data-est="mal"]{color:var(--rd)}
+.fnota[data-est="bien"]{color:var(--ok)}
+.field[data-mal] .input{border-color:var(--rd)}
+.field[data-mal] .input:focus{border-color:var(--rd)}
+.fver{background:none;border:0;padding:0;color:var(--ac);font:500 11px/1 var(--m);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.fver:hover{color:var(--ac-solid)}
 .mark{width:26px;height:26px;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)}
 #toasts{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;width:372px;z-index:50}
 .toast{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--hair);background:var(--panel)}

@@ -66,29 +66,48 @@ const jsonld = grafo(org());
         <PrefToggles lang={langPref} theme={theme} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
       </div>
       <div style="flex:1;display:flex;align-items:center;justify-content:center">
-        <form id="f" class="pub-card" style="gap:20px" novalidate>
+        <form id="f" class="pub-card" style="gap:18px" novalidate>
           <div style="display:flex;flex-direction:column;gap:8px">
             <p class="eb">{P.eb}</p>
             <h2 class="h1" style="font-size:28px">{P.h2}</h2>
           </div>
-          <div style="display:flex;flex-direction:column;gap:7px">
-            <label class="lbl" for="name">{P.nombre}</label>
-            <input class="input" id="name" name="name" autocomplete="name" placeholder={P.nombrePh} required>
+
+          <div class="fgrupo">
+            <p class="fgrupo-t"><span class="fgrupo-n" aria-hidden="true">1</span><span class="lbl" style="color:var(--l2)">{P.g1}</span></p>
+            <div class="field" id="c-name">
+              <label class="flbl" for="name">{P.nombre}</label>
+              <input class="input" id="name" name="name" autocomplete="name" placeholder={P.nombrePh}
+                     required minlength="2" aria-describedby="n-name">
+              <p class="fnota" id="n-name" aria-live="polite"></p>
+            </div>
+            <div class="field" id="c-email">
+              <label class="flbl" for="email">{P.correo}</label>
+              <input class="input" id="email" name="email" type="email" inputmode="email" autocomplete="email"
+                     placeholder="tu@correo.com" required aria-describedby="n-email">
+              <p class="fnota" id="n-email" aria-live="polite"></p>
+            </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:7px">
-            <label class="lbl" for="email">{P.correo}</label>
-            <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required>
+
+          <div class="fgrupo">
+            <p class="fgrupo-t"><span class="fgrupo-n" aria-hidden="true">2</span><span class="lbl" style="color:var(--l2)">{P.g2}</span></p>
+            <div class="field" id="c-pass">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+                <label class="flbl" for="pass">{P.clave}</label>
+                <button type="button" class="fver" id="ver" aria-pressed="false" aria-label={P.verAria}>{P.ver}</button>
+              </div>
+              <input class="input" id="pass" name="password" type="password" autocomplete="new-password"
+                     placeholder={P.clavePh} required minlength="8" aria-describedby="n-pass">
+              <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+              <p class="fnota" id="n-pass" aria-live="polite">{P.fMin}</p>
+            </div>
+            <div class="field" id="c-pass2">
+              <label class="flbl" for="pass2">{P.repetir}</label>
+              <input class="input" id="pass2" type="password" autocomplete="new-password"
+                     placeholder={P.repetirPh} required aria-describedby="n-pass2">
+              <p class="fnota" id="n-pass2" aria-live="polite">{P.repetirAyuda}</p>
+            </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:7px">
-            <label class="lbl" for="pass">{P.clave}</label>
-            <input class="input" id="pass" name="password" type="password" autocomplete="new-password" placeholder={P.clavePh} required>
-            <div class="meter"><div id="meter" style="height:4px;width:0;background:var(--rd);transition:width .2s,background .2s"></div></div>
-            <p class="s" id="hint">{P.fMin}</p>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:7px">
-            <label class="lbl" for="pass2">{P.repetir}</label>
-            <input class="input" id="pass2" type="password" autocomplete="new-password" placeholder={P.repetirPh} required>
-          </div>
+
           <button class="btn block" id="go" type="submit">{P.crear}</button>
           <p class="s" style="text-align:center">{P.yaTienes} <a href="/login">{P.entrar}</a></p>
         </form>
@@ -105,8 +124,24 @@ const jsonld = grafo(org());
     const fill = (str, n) => String(str).replace('{n}', n);
     const form = document.getElementById('f');
     const meter = document.getElementById('meter');
-    const hint = document.getElementById('hint');
     const go = document.getElementById('go');
+    const pass2 = document.getElementById('pass2');
+    const ver = document.getElementById('ver');
+
+    // Un error de campo se dice EN el campo, no en un aviso flotante.
+    // Antes las cuatro validaciones eran toasts disparados al enviar, y `return`
+    // cortaba en la primera: con el nombre corto y el correo mal escrito hacian
+    // falta dos envios para enterarse de los dos fallos, y el aviso aparecia en
+    // la esquina inferior mientras el campo culpable seguia arriba sin marcar.
+    const nota = (campo, texto, estado) => {
+      const caja = document.getElementById('c-' + campo);
+      const p = document.getElementById('n-' + campo);
+      const input = document.getElementById(campo);
+      p.textContent = texto;
+      if (estado) p.dataset.est = estado; else delete p.dataset.est;
+      if (estado === 'mal') { caja.dataset.mal = '1'; input.setAttribute('aria-invalid', 'true'); }
+      else { delete caja.dataset.mal; input.removeAttribute('aria-invalid'); }
+    };
 
     const strength = (v) => {
       let s = 0;
@@ -115,20 +150,89 @@ const jsonld = grafo(org());
       if (/\d/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
       return Math.min(s, 4);
     };
-    form.password.addEventListener('input', () => {
-      const s = strength(form.password.value);
+
+    // Cada regla devuelve el texto del fallo, o '' si el campo esta bien. Las
+    // usan el borrado (blur), el envio y el enfoque del primer campo malo, asi
+    // que la regla se escribe una vez y no puede divergir entre los tres sitios.
+    const reglas = {
+      name: () => form.name.value.trim().length < 2 ? P.eNombreB : '',
+      email: () => /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(form.email.value.trim()) ? '' : P.eCorreoB,
+      pass: () => form.password.value.length < 8 ? P.eClaveB : '',
+      pass2: () => !pass2.value || pass2.value !== form.password.value ? P.eDistB : '',
+    };
+
+    const revisar = (campo) => {
+      const fallo = reglas[campo]();
+      if (fallo) { nota(campo, fallo, 'mal'); return false; }
+      // Cada campo tiene su reposo distinto: la contrasena conserva el medidor
+      // de fuerza y la repeticion confirma en verde. Vaciar la nota a secas
+      // borraria las dos cosas.
+      if (campo === 'pass') fuerza();
+      else if (campo === 'pass2') nota('pass2', P.coincide, 'bien');
+      else nota(campo, '', null);
+      return true;
+    };
+
+    const fuerza = () => {
+      const v = form.password.value;
+      const s = strength(v);
       meter.style.width = [0, 25, 50, 75, 100][s] + '%';
       meter.style.background = s <= 1 ? 'var(--rd)' : s === 2 ? 'var(--or)' : 'var(--ok)';
-      hint.textContent = form.password.value.length < 8 ? P.fCorta : s <= 2 ? P.fFlojo : P.fBien;
+      nota('pass', v.length === 0 ? P.fMin : v.length < 8 ? P.fCorta : s <= 2 ? P.fFlojo : P.fBien,
+           v.length === 0 ? null : v.length < 8 ? 'mal' : s <= 2 ? null : 'bien');
+      // El estado 'mal' pinta el borde rojo; mientras se escribe todavia no es
+      // un error, es una cuenta atras. Solo el blur y el envio marcan el campo.
+      delete document.getElementById('c-pass').dataset.mal;
+    };
+
+    // El estado suave de la repeticion: verde cuando coincide, gris cuando aun
+    // no. Gris y no rojo a proposito — a mitad de escribir la segunda copia
+    // NUNCA coincide, y marcarla en rojo en cada tecla convierte el camino
+    // normal en una alarma. El rojo llega en el blur y en el envio.
+    const pass2Suave = () => {
+      if (!pass2.value) return nota('pass2', P.repetirAyuda, null);
+      const igual = pass2.value === form.password.value;
+      nota('pass2', igual ? P.coincide : P.noCoincide, igual ? 'bien' : null);
+    };
+    form.password.addEventListener('input', () => {
+      fuerza();
+      // Editar la contrasena invalida la confirmacion que ya estaba dada, pero
+      // por lo mismo de arriba se dice en gris, no en rojo.
+      if (pass2.value) pass2Suave();
+    });
+    pass2.addEventListener('input', pass2Suave);
+    // Al salir del campo si es un error de verdad. Mientras se escribe "a@b" no
+    // se marca en rojo un correo que todavia no ha terminado de escribirse.
+    for (const campo of ['name', 'email']) {
+      document.getElementById(campo).addEventListener('blur', () => {
+        if (document.getElementById(campo).value.trim()) revisar(campo);
+      });
+      document.getElementById(campo).addEventListener('input', () => {
+        if (document.getElementById('c-' + campo).dataset.mal) revisar(campo);
+      });
+    }
+    form.password.addEventListener('blur', () => { if (form.password.value) revisar('pass'); });
+    pass2.addEventListener('blur', () => { if (pass2.value) revisar('pass2'); });
+
+    ver.addEventListener('click', () => {
+      const mostrando = ver.getAttribute('aria-pressed') === 'true';
+      const tipo = mostrando ? 'password' : 'text';
+      form.password.type = tipo; pass2.type = tipo;
+      ver.setAttribute('aria-pressed', String(!mostrando));
+      ver.textContent = mostrando ? P.ver : P.ocultar;
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Se revisan LOS CUATRO, no hasta el primer fallo: el que envia quiere ver
+      // de una vez todo lo que le falta. Despues el foco va al primero malo,
+      // que en movil es lo unico que garantiza que el campo sea visible.
+      const malos = ['name', 'email', 'pass', 'pass2'].filter((c) => !revisar(c));
+      if (malos.length) {
+        document.getElementById(malos[0]).focus();
+        return;
+      }
       const name = form.name.value.trim(), email = form.email.value.trim(), password = form.password.value;
-      if (name.length < 2) return toast('bad', P.eNombre, P.eNombreB);
-      if (!/^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(email)) return toast('bad', P.eCorreo, P.eCorreoB);
-      if (password.length < 8) return toast('bad', P.eClave, P.eClaveB);
-      if (password !== document.getElementById('pass2').value) return toast('bad', P.eDist, P.eDistB);
       go.disabled = true; go.textContent = P.creando;
       try {
         const res = await fetch('/api/auth/register', {
@@ -141,7 +245,10 @@ const jsonld = grafo(org());
           setTimeout(() => location.assign('/panel'), 500);
           return;
         }
-        if (res.status === 409) toast('warn', P.tDup, P.tDupB);
+        // El aviso flotante se queda con lo que el servidor dice, que es lo
+        // unico que el formulario no podia saber solo. El correo repetido si
+        // vuelve al campo: es de ese campo.
+        if (res.status === 409) { nota('email', P.tDupB, 'mal'); document.getElementById('email').focus(); toast('warn', P.tDup, P.tDupB); }
         else toast('bad', P.tErr, d.msg ?? P.tErrB);
       } catch {
         toast('bad', P.tRed, P.tRedB);

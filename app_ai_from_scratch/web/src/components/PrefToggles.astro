@@ -6,7 +6,12 @@ import { IDIOMAS, NOMBRE_IDIOMA } from '../lib/i18n';
 interface Props { lang: string; theme: 'dark' | 'paper' | 'auto'; sync?: boolean; labels: { auto: string; dark: string; paper: string; langAria: string; themeAria: string }; }
 const { lang, theme, labels, sync = false } = Astro.props;
 ---
-<div style="display:flex;align-items:center;gap:14px" data-sync={sync ? '1' : undefined}>
+<!-- flex-wrap y no un ancho fijo: son SEIS botones (auto/es/en + auto/oscuro/papel)
+     y desde que el suelo tactil los subio a 44px de alto con 16 de relleno no
+     caben en una fila de 390. Sin envolver, el grupo del tema se salia 23px por
+     la derecha en /pago. justify-content al final para que, cuando envuelva, la
+     segunda fila quede alineada con la primera y no centrada bajo ella. -->
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end" data-sync={sync ? '1' : undefined}>
   <div class="seg" role="group" aria-label={labels.langAria}>
     <button class="segb" data-pref="lang" data-val="auto" aria-pressed={lang === 'auto'}>{labels.auto}</button>
     {IDIOMAS.map((c) => (

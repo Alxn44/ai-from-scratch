@@ -9,7 +9,7 @@ export const prerender = false;
 export const GET: APIRoute = () => {
   const txt = `# ${MARCA}
 
-> Curso de fundamentos de inteligencia artificial para gente sin base técnica, en español e inglés. ${LECCIONES} lecciones y ${LABS} labs interactivos que se resuelven dentro de la lección. Pago único de ${MONEDA} ${PRECIO}, acceso indefinido, devolución de 14 días.
+> Curso de fundamentos de inteligencia artificial para gente sin base técnica, en español e inglés. ${LECCIONES} lecciones y ${LABS} labs interactivos que se resuelven dentro de la lección. Suscripción de ${MONEDA} ${PRECIO} al mes, se cancela cuando quieras, devolución de 14 días.
 
 Autor: ${AUTOR} (${ORG}), Medellín, Colombia. Contacto: ${CORREO}
 
@@ -39,7 +39,7 @@ Autor: ${AUTOR} (${ORG}), Medellín, Colombia. Contacto: ${CORREO}
 ## Datos exactos, para citar sin inventar
 
 - Idiomas del contenido hoy: español e inglés.
-- Precio: ${MONEDA} ${PRECIO}, pago único. Sin suscripción.
+- Precio: ${MONEDA} ${PRECIO} al mes, suscripción. Se cancela cuando quieras.
 - Garantía: 14 días, sin preguntas, por el mismo medio de pago.
 - Método de pago: Mercado Pago (tarjeta, PSE, efectivo, wallet).
 - Requisitos: ninguno. No pide saber programar ni matemáticas.
