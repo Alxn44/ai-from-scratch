@@ -155,6 +155,35 @@ jobs:
       # "skipped" and exits 0 — a silent pass, which is the one outcome this
       # workflow refuses. The log is captured so a boot failure is diagnosable
       # instead of just absent.
+      # La api ya NO habla con Postgres directamente para esto: /api/health pide
+      # lab.count y eso va por el servicio `data`, que es quien tiene el guard de
+      # la ontologia. Sin el, la api arranca pero su health responde 500
+      # `DataUnreachable: data is unreachable (lab.count): fetch failed` cuarenta
+      # veces y el job muere sin decir que lo que falta es un servicio.
+      #
+      # `data` se niega a arrancar sin el artefacto de la ontologia, y hace bien:
+      # un servicio de datos sin lista de columnas prohibidas es un servicio sin
+      # guard. Se le pasa por DATA_ONTOLOGY el que genera Python y lee Node.
+      - name: Start data for the integration suite
+        working-directory: ${{ env.DIR }}/data
+        env:
+          DATA_ONTOLOGY: ${{ github.workspace }}/${{ env.DIR }}/api/src/ontologia.json
+        run: |
+          nohup go run ./cmd/data serve > /tmp/data.log 2>&1 &
+          disown || true
+          # /health, no /salud. Lo comprobe contra el servicio corriendo: /salud
+          # responde 404. Un readiness contra la ruta equivocada espera los 60
+          # segundos completos y culpa al servicio de no arrancar.
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8788/health >/dev/null 2>&1; then
+              echo "data up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "data never answered /health on 8788 in 60s. Its log:"
+          cat /tmp/data.log
+          exit 1
+
       - name: Start api for the integration suite
         working-directory: ${{ env.DIR }}
         run: |
@@ -169,6 +198,8 @@ jobs:
           done
           echo "api never answered /api/health in 40s. Its log:"
           cat /tmp/api.log
+          echo "--- and the data service log, because health goes through it ---"
+          cat /tmp/data.log || true
           exit 1
 
       - name: Tests (7 suites, none skipped)
@@ -393,4 +424,12 @@ jobs:
           PAYMENTS_DB_PASSWORD: ci-payments-db-password
           MP_ACCESS_TOKEN: ci-provider-token
           MP_WEBHOOK_SECRET: ci-provider-webhook-secret
+          # messages/ llego con la extraccion y trae su propio Postgres.
+          # docker-compose interpola ANTES de construir nada, asi que sin estas
+          # dos el paso muere en el parseo del fichero, no en un Dockerfile:
+          #   required variable MESSAGES_DB_PASSWORD is missing a value
+          # Un servicio nuevo en compose es siempre una linea nueva aqui.
+          MESSAGES_SECRET: ci-only-ephemeral-messages-secret-32plus
+          MESSAGES_DB_PASSWORD: ci-messages-db-password
+          QUEUE_SECRETO: ci-only-ephemeral-queue-secret-value-32plus
         run: docker compose build
