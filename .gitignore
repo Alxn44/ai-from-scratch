@@ -107,3 +107,8 @@ claves/
 opencode.json
 tmp/
 app_ai_from_scratch/output/
+
+# Estado local de Claude Code: 25 MB y 1.305 ficheros, con un WORKTREE de git
+# dentro. Un worktree commiteado deja un .git anidado en el arbol y rompe el
+# clon de quien venga detras. Nada de aqui es del proyecto.
+.claude/
