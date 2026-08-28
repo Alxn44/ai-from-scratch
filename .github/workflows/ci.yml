@@ -59,7 +59,12 @@ jobs:
       # and anything under 32 chars, so this cannot be a friendly short string.
       JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
       IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
-      DATA_SECRETO: ci-only-ephemeral-data-secret-value-32plus
+      # NO puede contener "secret". El guard de data/internal/httpapi/server.go
+      # rechaza changeme / secret / dev-only-change-me / cambia-esto y exige 32
+      # caracteres, y el valor anterior — ci-only-ephemeral-data-secret-value —
+      # los llevaba dentro: el servicio se negaba a arrancar y tenia razon. Su
+      # propio test ya habia tropezado con esto y lo dejo escrito.
+      DATA_SECRETO: ci-ephemeral-data-key-K7f9Qx2mNv4TzB8LrJ3s
       # The api suite needs the demo accounts as FIXTURES: test/tools.mts:19 does
       # `SELECT id FROM users WHERE email = 'ricardo@velez.co'` and then
       # dereferences with `!`, which TypeScript erases, so a missing row is not a
@@ -419,7 +424,7 @@ jobs:
           RABBITMQ_PASSWORD: ci-build-only
           JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
           IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
-          DATA_SECRETO: ci-only-ephemeral-data-secret-value-32plus
+          DATA_SECRETO: ci-ephemeral-data-key-K7f9Qx2mNv4TzB8LrJ3s
           PAYMENTS_SECRET: ci-only-ephemeral-payments-secret-32plus
           PAYMENTS_DB_PASSWORD: ci-payments-db-password
           MP_ACCESS_TOKEN: ci-provider-token
