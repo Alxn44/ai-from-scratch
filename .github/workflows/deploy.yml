@@ -51,7 +51,16 @@ jobs:
       # the sha is what you roll back to, so it is the one that must always exist.
       - name: Tag
         id: meta
-        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      # GHCR EXIGE MINUSCULAS EN EL NOMBRE DEL REPOSITORIO, y el dueno de este
+      # se escribe Alxn44. Usar github.repository tal cual producia
+      #   invalid tag "ghcr.io/Alxn44/ai-from-scratch/api:...":
+      #   repository name must be lowercase
+      # y mataba `publish images` DESPUES de que las cinco puertas pasaran en
+      # verde. No se habia visto nunca porque el despliegue jamas habia llegado
+      # a ejecutarse: la primera vez que corrio, fallo aqui.
+        run: |
+          echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       # PLATFORMS: linux/amd64 AND linux/arm64, on every image below.
       #
@@ -75,12 +84,13 @@ jobs:
       - name: api
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch/api
+          context: app_ai_from_scratch
+          file: app_ai_from_scratch/api/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/api:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/api:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/api:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/api:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api,mode=max
 
@@ -90,15 +100,28 @@ jobs:
       - name: api-migrate
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch/api
+          context: app_ai_from_scratch
+          file: app_ai_from_scratch/api/Dockerfile
           target: migrate
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/api-migrate:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/api-migrate:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/api-migrate:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/api-migrate:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api-migrate,mode=max
+
+      - name: payments
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/payments
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.repo }}/payments:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/payments:latest
+          cache-from: type=gha,scope=payments
+          cache-to: type=gha,scope=payments,mode=max
 
       - name: ai
         uses: docker/build-push-action@v6
@@ -107,8 +130,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/ai:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/ai:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/ai:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/ai:latest
           cache-from: type=gha,scope=ai
           cache-to: type=gha,scope=ai,mode=max
 
@@ -117,10 +140,12 @@ jobs:
         with:
           context: app_ai_from_scratch/web
           push: true
+          build-args: |
+            PUBLIC_SITE=https://aifromscratch.shop
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/web:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/web:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/web:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/web:latest
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
 
@@ -141,8 +166,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/queue:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/queue:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/queue:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/queue:latest
           cache-from: type=gha,scope=queue
           cache-to: type=gha,scope=queue,mode=max
 
@@ -169,8 +194,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/defense:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/defense:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/defense:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/defense:latest
           cache-from: type=gha,scope=defense
           cache-to: type=gha,scope=defense,mode=max
 
@@ -201,8 +226,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/data:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ github.repository }}/data:latest
+            ghcr.io/${{ steps.meta.outputs.repo }}/data:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/data:latest
           cache-from: type=gha,scope=data
           cache-to: type=gha,scope=data,mode=max
 
