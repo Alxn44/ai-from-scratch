@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Tokens copiados literalmente de web/src/lib/theme-css.ts. Sin redondear,
+       sin aproximar: el artboard tiene que ser indistinguible de la app. */
+    :root{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --btn-bg:#fff;--btn-fg:#000;--on-ac:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:var(--f);color:var(--l1);-webkit-font-smoothing:antialiased}
+    a{color:var(--ac);text-decoration:none}
+    a:hover{color:#409CFF}
+    /* Rampa tipografica de web/src/layouts/App.astro, mismas declaraciones. */
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .h1{font:700 34px/1.06 var(--f);letter-spacing:-.035em;margin:0}
+    .h2{font:700 21px/1.16 var(--f);letter-spacing:-.028em;margin:0}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0}
+    .p{font:400 16px/1.5 var(--f);color:var(--l2);margin:0}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .num{font-variant-numeric:tabular-nums}
+    .card{border:1px solid var(--hair2);padding:22px}
+    .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;font-family:var(--m)}
+    .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--l1)}
+    .chip{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--hair);background:transparent;color:var(--l1);font:500 14px/1.2 var(--m)}
+    .chip[data-on]{border-color:var(--ac);background:rgba(10,132,255,.18)}
+    .input{height:44px;width:100%;padding:0 14px;background:var(--fill);border:1px solid var(--hair2);color:var(--l1);font:400 15px/1 var(--f)}
+    .bar{height:4px;background:rgba(120,120,128,.20)}
+    .barfill{height:4px;background:var(--l1)}
+    .nav{height:44px;display:flex;align-items:center;gap:11px;padding:0 16px;color:var(--l3);font:500 11px/1 var(--m);letter-spacing:.14em;text-transform:uppercase;border-left:2px solid transparent}
+    .nav[aria-current]{color:var(--l1);background:var(--fill);border-left-color:var(--ac)}
+    .seg{display:flex;border:1px solid var(--hair2)}
+    .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    .segb:last-child{border-right:0}
+    .segb[aria-pressed="true"]{background:var(--ac-solid);color:var(--on-ac)}
+    .tblhead{font:500 10px/1 var(--m);letter-spacing:.16em;text-transform:uppercase;color:var(--l3)}
+    /* PROPUESTA. Lo de aqui abajo no existe todavia en la app: es lo que hay que
+       aprobar. Cada regla lleva por que. */
+    /* .segb mide 30px de alto en la app. En un dedo eso incumple el suelo de
+       44px que .btn, .chip y .input ya respetan. En movil sube a 44. */
+    .segb.touch{height:44px;padding:0 16px;font-size:11px}
+    /* Cabecera de dos filas: fila 1 hamburguesa + miga, fila 2 el slot topbar.
+       Hoy la fila 2 se borra con display:none y con ella el conmutador de /chat
+       y el marcador de /examen. */
+    .head{border-bottom:1px solid var(--hair2);background:var(--bg)}
+    .head-r1{height:56px;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px}
+    .head-r2{min-height:52px;display:flex;align-items:center;gap:10px;padding:0 14px 10px;border-top:1px solid var(--hair2);padding-top:10px}
+    .tap{width:44px;height:44px;flex:none;display:grid;place-items:center;color:var(--l3);background:none;border:0}
+    .pad{padding:18px 14px 32px;display:flex;flex-direction:column;gap:22px}
+    /* La lista de lecciones en movil: dos filas por leccion en vez de cinco
+       columnas. #, texto y estado en la primera; labs y contador debajo. */
+    .row-m{display:grid;grid-template-columns:32px 1fr auto;gap:8px 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--hair2)}
+    .est{display:inline-flex;align-items:center;height:26px;padding:0 10px;font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    /* Carril de atajos de /chat: tira horizontal sobre el compositor, que es
+       donde sirven, en vez de ocho botones apilados debajo del hilo. */
+    .rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    .rail::-webkit-scrollbar{display:none}
+    .rail .btn{flex:none;height:38px;padding:0 14px;font-size:10px}
+  </style>
+</helmet>
+<!-- curso.astro:99 — article.card con grid-template-columns:60px 1fr 300px y
+     gap:22px. Fijo = 60 + 300 + 44 = 404 px. Disponible en .app-pad a 390 =
+     362. La columna 1fr (titulo, resumen y las pastillas de lab) se queda en
+     0 px. Cero media queries en el fichero.
+     PROPUESTA: una columna por debajo de 900; el numero y el estado comparten
+     la primera fila. -->
+<div style="min-height:100%;background:var(--bg);padding:18px 14px;display:flex;flex-direction:column;gap:16px">
+
+  <p class="lbl">CURSO &middot; 12 LECCIONES</p>
+
+  <article class="card" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <span class="num" style="font:700 26px/1 var(--f);letter-spacing:-.03em;color:var(--l3)">01</span>
+      <span class="est" style="border:1px solid var(--ac);background:rgba(10,132,255,.16);color:var(--ac)">EN CURSO</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+      <p class="eb">LA IA</p>
+      <h2 class="h2">Aprende viendo ejemplos</h2>
+      <p class="p" style="font-size:14px">Nadie le escribe reglas: encuentra el parecido entre miles de ejemplos, sola.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px;border:1px solid var(--ok);font:500 10px/1 var(--m);letter-spacing:.1em;color:var(--ok)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.6l4.4 4.4L19 7.2"/></svg>
+          <span class="num">1A</span><span>FACIL</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px;border:1px solid var(--hair2);font:500 10px/1 var(--m);letter-spacing:.1em;color:var(--l3)">
+          <span class="num">1B</span><span style="color:var(--or)">MEDIO</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px;border:1px solid var(--hair2);font:500 10px/1 var(--m);letter-spacing:.1em;color:var(--l3)">
+          <span class="num">1C</span><span style="color:var(--rd)">DIFICIL</span>
+        </span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--hair2);padding-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <p class="lbl">LA MATEMATICA</p>
+        <span class="num s">1 / 3 LABS</span>
+      </div>
+      <div style="height:4px;background:var(--fill)"><div style="height:4px;background:var(--l1);width:33%"></div></div>
+      <div style="border-left:2px solid var(--ac);padding-left:12px;display:flex;flex-direction:column;gap:4px">
+        <span class="num" style="font:700 17px/1.1 var(--f)">100.000</span>
+        <p class="s">fotos de gato para aprender que es un gato. A ti te bastan 3.</p>
+      </div>
+      <a class="btn" style="width:100%">SEGUIR</a>
+    </div>
+  </article>
+
+  <article class="card" style="display:flex;flex-direction:column;gap:16px;border-style:dashed">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <span style="display:flex;align-items:center;gap:8px">
+        <span class="num" style="font:700 26px/1 var(--f);letter-spacing:-.03em;color:var(--l3)">06</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,.50)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.6 11.2A1.4 1.4 0 0 1 7 9.8h10a1.4 1.4 0 0 1 1.4 1.4v7.2A1.4 1.4 0 0 1 17 19.8H7a1.4 1.4 0 0 1-1.4-1.4zM8.4 9.8V7.6a3.6 3.6 0 0 1 7.2 0v2.2M12 13.6v2.4"/></svg>
+      </span>
+      <span class="est" style="color:var(--l3)">CERRADA</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+      <p class="eb">COMO ESCRIBE</p>
+      <h2 class="h2">Elige el siguiente token</h2>
+      <p class="p" style="font-size:14px">Calcula opciones, elige un token y vuelve a calcular con el texto nuevo.</p>
+    </div>
+    <div style="border-top:1px solid var(--hair2);padding-top:16px">
+      <a class="btn ghost" style="width:100%">DESBLOQUEAR</a>
+    </div>
+  </article>
+</div>
+</x-dc>
+</body>
+</html>

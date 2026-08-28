@@ -25,14 +25,14 @@ const labPct = prog ? Math.round((prog.solvedLabs / prog.totalLabs) * 100) : 0;
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px">
+    <div class="perfil-stats">
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.leccionesCap}</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{prog?.lessonsDone} / {prog?.totalLessons}</div><div class="bar"><div class="barfill" style={`width:${pct}%`}></div></div></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.labsCap}</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{prog?.solvedLabs} / {prog?.totalLabs}</div><div class="bar"><div class="barfill" style={`width:${labPct}%`}></div></div></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.idiomaCap}</p><div style="font:700 20px/1.2 var(--f)">{resolveLang(user!.lang, Astro.request) === 'es' ? 'Español' : 'English'}{user!.lang === 'auto' ? ' · auto' : ''}</div><p class="s">{L.perfil.cambiaAqui}</p></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">{L.perfil.certificado}</p><div class="num" style="font:700 20px/1.2 var(--f);color:var(--l3)">{L.perfil.alCien}</div><p class="s">{L.perfil.seEmite}</p></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:24px;align-items:start">
+    <div class="perfil-split">
       <div style="display:flex;flex-direction:column;gap:14px">
         <p class="lbl">{L.perfil.avance}</p>
         <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">

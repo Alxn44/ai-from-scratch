@@ -1,7 +1,7 @@
 // Labs interactivos. La corrección la hace el servidor: aquí solo se recoge la respuesta.
 import { exito, fallo } from './fx';
 import { sonar, prepararSonido } from './sound';
-import { asomarGato } from './cat';
+import { trazoDice } from './trazo';
 import { desbloquear } from './unlock';
 import { abrirRoadmap, type RoadmapTxt } from './roadmap';
 
@@ -62,7 +62,7 @@ function celebrar(nuevos: { code: string; kind: string; lesson_n: number | null 
     // grados: es un cierre, no un avance, y el hito 'leccion' remata en quinta.
     if (ultimo.code.endsWith('.maestro')) {
       sonar('leccion', ultimo.lesson_n ?? 1);
-      asomarGato(TXT.gatoMaestro ?? '¡Lección cerrada!');
+      trazoDice(TXT.gatoMaestro ?? '¡Lección cerrada!');
     } else {
       sonar('estrella', ultimo.lesson_n ?? 1);
     }

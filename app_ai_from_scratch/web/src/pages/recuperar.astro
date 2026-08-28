@@ -21,6 +21,7 @@ const token = new URL(Astro.request.url).searchParams.get('t') ?? '';
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <meta name="robots" content="noindex">
   <title>{P.eb} · IA desde cero</title>
   <style is:global set:html={TOKENS + PUBLIC_BASE}></style>
@@ -32,8 +33,8 @@ const token = new URL(Astro.request.url).searchParams.get('t') ?? '';
   </style>
 </head>
 <body>
-  <div style="display:flex;min-height:100vh">
-    <section style="width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px">
+  <div class="pub-split">
+    <section class="pub-pane">
       <a href="/" style="display:flex;align-items:center;gap:11px;color:var(--l1)">
         <span class="mark">IA</span>
         <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
@@ -51,9 +52,9 @@ const token = new URL(Astro.request.url).searchParams.get('t') ?? '';
       </div>
     </section>
 
-    <section style="flex:1;display:flex;flex-direction:column;padding:26px 40px 40px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:20px">
-        <div style="display:flex;align-items:center;gap:22px">
+    <section class="pub-main">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <div class="paso"><div class="bolita" id="b1">1</div><span class="lbl">{P.pasoCorreo}</span></div>
           <div class="paso"><div class="bolita" id="b2">2</div><span class="lbl">{P.pasoEnlace}</span></div>
           <div class="paso"><div class="bolita" id="b3">3</div><span class="lbl">{P.pasoClave}</span></div>
@@ -62,7 +63,7 @@ const token = new URL(Astro.request.url).searchParams.get('t') ?? '';
       </div>
 
       <div style="flex:1;display:flex;align-items:center;justify-content:center">
-        <div style="width:420px">
+        <div class="pub-card">
 
           <form id="fPedir" class="hidden" style="display:flex;flex-direction:column;gap:20px" novalidate>
             <div style="display:flex;flex-direction:column;gap:8px">

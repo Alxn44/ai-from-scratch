@@ -24,7 +24,7 @@ const sum = pays.filter((p) => p.status === 'approved').reduce((a, p) => a + p.a
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px">
-      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Cuentas activas</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{users.length}</div><p class="s">las borradas no cuentan</p></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Cuentas activas</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{users.length}</div><p class="s">las cuentas eliminadas no cuentan</p></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Tutores</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{users.filter((u) => u.role === 'tutor').length}</div><p class="s">de {users.length} cuentas</p></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Cobrado</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em;color:var(--ok)">USD {sum.toFixed(2)}</div><p class="s">{pays.filter((p) => p.status === 'approved').length} pagos aprobados</p></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Pendientes</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em;color:var(--or)">{pays.filter((p) => p.status === 'pending').length}</div><p class="s">efectivo y PSE</p></div>
@@ -32,20 +32,29 @@ const sum = pays.filter((p) => p.status === 'approved').reduce((a, p) => a + p.a
 
     <div style="display:flex;flex-direction:column;gap:14px">
       <p class="lbl">Usuarios y roles</p>
-      <div style="display:grid;grid-template-columns:1.2fr 1.6fr 150px 110px 90px;gap:16px;padding-bottom:10px;border-bottom:1px solid var(--hair)">
+      <!-- .tblwrap: nombre, correo, rol, alta y compra no caben en 362 px y
+           apilarlos vuelve la tabla ilegible. Scroll horizontal DENTRO de su
+           contenedor, que es el trato correcto para una tabla densa, y asi el
+           body nunca desborda. -->
+      <div class="tblwrap"><div style="display:flex;flex-direction:column;gap:14px">
+      <div class="tbl-admin" style="padding-bottom:10px;border-bottom:1px solid var(--hair)">
         <div class="tblhead">Nombre</div><div class="tblhead">Correo</div><div class="tblhead">Rol</div><div class="tblhead">Alta</div><div class="tblhead">Compra</div>
       </div>
       {users.map((u) => (
-        <div style="display:grid;grid-template-columns:1.2fr 1.6fr 150px 110px 90px;gap:16px;align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
+        <div class="tbl-admin" style="align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
           <span style="font:600 14px/1.2 var(--f)">{u.name}</span>
           <span class="s" style="color:var(--l2)">{u.email}</span>
-          <select data-role={u.id} class="input" style="height:34px;font:500 11px/1 var(--m);letter-spacing:.06em;padding:0 8px">
+          <!-- 16px y 44 de alto: el estilo en linea le ganaba a .input{font-size:16px}
+               del bloque movil, y por debajo de 16 iOS Safari hace zoom al enfocar.
+               34px tambien incumplia el suelo tactil de 44. -->
+          <select data-role={u.id} class="input" style="font:500 16px/1 var(--m);letter-spacing:.06em;padding:0 8px">
             {['student', 'tutor', 'admin'].map((r) => <option value={r} selected={u.role === r} style={`color:${ROLEC[r]}`}>{ROLE_ES[r]}</option>)}
           </select>
           <span class="num s">{u.created_at.slice(0, 10)}</span>
           <span class="s" style={`color:${u.paid ? 'var(--ok)' : 'var(--l3)'}`}>{u.paid ? 'Sí' : 'No'}</span>
         </div>
       ))}
+      </div></div><!-- /.tblwrap: el aviso de abajo NO debe scrollear -->
       <div class="card" style="border-color:var(--hair);border-left:2px solid var(--or);display:flex;gap:12px;align-items:flex-start;margin-top:6px">
         <Fragment set:html={icon('alert', 18, 'var(--or)')} />
         <div><div class="h3">Cambiar un rol se registra</div><p class="s" style="color:var(--l2);margin-top:4px">Queda en el historial con quién lo hizo y cuándo. La plataforma no se puede quedar sin admins: el servidor rechaza ese cambio.</p></div>

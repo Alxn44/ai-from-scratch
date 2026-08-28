@@ -1,0 +1,60 @@
+<!-- perfil.astro:28 — repeat(4,minmax(0,1fr)) con gap:22. A 390:
+        (362 - 3x22) / 4 = 74 px por tarjeta
+        .card lleva padding:22px -> 30 px de contenido
+        dentro hay numeros a font:700 34px («3 / 12» pide ~90 px)
+     minmax(0,...) evita que la PAGINA desborde, pero el numero desborda su
+     propia tarjeta. Cero media queries en el fichero.
+     PROPUESTA: 2 columnas por debajo de 900, 4 por encima de 1180. -->
+<div style="min-height:100%;background:var(--bg);padding:18px 14px;display:flex;flex-direction:column;gap:22px">
+
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="width:52px;height:52px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:600 16px/1 var(--m)">AP</div>
+    <div style="min-width:0">
+      <h1 class="h1" style="font-size:24px">Alejandro Padron</h1>
+      <p class="s" style="color:var(--l2);margin-top:5px">alejandro@ejemplo.com &middot; comprado</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">
+    <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px">
+      <p class="lbl">LECCIONES</p>
+      <div class="num" style="font:700 30px/1 var(--f);letter-spacing:-.04em">3 / 12</div>
+      <div class="bar"><div class="barfill" style="width:25%"></div></div>
+    </div>
+    <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px">
+      <p class="lbl">LABS</p>
+      <div class="num" style="font:700 30px/1 var(--f);letter-spacing:-.04em">9 / 36</div>
+      <div class="bar"><div class="barfill" style="width:25%"></div></div>
+    </div>
+    <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px">
+      <p class="lbl">IDIOMA</p>
+      <div style="font:700 18px/1.2 var(--f)">Espanol &middot; auto</div>
+      <p class="s">Se cambia en Ajustes.</p>
+    </div>
+    <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:10px">
+      <p class="lbl">CERTIFICADO</p>
+      <div class="num" style="font:700 18px/1.2 var(--f);color:var(--l3)">AL 100%</div>
+      <p class="s">Se emite al terminar.</p>
+    </div>
+  </div>
+
+  <!-- perfil.astro:38 — repeat(6,minmax(0,1fr)) da 50 px por celda a 390.
+       Para 12 insignias de dos digitos aguanta; se deja en 6. -->
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <p class="lbl">AVANCE POR LECCION</p>
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px">
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--ok);background:rgba(48,209,88,.14);color:var(--ok);font:600 13px/1 var(--m)">01</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--ok);background:rgba(48,209,88,.14);color:var(--ok);font:600 13px/1 var(--m)">02</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--ok);background:rgba(48,209,88,.14);color:var(--ok);font:600 13px/1 var(--m)">03</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--ac);background:rgba(10,132,255,.14);color:var(--ac);font:600 13px/1 var(--m)">04</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">05</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">06</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">07</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">08</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">09</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">10</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">11</span>
+      <span class="num" style="height:44px;display:grid;place-items:center;border:1px solid var(--hair);color:var(--l3);font:600 13px/1 var(--m)">12</span>
+    </div>
+  </div>
+</div>

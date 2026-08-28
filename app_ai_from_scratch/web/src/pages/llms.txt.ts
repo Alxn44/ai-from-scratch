@@ -20,7 +20,7 @@ Autor: ${AUTOR} (${ORG}), Medellín, Colombia. Contacto: ${CORREO}
 3. Dónde queda lo aprendido: setenta mil millones de números, no archivos.
 4. Por qué no aprende de ti: entrenamiento e inferencia son momentos separados.
 5. Cómo lee: tokens, no palabras. Todo se mide y se cobra ahí.
-6. Cómo escribe: puntúa cada palabra posible y escoge una, y repite.
+6. Cómo escribe: genera el siguiente token, no la frase completa, y repite.
 7. Cómo pedirle: qué + para quién + cómo.
 8. Su memoria: la ventana de contexto se llena y lo viejo se cae.
 9. Su perilla: la temperatura decide entre segura y creativa.

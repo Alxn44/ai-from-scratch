@@ -8,6 +8,7 @@ import { SITE, MARCA } from '../lib/site';
 import { TOKENS, PUBLIC_BASE } from '../lib/theme-css';
 import { icon } from '../lib/icons';
 import PrefToggles from '../components/PrefToggles.astro';
+import { gato, gatoCSS } from '../lib/cat';
 
 const user = await getUser(Astro.request);
 if (user) return Astro.redirect('/panel');
@@ -25,17 +26,18 @@ const jsonld = grafo(org());
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <title>{P.crear} · IA desde cero</title>
   <link rel="canonical" href={canonical}>
   <meta property="og:site_name" content={MARCA}>
   <meta property="og:type" content="website">
   <meta property="og:url" content={canonical}>
   <script type="application/ld+json" is:inline set:html={jsonld}></script>
-  <style is:global set:html={TOKENS + PUBLIC_BASE}></style>
+  <style is:global set:html={TOKENS + PUBLIC_BASE + gatoCSS('reg-trazo')}></style>
 </head>
 <body>
-  <div style="display:flex;min-height:100vh">
-    <section style="width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px">
+  <div class="pub-split">
+    <section class="pub-pane">
       <a href="/" style="display:flex;align-items:center;gap:11px;color:var(--l1)">
         <span class="mark">IA</span>
         <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
@@ -49,15 +51,22 @@ const jsonld = grafo(org());
         <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('check', 18, 'var(--ok)')} /><p class="s" style="color:var(--l2)">{P.b1}</p></div>
         <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('lock', 18, 'var(--ok)')} /><p class="s" style="color:var(--l2)">{P.b2}</p></div>
         <div style="display:flex;gap:12px;align-items:flex-start"><Fragment set:html={icon('refresh', 18, 'var(--ok)')} /><p class="s" style="color:var(--l2)">{P.b3}</p></div>
+        <div class="trazo-anda" style="position:relative;height:96px;margin-top:10px">
+          <div style="position:absolute;left:0;bottom:0" set:html={gato(96, 'carga', 'reg-trazo')}></div>
+          <div class="card" style="position:absolute;left:62px;top:6px;padding:10px 12px;max-width:168px;transform:rotate(-6deg)">
+            <p class="eb" style="color:var(--ac)">{L.trazo.paso1k}</p>
+            <p class="s" style="color:var(--l1)">{L.trazo.paso1t}</p>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section style="flex:1;display:flex;flex-direction:column;padding:26px 40px 40px">
+    <section class="pub-main">
       <div style="display:flex;justify-content:flex-end">
         <PrefToggles lang={langPref} theme={theme} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
       </div>
       <div style="flex:1;display:flex;align-items:center;justify-content:center">
-        <form id="f" style="width:420px;display:flex;flex-direction:column;gap:20px" novalidate>
+        <form id="f" class="pub-card" style="gap:20px" novalidate>
           <div style="display:flex;flex-direction:column;gap:8px">
             <p class="eb">{P.eb}</p>
             <h2 class="h1" style="font-size:28px">{P.h2}</h2>
@@ -87,15 +96,12 @@ const jsonld = grafo(org());
     </section>
   </div>
   <div id="toasts"></div>
-
+  <script>
+    import { montarAvisos } from '../lib/avisos';
+    montarAvisos(document.documentElement.lang === 'en' ? 'Close' : 'Cerrar');
+  </script>
   <script define:vars={{ P, prefs }}>
-    const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
-    const box = document.getElementById('toasts');
-    const toast = (k, tt, b) => {
-      box.innerHTML = `<div class="toast" style="border-color:${COLOR[k]}"><div style="flex:1">
-        <div class="h3" style="color:${COLOR[k]}">${tt}</div><p class="s" style="color:var(--l2);margin-top:4px">${b}</p></div></div>`;
-      if (k === 'ok') setTimeout(() => (box.innerHTML = ''), 4000);
-    };
+    const toast = (k, tt, b) => window.toast(k, tt, b);
     const fill = (str, n) => String(str).replace('{n}', n);
     const form = document.getElementById('f');
     const meter = document.getElementById('meter');

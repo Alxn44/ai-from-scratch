@@ -11,7 +11,11 @@ if (redirect) return Astro.redirect(redirect);
 type Lab = { id: string; idx: number; level: string; kind: string; draft: boolean; solved: boolean };
 type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string; labs: Lab[]; solved: number; total: number; locked: boolean };
 const data = await apiFetch<{ lessons: Lesson[] }>('/api/lessons', Astro.request);
-const prog = await apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number }>('/api/progress', Astro.request);
+type ExamRow = { n: number; from: number; to: number; locked: boolean; correct: number; total: number; passed: boolean; passAt: number };
+const prog = await apiFetch<{
+  solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number;
+  quizzesDone?: number; quizzesTotal?: number; examsPassed?: number; exams?: ExamRow[];
+}>('/api/progress', Astro.request);
 const lang = resolveLang(user!.lang, Astro.request);
 const L = t(lang);
 const C = L.curso;
@@ -30,12 +34,15 @@ const NIVEL: Record<string, string> = { facil: C.nFacil, medio: C.nMedio, difici
 const COLOR: Record<string, string> = { facil: 'var(--ok)', medio: 'var(--or)', dificil: 'var(--rd)' };
 // «Sigue aquí»: primera lección abierta con un lab escrito sin resolver.
 const next = lessons.find((l) => !l.locked && l.labs.some((x) => !x.draft && !x.solved)) ?? lessons.find((l) => !l.locked) ?? lessons[0];
+const exams = prog?.exams ?? [];
 const resumen = C.resumen
   .replace('{a}', String(prog?.lessonsDone ?? 0)).replace('{b}', String(prog?.totalLessons ?? 12))
-  .replace('{c}', String(prog?.solvedLabs ?? 0)).replace('{d}', String(prog?.totalLabs ?? 36));
+  .replace('{c}', String(prog?.solvedLabs ?? 0)).replace('{d}', String(prog?.totalLabs ?? 36))
+  .replace('{e}', String(prog?.quizzesDone ?? 0)).replace('{f}', String(prog?.quizzesTotal ?? 12))
+  .replace('{g}', String(prog?.examsPassed ?? 0)).replace('{h}', String(exams.length || 3));
 ---
 <App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.curso}>
-  <a slot="topbar" class="btn" style="height:36px;font-size:10px;text-decoration:none" href={`/leccion/${next?.n ?? 1}`}>{C.siguiente}</a>
+  <a slot="action" class="btn" style="text-decoration:none" href={`/leccion/${next?.n ?? 1}`}>{C.siguiente}</a>
 
   <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1180px">
 
@@ -55,6 +62,24 @@ const resumen = C.resumen
       )}
     </div>
 
+    {exams.length > 0 && (
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px">
+        {exams.map((ex) => (
+          <div class="card" style={`display:flex;flex-direction:column;gap:8px;border-left:2px solid ${ex.passed ? 'var(--ok)' : ex.locked ? 'var(--hair)' : 'var(--ac)'}`}>
+            <p class="lbl">{L.exam.nDe.replace('{n}', String(ex.n))}</p>
+            <p class="s">{L.exam.rango.replace('{a}', String(ex.from)).replace('{b}', String(ex.to))}</p>
+            <p class="s" style={`color:${ex.passed ? 'var(--ok)' : 'var(--l2)'}`}>
+              {ex.locked ? L.exam.cerrado : ex.passed ? L.exam.aprobado : L.exam.pendiente}
+              {!ex.locked ? ` · ${ex.correct}/${ex.total}` : ''}
+            </p>
+            {ex.locked
+              ? <p class="s">{L.exam.bloq.replace('{n}', String(ex.to))}</p>
+              : <a class="btn ghost" href={`/examen/${ex.n}`} style="text-decoration:none;height:36px;font-size:10px">{L.exam.abrir}</a>}
+          </div>
+        ))}
+      </div>
+    )}
+
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--hair);padding-bottom:18px">
       <div class="seg" role="group">
         <button class="segb" data-f="todas" aria-pressed="true">{C.fTodas}</button>
@@ -70,8 +95,8 @@ const resumen = C.resumen
         const e = estado(l);
         const busca = `${l.n} ${String(l.n).padStart(2, '0')} ${l.eyebrow} ${l.title} ${l.summary}`.toLowerCase();
         return (
-          <article class="card" data-est={e.k} data-busca={busca}
-            style={`display:grid;grid-template-columns:60px 1fr 300px;gap:22px;align-items:start;${l.locked ? 'border-style:dashed' : ''}`}>
+          <article class="card curso-card" data-est={e.k} data-busca={busca}
+            style={l.locked ? 'border-style:dashed' : undefined}>
             <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
               <span class="num" style="font:700 26px/1 var(--f);letter-spacing:-.03em;color:var(--l3)">{String(l.n).padStart(2, '0')}</span>
               {l.locked

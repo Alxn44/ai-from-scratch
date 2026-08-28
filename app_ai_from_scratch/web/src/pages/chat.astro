@@ -50,13 +50,13 @@ const grupos = FAMILIAS
 // name, so it goes through the shared serializer in lib/json-safe.ts.
 ---
 <App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.chat}>
-  <div slot="topbar" class="seg" role="group" aria-label={C.modoAria}>
+  <div slot="topbar" class="seg" data-tut="chat-2" role="group" aria-label={C.modoAria}>
     <button class="segb" id="m-normal" aria-pressed="true">{C.modoNormal}</button>
     <button class="segb" id="m-ia" aria-pressed="false">{C.modoIA}</button>
   </div>
 
-  <div id="lienzo-chat" style="position:relative;padding:26px 28px 30px;display:grid;grid-template-columns:1fr 300px;gap:24px;max-width:1180px;align-items:start">
-    <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px;min-height:calc(100vh - 190px)">
+  <div id="lienzo-chat" class="chat-split" style="position:relative;padding:26px 28px 30px;max-width:1180px">
+    <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px;min-height:calc(100dvh - 190px)">
       <div id="hilo" style="display:flex;flex-direction:column;gap:14px;flex:1">
         <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:8px">
           <p class="eb">{C.eb}</p>
@@ -67,7 +67,7 @@ const grupos = FAMILIAS
 
       <div style="position:sticky;bottom:0;background:linear-gradient(to top, var(--bg) 0, var(--bg) 58%, transparent 100%);padding-top:22px;display:flex;flex-direction:column;gap:10px">
         <div style="display:flex;gap:10px">
-          <input class="input" id="q" placeholder={C.ph} autocomplete="off" style="flex:1">
+          <input class="input" id="q" data-tut="chat-3" placeholder={C.ph} autocomplete="off" style="flex:1">
           <button class="btn" id="go">{C.enviar}</button>
         </div>
         <p class="s" id="aviso" style="display:none">{C.privAviso}</p>
@@ -75,9 +75,9 @@ const grupos = FAMILIAS
     </div>
 
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px">
-      <div class="card" style="display:flex;flex-direction:column;gap:9px">
+      <div class="card" data-tut="chat-1" style="display:flex;flex-direction:column;gap:9px">
         <p class="lbl">{C.atajos}</p>
-        {[C.aProgreso, C.aSiguiente, C.aLogros, C.aRanking, C.aAyuda].map((a) => (
+        {[C.aEmpezar, C.aLeccion, C.aPagar, C.aTutorial, C.aProgreso, C.aSiguiente, C.aLogros, C.aAyuda].map((a) => (
           <button class="btn ghost" data-atajo={a} style="justify-content:flex-start;height:36px;font-size:10px">{a}</button>
         ))}
       </div>
@@ -107,15 +107,7 @@ const grupos = FAMILIAS
       <div class="card" style={`display:flex;flex-direction:column;gap:8px;border-left:2px solid ${hayIA ? 'var(--ok)' : 'var(--or)'}`}>
         <p class="lbl">{C.modoIA}</p>
         {hayIA
-          ? <Fragment>
-              {provs.map((p, i) => (
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style={`width:7px;height:7px;border-radius:4px;background:${i === 0 ? 'var(--ok)' : 'var(--l3)'}`}></span>
-                  <span class="num" style="font:600 12px/1 var(--m)">{p.id}</span>
-                  <span class="s" style="margin-left:auto">{p.modelo}</span>
-                </div>
-              ))}
-            </Fragment>
+          ? <div id="ia-pick-chat"></div>
           : <Fragment>
               <div class="h3" style="color:var(--or)">{C.sinProveedor}</div>
               <p class="s" style="color:var(--l2)">{C.sinProveedorB}</p>
@@ -124,11 +116,19 @@ const grupos = FAMILIAS
     </div>
   </div>
 
-  <script type="application/json" id="chat-datos" is:inline set:html={jsonSafe({ datos, hayIA, lang })}></script>
+  <script type="application/json" id="chat-datos" is:inline set:html={jsonSafe({
+    datos, hayIA, lang,
+    proveedores: provs.map((p) => p.id),
+    flujo: L.flujo,
+    tutorial: { ...L.tutorial, ...L.tutorial.chat },
+  })}></script>
 
   <script>
-    import { responderLocal, preguntarIA, type Traza } from '../lib/chat-client';
+    import { responderLocal, preguntarIA, cargarHistorial, type Traza } from '../lib/chat-client';
+    import { montarPick } from '../lib/ai-pick';
     import { montarCampo } from '../lib/field';
+    import { armarFlujo, pintarFlujo, flujoDe } from '../lib/workflows';
+    import { abrirTutorial, pasosDe, tutorialHecho } from '../lib/tutorial';
 
     const cfg = JSON.parse(document.getElementById('chat-datos')!.textContent!);
     const T = cfg.datos.txt;
@@ -138,6 +138,13 @@ const grupos = FAMILIAS
     const aviso = document.getElementById('aviso')!;
     let modo: 'normal' | 'ia' = 'normal';
     const historial: { role: 'user' | 'assistant'; content: string }[] = [];
+    const pickHost = document.getElementById('ia-pick-chat');
+    let leerPick = (): { proveedor: string | null; esfuerzo: string } => ({ proveedor: null, esfuerzo: 'medio' });
+    if (pickHost) {
+      leerPick = montarPick(pickHost, {
+        modelo: T.modelo, esfuerzo: T.esfuerzo, bajo: T.bajo, medio: T.medio, alto: T.alto,
+      }, Array.isArray(cfg.proveedores) ? cfg.proveedores : []);
+    }
 
     // Campo de partículas de fondo. Protege el texto de toda tarjeta visible,
     // incluidas las burbujas que se añaden después: el módulo remide solo.
@@ -175,6 +182,17 @@ const grupos = FAMILIAS
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:9px">${filas}</div></details>`;
     };
 
+    const next = cfg.datos.lecciones.find((l: { locked: boolean; solved: number; total: number; n: number }) => !l.locked && l.solved < l.total)?.n ?? 1;
+    const pagado = cfg.datos.lecciones.some((l: { n: number; locked: boolean }) => l.n > 1 && !l.locked);
+    const copiaTut = { aria: cfg.tutorial.aria, skip: cfg.tutorial.skip, next: cfg.tutorial.next, done: cfg.tutorial.done };
+    window.abrirTutorial = () => abrirTutorial('chat', pasosDe('chat', cfg.tutorial), copiaTut);
+
+    const pintaFlujo = (host: HTMLElement, id: string) => {
+      if (!cfg.flujo) return;
+      const f = armarFlujo(id as Parameters<typeof armarFlujo>[0], cfg.flujo, { next, pagado });
+      pintarFlujo(f, host, true);
+    };
+
     const enviar = async (texto: string) => {
       const t = texto.trim();
       if (!t) return;
@@ -184,7 +202,8 @@ const grupos = FAMILIAS
       if (modo === 'normal') {
         const r = responderLocal(t, cfg.datos);
         const boton = r.ir ? `<a class="btn ghost" href="${r.ir}" style="height:34px;font-size:10px;text-decoration:none;margin-top:10px">${esc(r.irTxt ?? T.irA)}</a>` : '';
-        burbuja('bot', `<p class="p" style="font-size:14px">${esc(r.texto)}</p>${boton}`);
+        const box = burbuja('bot', `<p class="p" style="font-size:14px">${esc(r.texto)}</p>${boton}`);
+        if (r.flujo) pintaFlujo(box, r.flujo);
         return;
       }
 
@@ -192,7 +211,7 @@ const grupos = FAMILIAS
       go.disabled = true; go.textContent = T.pensando;
       const espera = burbuja('bot', `<p class="s">${T.pensando}</p>`);
       try {
-        const d = await preguntarIA(historial, cfg.lang);
+        const d = await preguntarIA(historial, cfg.lang, 'chat', leerPick());
         espera.remove();
         if (!d.ok || !d.respuesta) {
           window.toast('bad', d.status === 501 ? T.sinProveedor : T.falloIA, d.msg ?? T.falloIAB);
@@ -207,7 +226,9 @@ const grupos = FAMILIAS
         const pie = `<p class="s" style="margin-top:10px">${T.proveedorPie
           .replace('{p}', () => esc(String(d.proveedor ?? '')))
           .replace('{m}', () => esc(String(d.modelo ?? '')))}</p>`;
-        burbuja('bot', `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(d.respuesta)}</p>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+        const box = burbuja('bot', `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(d.respuesta)}</p>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+        const fid = flujoDe(t);
+        if (fid) pintaFlujo(box, fid);
       } catch {
         espera.remove();
         window.toast('bad', T.falloIA, T.falloIAB);
@@ -234,5 +255,19 @@ const grupos = FAMILIAS
     };
     document.getElementById('m-normal')!.addEventListener('click', () => cambiar('normal'));
     document.getElementById('m-ia')!.addEventListener('click', () => cambiar('ia'));
+
+    void cargarHistorial('chat').then((hist) => {
+      if (!hist.turns.length) return;
+      for (const t of hist.turns) {
+        burbuja(t.role === 'user' ? 'yo' : 'bot',
+          `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(t.content)}</p>`);
+        historial.push(t);
+      }
+    });
+
+    const forceTut = new URLSearchParams(location.search).get('tutorial') === '1';
+    if (forceTut || !tutorialHecho('chat')) {
+      window.abrirTutorial();
+    }
   </script>
 </App>

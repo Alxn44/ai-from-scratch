@@ -525,6 +525,8 @@ function estilos() {
 @media (prefers-reduced-motion: reduce){
   .nr-eq i{animation:none!important;height:9px}
   .nr-w{transition:none}
-}`;
+}
+#lectura{padding-bottom:96px}
+@media (max-width:900px){#lectura{padding-bottom:148px}}`;
   document.head.append(e);
 }

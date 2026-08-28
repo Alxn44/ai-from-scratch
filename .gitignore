@@ -57,6 +57,7 @@ app_ai_from_scratch/data/data
 # carpeta de este .gitignore, asi que `design/**/x` NO coincide con
 # app_ai_from_scratch/design/**/x. Cada canvas nuevo necesita su linea aqui.
 **/design/**/cornelius-mascota.html
+**/design/**/plataforma-movil-tablet.html
 
 # --- Secretos: los escribe scripts/claves.sh, nunca se suben ---
 .env

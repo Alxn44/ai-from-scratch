@@ -1,0 +1,17 @@
+    /* Clases de la landing. --l3 usa .50 (4.64:1), NO el .38 (3.01:1) que hoy
+       declara index.astro:115: la app ya midio ese token en theme-css.ts:76 y
+       la landing lo bajo sin volver a medirlo. */
+    .lnav{position:sticky;top:0;z-index:60;background:rgba(0,0,0,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--hair)}
+    .lnav-in{padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .lg{width:24px;height:24px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:700 10px/1 var(--f)}
+    .buy{background:#fff;color:#000;display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 11px/1 var(--m);letter-spacing:.14em;min-height:44px;padding:0 18px}
+    .lmono{font:500 11px/1 var(--m);letter-spacing:.1em}
+    .spec{display:flex;justify-content:space-between;gap:12px}
+    .spec span:first-child{color:var(--l3)}
+    .lsec{max-width:1240px;margin:0 auto}
+    /* Rejilla del heroe. La propuesta sube el umbral de 800 a 1024: a 820 px
+       (iPad vertical) la columna izquierda se queda en 356 y el h1 pide 383. */
+    .hero-grid{display:grid;grid-template-columns:1fr;gap:28px;align-items:end}
+    @media (min-width:1025px){ .hero-grid{grid-template-columns:1fr 372px;gap:44px} }
+    .hero-split{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid var(--hair)}
+    @media (min-width:1025px){ .hero-split{grid-template-columns:1fr 1fr} }

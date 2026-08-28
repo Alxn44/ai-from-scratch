@@ -21,6 +21,7 @@ const F = L.pub.footer;
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <title>{title} · IA desde cero</title>
   {desc && <meta name="description" content={desc} />}
   {noindex
@@ -73,33 +74,8 @@ const F = L.pub.footer;
 
   <div id="toasts"></div>
   <script>
-    // Mismo API de avisos que la app, para que las páginas públicas no lo reinventen.
-    const COLOR: Record<string, string> = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
-    const box = document.getElementById('toasts')!;
-    (window as any).toast = (kind: string, title: string, body: string) => {
-      // Same rule as the app layout: `title` and `body` are caller data and go in
-      // with textContent, never interpolated into HTML. Today's callers only pass
-      // constants, but the signature is shared with the app toast, which is fed
-      // stored user names.
-      box.innerHTML = '';
-      const aviso = document.createElement('div');
-      aviso.className = 'toast';
-      aviso.style.borderColor = COLOR[kind];
-      const col = document.createElement('div');
-      col.setAttribute('style', 'flex:1');
-      const h = document.createElement('div');
-      h.className = 'h3';
-      h.setAttribute('style', `color:${COLOR[kind]}`);
-      h.textContent = title;
-      const cuerpo = document.createElement('p');
-      cuerpo.className = 's';
-      cuerpo.setAttribute('style', 'color:var(--l2);margin-top:4px');
-      cuerpo.textContent = body;
-      col.append(h, cuerpo);
-      aviso.append(col);
-      box.append(aviso);
-      if (kind !== 'bad') setTimeout(() => (box.innerHTML = ''), 4000);
-    };
+    import { montarAvisos } from '../lib/avisos';
+    montarAvisos(document.documentElement.lang === 'en' ? 'Close' : 'Cerrar');
   </script>
 </body>
 </html>

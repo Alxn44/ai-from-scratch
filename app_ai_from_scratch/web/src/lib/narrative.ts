@@ -21,7 +21,7 @@ export const NARRATIVA: Record<Mercado, { es: Copy; en: Copy }> = {
   co: {
     es: {
       eyebrow: 'HECHO EN MEDELLÍN',
-      titular: 'La IA explicada como te la explicaría un parcero que sí sabe.',
+      titular: 'La IA explicada como te la explicaría un parcero que sabe de verdad.',
       sub: 'Sin inglés técnico, sin universidad de por medio y sin promesas de volverte millonario. Doce lecciones y treinta y seis labs.',
       prueba: ['Lo escribió una persona con nombre y correo, en Medellín.', 'Pagas una vez: USD 9.99. No hay suscripción.', 'PSE, efectivo en Efecty, tarjeta o wallet.'],
       pagoTit: 'Cómo pagas desde Colombia',
@@ -33,7 +33,7 @@ export const NARRATIVA: Record<Mercado, { es: Copy; en: Copy }> = {
     },
     en: {
       eyebrow: 'MADE IN MEDELLÍN',
-      titular: 'AI explained the way a friend who actually knows would explain it.',
+      titular: 'AI explained the way a knowledgeable friend would explain it.',
       sub: 'No technical English, no university required and no promises of getting rich. Twelve lessons and thirty-six labs.',
       prueba: ['Written by one person with a name and an email, in Medellín.', 'One payment: USD 9.99. No subscription.', 'Card, PSE, cash at Efecty or the Mercado Pago wallet.'],
       pagoTit: 'How you pay from Colombia',
@@ -73,7 +73,7 @@ export const NARRATIVA: Record<Mercado, { es: Copy; en: Copy }> = {
   us: {
     es: {
       eyebrow: 'CURSO EN ES · EN',
-      titular: 'Fundamentos de IA en cinco horas, no en un bootcamp de seis semanas.',
+      titular: 'Fundamentos de IA claros, no un bootcamp de seis semanas.',
       sub: 'Doce lecciones, treinta y seis labs y un PDF. Sin suscripción, sin upsell y sin certificado inflado.',
       prueba: ['USD 9.99 una vez. El precio no es un gancho: no hay plan pro.', 'Cero analítica y cero anuncios: tres cookies y nada más.', 'Devolución de 14 días, sin preguntas.'],
       pagoTit: 'Cómo pagas desde Estados Unidos',
@@ -85,8 +85,8 @@ export const NARRATIVA: Record<Mercado, { es: Copy; en: Copy }> = {
     },
     en: {
       eyebrow: 'COURSE IN EN · ES',
-      titular: 'AI fundamentals in five hours, not a six-week bootcamp.',
-      sub: 'Twelve lessons, thirty-six labs and a PDF. No subscription, no upsell, no inflated certificate.',
+      titular: 'Clear AI fundamentals, not a six-week bootcamp.',
+      sub: 'Twelve lessons, thirty-six labs and a PDF. No subscription, no upsell and no inflated certificate.',
       prueba: ['USD 9.99 once. The price is not bait: there is no pro tier.', 'Zero analytics and zero ads: three cookies, nothing else.', '14-day refund, no questions.'],
       pagoTit: 'How you pay from the United States',
       pagoTxt: 'Mercado Pago processes the charge on an international card. If your bank declines a charge from Colombia, email us and we send an alternative link the same day.',
@@ -138,7 +138,7 @@ export const NARRATIVA: Record<Mercado, { es: Copy; en: Copy }> = {
     en: {
       eyebrow: 'FUNDAMENTALS · VOL. 1',
       titular: 'AI explained for people starting from zero.',
-      sub: 'Twelve lessons and thirty-six labs solved inside the lesson. Spanish and English.',
+      sub: 'Twelve lessons and thirty-six labs, completed inside each lesson. Spanish and English.',
       prueba: ['One payment of USD 9.99, open-ended access.', '14-day refund, no questions.', 'Content in Spanish and English.'],
       pagoTit: 'How payment works',
       pagoTxt: 'Mercado Pago processes the charge. Your card details go straight to them: the platform never sees them.',

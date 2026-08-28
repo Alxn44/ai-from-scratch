@@ -26,6 +26,7 @@
 // abajo-derecha se solapan, y el que perderia es el aviso de error.
 import { estrella, trofeo, medalla, RANGO_METAL, RANGO_FORMA, TINTA, type Metal, type MetalLiga } from './badges';
 import { gato } from './cat';
+import { trazoEntregar } from './trazo';
 
 type Meta = { lbl: string; num: string; pct: number };
 
@@ -191,9 +192,11 @@ export function desbloquear(h: Hito, eb: string): () => void {
     el.style.cursor = 'pointer';
     el.addEventListener('click', dispara);
   }
-  caja.append(el);
-  // Tres como maximo, igual que el carril de avisos: el mas viejo cae.
-  while (caja.children.length > 3) caja.firstElementChild!.remove();
+  // Trazo walks the card in. Rank cards still carry a sitting Trazo on the
+  // right; the walking one is the delivery, then he leaves.
+  void trazoEntregar({ cargo: el, dest: caja, size: h.tipo === 'rango' ? 128 : 108 }).then(() => {
+    while (caja.children.length > 3) caja.firstElementChild!.remove();
+  });
 
   // La barra sale de 0 y corre. El valor final va en el fotograma SIGUIENTE: si
   // se pone en el mismo, no hay estado anterior del que transicionar y aparece

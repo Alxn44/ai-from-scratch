@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Tokens copiados literalmente de web/src/lib/theme-css.ts. Sin redondear,
+       sin aproximar: el artboard tiene que ser indistinguible de la app. */
+    :root{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --btn-bg:#fff;--btn-fg:#000;--on-ac:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:var(--f);color:var(--l1);-webkit-font-smoothing:antialiased}
+    a{color:var(--ac);text-decoration:none}
+    a:hover{color:#409CFF}
+    /* Rampa tipografica de web/src/layouts/App.astro, mismas declaraciones. */
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .h1{font:700 34px/1.06 var(--f);letter-spacing:-.035em;margin:0}
+    .h2{font:700 21px/1.16 var(--f);letter-spacing:-.028em;margin:0}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0}
+    .p{font:400 16px/1.5 var(--f);color:var(--l2);margin:0}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .num{font-variant-numeric:tabular-nums}
+    .card{border:1px solid var(--hair2);padding:22px}
+    .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;font-family:var(--m)}
+    .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--l1)}
+    .chip{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--hair);background:transparent;color:var(--l1);font:500 14px/1.2 var(--m)}
+    .chip[data-on]{border-color:var(--ac);background:rgba(10,132,255,.18)}
+    .input{height:44px;width:100%;padding:0 14px;background:var(--fill);border:1px solid var(--hair2);color:var(--l1);font:400 15px/1 var(--f)}
+    .bar{height:4px;background:rgba(120,120,128,.20)}
+    .barfill{height:4px;background:var(--l1)}
+    .nav{height:44px;display:flex;align-items:center;gap:11px;padding:0 16px;color:var(--l3);font:500 11px/1 var(--m);letter-spacing:.14em;text-transform:uppercase;border-left:2px solid transparent}
+    .nav[aria-current]{color:var(--l1);background:var(--fill);border-left-color:var(--ac)}
+    .seg{display:flex;border:1px solid var(--hair2)}
+    .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    .segb:last-child{border-right:0}
+    .segb[aria-pressed="true"]{background:var(--ac-solid);color:var(--on-ac)}
+    .tblhead{font:500 10px/1 var(--m);letter-spacing:.16em;text-transform:uppercase;color:var(--l3)}
+    /* PROPUESTA. Lo de aqui abajo no existe todavia en la app: es lo que hay que
+       aprobar. Cada regla lleva por que. */
+    /* .segb mide 30px de alto en la app. En un dedo eso incumple el suelo de
+       44px que .btn, .chip y .input ya respetan. En movil sube a 44. */
+    .segb.touch{height:44px;padding:0 16px;font-size:11px}
+    /* Cabecera de dos filas: fila 1 hamburguesa + miga, fila 2 el slot topbar.
+       Hoy la fila 2 se borra con display:none y con ella el conmutador de /chat
+       y el marcador de /examen. */
+    .head{border-bottom:1px solid var(--hair2);background:var(--bg)}
+    .head-r1{height:56px;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px}
+    .head-r2{min-height:52px;display:flex;align-items:center;gap:10px;padding:0 14px 10px;border-top:1px solid var(--hair2);padding-top:10px}
+    .tap{width:44px;height:44px;flex:none;display:grid;place-items:center;color:var(--l3);background:none;border:0}
+    .pad{padding:18px 14px 32px;display:flex;flex-direction:column;gap:22px}
+    /* La lista de lecciones en movil: dos filas por leccion en vez de cinco
+       columnas. #, texto y estado en la primera; labs y contador debajo. */
+    .row-m{display:grid;grid-template-columns:32px 1fr auto;gap:8px 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--hair2)}
+    .est{display:inline-flex;align-items:center;height:26px;padding:0 10px;font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    /* Carril de atajos de /chat: tira horizontal sobre el compositor, que es
+       donde sirven, en vez de ocho botones apilados debajo del hilo. */
+    .rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    .rail::-webkit-scrollbar{display:none}
+    .rail .btn{flex:none;height:38px;padding:0 14px;font-size:10px}
+  </style>
+</helmet>
+<!-- PANEL a 390 px. La cabecera lleva UNA sola fila: el slot topbar de
+     panel.astro:46 es un duplicado exacto del boton de panel.astro:60 (mismo
+     href /leccion/{n}), asi que se borra en vez de rescatarlo. -->
+<div style="min-height:100%;background:var(--bg);display:flex;flex-direction:column">
+
+  <header class="head">
+    <div class="head-r1">
+      <button class="tap" aria-label="Abrir menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 6.6h16.8M3.6 12h16.8M3.6 17.4h16.8"/></svg>
+      </button>
+      <!-- La miga VUELVE en movil: sin carril lateral es la unica orientacion
+           que queda. Hoy App.astro la borra con .app-head-left .lbl{display:none}
+           porque los dos .seg de idioma y tema le comian el sitio. -->
+      <div class="lbl">PANEL / ESTUDIANTE</div>
+    </div>
+  </header>
+
+  <div class="pad" style="flex:1">
+
+    <div class="card" style="display:flex;flex-direction:column;gap:18px;border-color:var(--hair)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px">
+        <p class="eb">01 &middot; LA IA &middot; SIGUES AQUI</p>
+        <p class="lbl num" style="flex:none">1 / 3 LABS</p>
+      </div>
+      <h1 class="h1" style="font-size:30px">Aprende viendo ejemplos</h1>
+      <p class="p">Nadie le escribe reglas: encuentra el parecido entre miles de ejemplos, sola.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span class="chip" data-on="" style="min-height:38px;font-size:12px">LAB 1A &middot; FACIL</span>
+        <span class="chip" style="min-height:38px;font-size:12px">LAB 1B &middot; MEDIO</span>
+        <span class="chip" style="min-height:38px;font-size:12px">LAB 1C &middot; DIFICIL</span>
+      </div>
+      <a class="btn" style="margin-top:4px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#000" stroke="none"><path d="M7.4 4.8 18.6 12 7.4 19.2z"/></svg>
+        <span>CONTINUAR LECCION</span>
+      </a>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <p class="lbl">PROGRESO</p>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span class="num" style="font:700 40px/1 var(--f);letter-spacing:-.04em">3</span>
+        <span class="num" style="font:500 15px/1 var(--m);color:var(--l3)">/ 12 LECCIONES</span>
+      </div>
+      <div class="bar"><div class="barfill" style="width:25%"></div></div>
+      <div style="display:flex;justify-content:space-between">
+        <span class="s">9 / 36 labs resueltos</span>
+        <span class="s num" style="color:var(--l2)">25%</span>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <p class="lbl">MATERIAL</p>
+      <p class="s" style="color:var(--l2)">El curso completo en PDF, con las 12 lecciones y los 36 labs.</p>
+      <button class="btn ghost" style="justify-content:flex-start">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.6 3.2h7L18.4 9v11.8H5.6zM12.4 3.3V9h5.9M8.4 17.4v-4h1.1a1.2 1.2 0 0 1 0 2.4H8.4M13 17.4v-4h1.1a1.6 1.6 0 0 1 1.6 1.6v.8a1.6 1.6 0 0 1-1.6 1.6z"/></svg>
+        <span>DESCARGAR PDF</span>
+      </button>
+    </div>
+
+    <!-- La tabla de 5 columnas (46px 1fr 190px 92px 104px) no cabe en 390.
+         Hoy se recorta a 3 columnas y se ESCONDEN los labs y el contador.
+         Propuesta: dos filas por leccion, sin perder ningun dato. -->
+    <div style="display:flex;flex-direction:column">
+      <div class="row-m">
+        <span class="num" style="font:600 13px/1 var(--m);color:var(--l3)">01</span>
+        <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <span class="lbl" style="color:var(--ac);letter-spacing:.16em">LA IA</span>
+          <span style="font:600 14px/1.2 var(--f);letter-spacing:-.01em">Aprende viendo ejemplos</span>
+        </span>
+        <span class="est" style="border:1px solid var(--ac);background:rgba(10,132,255,.16);color:var(--ac)">EN CURSO</span>
+        <span></span>
+        <span class="s num" style="grid-column:2/4;color:var(--l3)">Lab 1A &middot; 1B &middot; 1C &nbsp;&mdash;&nbsp; 1 / 3</span>
+      </div>
+      <div class="row-m">
+        <span class="num" style="font:600 13px/1 var(--m);color:var(--l3)">02</span>
+        <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <span class="lbl" style="color:var(--ac);letter-spacing:.16em">COMO MEJORA</span>
+          <span style="font:600 14px/1.2 var(--f);letter-spacing:-.01em">Juega frio y caliente</span>
+        </span>
+        <span class="est" style="border:1px solid var(--ok);background:rgba(48,209,88,.14);color:var(--ok)">HECHA</span>
+        <span></span>
+        <span class="s num" style="grid-column:2/4;color:var(--l3)">Lab 2A &middot; 2B &middot; 2C &nbsp;&mdash;&nbsp; 3 / 3</span>
+      </div>
+      <div class="row-m">
+        <span class="num" style="font:600 13px/1 var(--m);color:var(--l3)">03</span>
+        <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <span class="lbl" style="color:var(--ac);letter-spacing:.16em">DONDE LO GUARDA</span>
+          <span style="font:600 14px/1.2 var(--f);letter-spacing:-.01em">Todo queda en perillas</span>
+        </span>
+        <span class="est" style="border:1px solid var(--ok);background:rgba(48,209,88,.14);color:var(--ok)">HECHA</span>
+        <span></span>
+        <span class="s num" style="grid-column:2/4;color:var(--l3)">Lab 3A &middot; 3B &middot; 3C &nbsp;&mdash;&nbsp; 3 / 3</span>
+      </div>
+      <div class="row-m">
+        <span class="num" style="font:600 13px/1 var(--m);color:var(--l3)">04</span>
+        <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <span class="lbl" style="color:var(--ac);letter-spacing:.16em">POR QUE NO CAMBIA</span>
+          <span style="font:600 14px/1.2 var(--f);letter-spacing:-.01em">Contigo no aprende</span>
+        </span>
+        <span class="est" style="color:var(--l3)">PENDIENTE</span>
+        <span></span>
+        <span class="s num" style="grid-column:2/4;color:var(--l3)">Lab 4A &middot; 4B &middot; 4C &nbsp;&mdash;&nbsp; 0 / 3</span>
+      </div>
+      <div class="row-m">
+        <span class="num" style="font:600 13px/1 var(--m);color:var(--l3)">05</span>
+        <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <span class="lbl" style="color:var(--ac);letter-spacing:.16em">COMO LEE</span>
+          <span style="font:600 14px/1.2 var(--f);letter-spacing:-.01em">Lee pedacitos: tokens</span>
+        </span>
+        <span class="est" style="border:1px solid var(--or);background:rgba(255,159,10,.12);color:var(--or)">BORRADOR</span>
+        <span></span>
+        <span class="s num" style="grid-column:2/4;color:var(--l3)">Lab 5A &middot; 5B &middot; 5C &nbsp;&mdash;&nbsp; 0 / 3</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

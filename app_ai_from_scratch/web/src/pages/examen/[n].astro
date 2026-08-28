@@ -1,0 +1,72 @@
+---
+export const prerender = false;
+import App from '../../layouts/App.astro';
+import { gate, apiTry } from '../../lib/session';
+import { t, resolveLang } from '../../lib/i18n';
+import { jsonSafe } from '../../lib/json-safe';
+
+const { user, redirect } = await gate(Astro.request);
+if (redirect) return Astro.redirect(redirect);
+
+const n = Number(Astro.params.n);
+const lang = resolveLang(user!.lang, Astro.request);
+const L = t(lang);
+type Q = { id: string; idx: number; prompt: string; options: { id: string; text: string }[]; solved: boolean; attempts: number };
+type Score = { correct: number; total: number; passed: boolean; passAt: number };
+const r = await apiTry<{ n: number; from: number; to: number; questions: Q[]; score: Score }>(
+  `/api/exams/${n}?lang=${lang}`, Astro.request);
+if (r.status === 401 || r.status === 403) return Astro.redirect('/login');
+if (r.status === 402) return Astro.redirect('/curso');
+if (r.status !== 200 || !r.data?.questions) return Astro.redirect('/curso');
+const exam = r.data;
+const titulo = L.exam.nDe.replace('{n}', String(exam.n));
+---
+<App user={user!} title={titulo} crumb={L.exam.crumb} active="Curso">
+  <span slot="topbar" class="lbl num" id="exam-score">
+    {exam.score.passed
+      ? L.exam.hecho.replace('{a}', String(exam.score.correct)).replace('{b}', String(exam.score.total))
+      : L.exam.falta.replace('{a}', String(exam.score.correct)).replace('{b}', String(exam.score.total)).replace('{c}', String(exam.score.passAt))}
+  </span>
+
+  <div class="app-pad" style="display:flex;flex-direction:column;gap:22px;max-width:760px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <p class="eb">{titulo}</p>
+      <h1 class="h1">{L.exam.rango.replace('{a}', String(exam.from)).replace('{b}', String(exam.to))}</h1>
+      <p class="p">{L.exam.sub}</p>
+    </div>
+
+    <div id="quiz" style="display:flex;flex-direction:column;gap:14px">
+      {exam.questions.map((item) => (
+        <div class="card" data-q={item.id} style="display:flex;flex-direction:column;gap:14px">
+          <p class="lbl">{L.quiz.q.replace('{n}', String(item.idx))}</p>
+          <h2 class="h3">{item.prompt}</h2>
+          <div data-q-stage></div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <button class="btn" data-q-check>{L.comprobar}</button>
+            <button class="btn ghost" data-q-reset>{L.deNuevo}</button>
+          </div>
+          <div data-q-out></div>
+        </div>
+      ))}
+    </div>
+
+    <a class="btn ghost" href="/curso" style="text-decoration:none;align-self:flex-start">{L.nav.curso}</a>
+  </div>
+
+  <script type="application/json" id="quiz-data" is:inline set:html={jsonSafe({
+    questions: exam.questions,
+    txt: { ...L.lab, ...L.quiz, ...L.exam },
+    hecho: L.exam.hecho, falta: L.exam.falta,
+  })}></script>
+  <script>
+    import { mountQuestions } from '../../lib/quiz-client';
+    const cfg = JSON.parse(document.getElementById('quiz-data')!.textContent!);
+    const scoreEl = document.getElementById('exam-score');
+    mountQuestions(document.getElementById('quiz')!, cfg.questions ?? [], cfg.txt, (s) => {
+      if (!scoreEl) return;
+      scoreEl.textContent = s.passed
+        ? cfg.hecho.replace('{a}', String(s.correct)).replace('{b}', String(s.total))
+        : cfg.falta.replace('{a}', String(s.correct)).replace('{b}', String(s.total)).replace('{c}', String(s.passAt));
+    });
+  </script>
+</App>

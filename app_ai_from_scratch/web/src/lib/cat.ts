@@ -24,7 +24,7 @@
 // del tiempo. Dos ojos ámbar permanentes devalúan la recompensa. El azul de la
 // casa la deja intacta.
 
-export type Pose = 'sentado' | 'saluda' | 'duerme';
+export type Pose = 'sentado' | 'saluda' | 'duerme' | 'carga';
 
 const BLANCO = '#F8F9FB';   // fijo: la mancha del smoking no gira con el tema
 const CUERPO = '#191A1F';   // tinta propia, no --bg y no negro puro
@@ -51,6 +51,7 @@ export function gato(px = 120, pose: Pose = 'sentado', id = 'trazo'): string {
 
   const durmiendo = pose === 'duerme';
   const saluda = pose === 'saluda';
+  const carga = pose === 'carga';
 
   const ojos = durmiendo
     ? `<path d="M26 33 C28.5 35.5 31.5 35.5 34 33" fill="none" stroke="${LINEA}" stroke-width="1.6" stroke-linecap="round"/>
@@ -73,6 +74,15 @@ export function gato(px = 120, pose: Pose = 'sentado', id = 'trazo'): string {
            fill="${CUERPO}" stroke="${LINEA}" stroke-width="1.4" stroke-linejoin="round"/>
          <ellipse cx="24.5" cy="48.5" rx="4.2" ry="3.3" transform="rotate(16 24.5 48.5)"
            fill="${BLANCO}" stroke="${LINEA}" stroke-width="1.1"/>
+       </g>`
+    : carga
+    ? `<g class="${id}-pataI" style="transform-origin:32px 84px">
+         <path d="M24 74 h12 a3 3 0 0 1 3 3 v5 a3 3 0 0 1 -3 3 h-12 a3 3 0 0 1 -3 -3 v-5 a3 3 0 0 1 3 -3 z"
+           fill="${BLANCO}" stroke="${LINEA}" stroke-width="1.2"/>
+       </g>
+       <g class="${id}-pataD" style="transform-origin:50px 84px">
+         <path d="M45 77 h9 a3 3 0 0 1 3 3 v3 a3 3 0 0 1 -3 3 h-9 a3 3 0 0 1 -3 -3 v-3 a3 3 0 0 1 3 -3 z"
+           fill="${BLANCO}" stroke="${LINEA}" stroke-width="1.2"/>
        </g>`
     : `<path d="M27 77 h12 a3 3 0 0 1 3 3 v5 a3 3 0 0 1 -3 3 h-12 a3 3 0 0 1 -3 -3 v-5 a3 3 0 0 1 3 -3 z"
          fill="${BLANCO}" stroke="${LINEA}" stroke-width="1.2"/>
@@ -98,8 +108,10 @@ export function gato(px = 120, pose: Pose = 'sentado', id = 'trazo'): string {
       <path d="M27 38 C30 36 38 36 41 38 C41 44 37.5 47 34 47 C30.5 47 27 44 27 38 Z" fill="${BLANCO}" opacity=".95"/>
       ${ojos}
       <path d="M34 39.5 l-1.9 1.6 h3.8 Z" fill="${LINEA}"/>
-      <path d="M34 41.4 v1.7 M34 43.1 C32.6 44.2 31 43.9 30.4 42.8 M34 43.1 C35.4 44.2 37 43.9 37.6 42.8"
-        fill="none" stroke="${LINEA}" stroke-width="1.05" stroke-linecap="round"/>
+      ${carga
+        ? `<ellipse cx="34" cy="45.2" rx="3.4" ry="1.5" fill="${CUERPO}" stroke="${LINEA}" stroke-width="1.05"/>`
+        : `<path d="M34 41.4 v1.7 M34 43.1 C32.6 44.2 31 43.9 30.4 42.8 M34 43.1 C35.4 44.2 37 43.9 37.6 42.8"
+        fill="none" stroke="${LINEA}" stroke-width="1.05" stroke-linecap="round"/>`}
       <g stroke="${LINEA}" stroke-width=".9" stroke-linecap="round" opacity=".7">
         <path d="M25 40 L14 38"/><path d="M25 42 L15 43"/>
         <path d="M43 40 L54 38"/><path d="M43 42 L53 43"/>
@@ -122,8 +134,16 @@ export function gatoCSS(id = 'trazo'): string {
 .${id}-ojos{animation:${id}-blink 5.2s ease-in-out infinite;transform-origin:35px 33px}
 .${id}-cabeza{animation:${id}-tilt 6.1s ease-in-out infinite}
 .${id}-mano{animation:${id}-wave .62s ease-in-out 4}
+@keyframes ${id}-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes ${id}-pata{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-14deg)}}
+@keyframes ${id}-pata2{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(12deg)}}
+.trazo-anda svg[data-gato="carga"]{animation:${id}-bob .34s ease-in-out infinite}
+.trazo-anda .${id}-pataI{animation:${id}-pata .34s ease-in-out infinite}
+.trazo-anda .${id}-pataD{animation:${id}-pata2 .34s ease-in-out infinite}
+.trazo-anda .${id}-cola{animation:${id}-sway .34s ease-in-out infinite}
 @media (prefers-reduced-motion: reduce){
-  .${id}-cola,.${id}-ojos,.${id}-cabeza,.${id}-mano{animation:none}
+  .${id}-cola,.${id}-ojos,.${id}-cabeza,.${id}-mano,.trazo-anda svg[data-gato="carga"],
+  .trazo-anda .${id}-pataI,.trazo-anda .${id}-pataD{animation:none}
 }`;
 }
 
@@ -144,7 +164,8 @@ export function asomarGato(texto: string, ms = 5200): () => void {
   const caja = document.createElement('div');
   caja.id = 'trazo-asoma';
   caja.setAttribute('style',
-    'position:fixed;right:22px;bottom:22px;z-index:70;display:flex;align-items:flex-end;gap:10px;'
+    // bottom con env(): en un iPhone con indicador, 22px deja el gato debajo de el.
+    'position:fixed;right:22px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:70;display:flex;align-items:flex-end;gap:10px;'
     + 'pointer-events:none;transform:translateY(14px);opacity:0;transition:transform .42s cubic-bezier(.16,1,.3,1),opacity .42s');
   const globo = document.createElement('div');
   globo.className = 'card';

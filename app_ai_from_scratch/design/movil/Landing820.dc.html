@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Tokens copiados literalmente de web/src/lib/theme-css.ts. Sin redondear,
+       sin aproximar: el artboard tiene que ser indistinguible de la app. */
+    :root{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --btn-bg:#fff;--btn-fg:#000;--on-ac:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:var(--f);color:var(--l1);-webkit-font-smoothing:antialiased}
+    a{color:var(--ac);text-decoration:none}
+    a:hover{color:#409CFF}
+    /* Rampa tipografica de web/src/layouts/App.astro, mismas declaraciones. */
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .h1{font:700 34px/1.06 var(--f);letter-spacing:-.035em;margin:0}
+    .h2{font:700 21px/1.16 var(--f);letter-spacing:-.028em;margin:0}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0}
+    .p{font:400 16px/1.5 var(--f);color:var(--l2);margin:0}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .num{font-variant-numeric:tabular-nums}
+    .card{border:1px solid var(--hair2);padding:22px}
+    .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;font-family:var(--m)}
+    .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--l1)}
+    .chip{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--hair);background:transparent;color:var(--l1);font:500 14px/1.2 var(--m)}
+    .chip[data-on]{border-color:var(--ac);background:rgba(10,132,255,.18)}
+    .input{height:44px;width:100%;padding:0 14px;background:var(--fill);border:1px solid var(--hair2);color:var(--l1);font:400 15px/1 var(--f)}
+    .bar{height:4px;background:rgba(120,120,128,.20)}
+    .barfill{height:4px;background:var(--l1)}
+    .nav{height:44px;display:flex;align-items:center;gap:11px;padding:0 16px;color:var(--l3);font:500 11px/1 var(--m);letter-spacing:.14em;text-transform:uppercase;border-left:2px solid transparent}
+    .nav[aria-current]{color:var(--l1);background:var(--fill);border-left-color:var(--ac)}
+    .seg{display:flex;border:1px solid var(--hair2)}
+    .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    .segb:last-child{border-right:0}
+    .segb[aria-pressed="true"]{background:var(--ac-solid);color:var(--on-ac)}
+    .tblhead{font:500 10px/1 var(--m);letter-spacing:.16em;text-transform:uppercase;color:var(--l3)}
+    /* PROPUESTA. Lo de aqui abajo no existe todavia en la app: es lo que hay que
+       aprobar. Cada regla lleva por que. */
+    /* .segb mide 30px de alto en la app. En un dedo eso incumple el suelo de
+       44px que .btn, .chip y .input ya respetan. En movil sube a 44. */
+    .segb.touch{height:44px;padding:0 16px;font-size:11px}
+    /* Cabecera de dos filas: fila 1 hamburguesa + miga, fila 2 el slot topbar.
+       Hoy la fila 2 se borra con display:none y con ella el conmutador de /chat
+       y el marcador de /examen. */
+    .head{border-bottom:1px solid var(--hair2);background:var(--bg)}
+    .head-r1{height:56px;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px}
+    .head-r2{min-height:52px;display:flex;align-items:center;gap:10px;padding:0 14px 10px;border-top:1px solid var(--hair2);padding-top:10px}
+    .tap{width:44px;height:44px;flex:none;display:grid;place-items:center;color:var(--l3);background:none;border:0}
+    .pad{padding:18px 14px 32px;display:flex;flex-direction:column;gap:22px}
+    /* La lista de lecciones en movil: dos filas por leccion en vez de cinco
+       columnas. #, texto y estado en la primera; labs y contador debajo. */
+    .row-m{display:grid;grid-template-columns:32px 1fr auto;gap:8px 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--hair2)}
+    .est{display:inline-flex;align-items:center;height:26px;padding:0 10px;font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    /* Carril de atajos de /chat: tira horizontal sobre el compositor, que es
+       donde sirven, en vez de ocho botones apilados debajo del hilo. */
+    .rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    .rail::-webkit-scrollbar{display:none}
+    .rail .btn{flex:none;height:38px;padding:0 14px;font-size:10px}
+    /* Clases de la landing. --l3 usa .50 (4.64:1), NO el .38 (3.01:1) que hoy
+       declara index.astro:115: la app ya midio ese token en theme-css.ts:76 y
+       la landing lo bajo sin volver a medirlo. */
+    .lnav{position:sticky;top:0;z-index:60;background:rgba(0,0,0,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--hair)}
+    .lnav-in{padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .lg{width:24px;height:24px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:700 10px/1 var(--f)}
+    .buy{background:#fff;color:#000;display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 11px/1 var(--m);letter-spacing:.14em;min-height:44px;padding:0 18px}
+    .lmono{font:500 11px/1 var(--m);letter-spacing:.1em}
+    .spec{display:flex;justify-content:space-between;gap:12px}
+    .spec span:first-child{color:var(--l3)}
+    .lsec{max-width:1240px;margin:0 auto}
+    /* Rejilla del heroe. La propuesta sube el umbral de 800 a 1024: a 820 px
+       (iPad vertical) la columna izquierda se queda en 356 y el h1 pide 383. */
+    .hero-grid{display:grid;grid-template-columns:1fr;gap:28px;align-items:end}
+    @media (min-width:1025px){ .hero-grid{grid-template-columns:1fr 372px;gap:44px} }
+    .hero-split{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid var(--hair)}
+    @media (min-width:1025px){ .hero-split{grid-template-columns:1fr 1fr} }
+  </style>
+</helmet>
+<!-- LANDING a 820 px (iPad vertical). LA ROTURA: el umbral de la landing es
+     800, no 900 como en App.astro. A 820 sigue aplicando la rejilla de
+     escritorio .hero-grid{1fr 372px}:
+        820 - 48 (padding) - 44 (gap) - 372 (col derecha) = 356 para el h1
+        h1 = clamp(46px, 6.4vw = 52.5px, 96px) -> 52.5px
+        «Entiende la IA» a 52.5px con -.055em pide ~383 px
+     Se desborda 27 px y overflow-x:hidden del wrapper lo recorta sin aviso.
+     PROPUESTA: subir el umbral del heroe a 1025 y dejar que 820 se apile. -->
+<div style="min-height:100%;background:var(--bg);display:flex;flex-direction:column">
+
+  <div class="lnav">
+    <div class="lnav-in" style="padding:0 24px">
+      <div style="display:flex;align-items:center;gap:14px;min-width:0">
+        <span class="lg">IA</span>
+        <span style="font:700 15px/1 var(--f);letter-spacing:-.01em">IA desde cero</span>
+        <span style="width:1px;height:16px;background:var(--hair)"></span>
+        <span style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">FUNDAMENTOS &middot; VOL. 1</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:18px">
+        <a href="#indice" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2);min-height:44px;display:inline-flex;align-items:center">INDICE</a>
+        <a href="/login" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l2);min-height:44px;display:inline-flex;align-items:center">ENTRAR</a>
+        <a href="/pago" class="buy">COMPRAR &middot; $9.99</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="lsec" style="padding:44px 24px 0">
+    <div class="hero-grid" style="border-bottom:1px solid var(--hair);padding-bottom:34px">
+      <div style="display:flex;flex-direction:column;gap:26px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">CURSO &middot; 12 LECCIONES</div>
+          <div style="flex:1;height:1px;background:var(--hair)"></div>
+          <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l3)">ES &middot; EN</div>
+        </div>
+
+        <!-- A ancho completo (772) el h1 respira a 62 px sin desbordar. -->
+        <h1 style="margin:0;font:700 62px/.95 var(--f);letter-spacing:-.05em;text-wrap:balance;max-width:660px">Entiende la IA en una tarde.</h1>
+
+        <!-- .hero-split apilado tambien aqui: dos columnas de 386 dejarian el
+             parrafo de 19px en 4 lineas contra 5 filas de especificaciones. -->
+        <div class="hero-split">
+          <div style="padding:20px 0 8px;max-width:620px">
+            <p style="margin:0;font:400 19px/1.42 var(--f);letter-spacing:-.01em;color:var(--l2);text-wrap:pretty">Doce lecciones ilustradas que explican como piensa, por que se inventa cosas y como pedirle bien. Sin codigo y sin formulas.</p>
+          </div>
+          <div style="padding:12px 0 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 34px;border-top:1px solid var(--hair2);max-width:620px">
+            <div class="spec lmono"><span>LECCIONES</span><span>12</span></div>
+            <div class="spec lmono"><span>LECTURA</span><span>40 MIN</span></div>
+            <div class="spec lmono"><span>FORMATO</span><span>CARRUSEL 4:5</span></div>
+            <div class="spec lmono"><span>PRECIO</span><span>$9.99 USD</span></div>
+            <div class="spec lmono"><span>ACTUALIZACIONES</span><span>VOL. 1</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+          <a href="/pago" class="buy" style="min-height:56px;font-size:12px;letter-spacing:.16em;padding:0 26px">
+            <span>QUIERO EL CURSO</span>
+            <svg width="18" height="18" viewBox="0 0 20 20"><path d="M4 10h11M11 5.5l4.5 4.5L11 14.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+          <div style="font:500 11px/1.5 var(--m);letter-spacing:.1em;color:var(--l3)">ANTES $49 &middot; HOY $9.99<br>PAGO UNICO &middot; GARANTIA 14 DIAS</div>
+        </div>
+      </div>
+
+      <!-- La portada baja debajo del texto y se limita a 420: a ancho completo
+           (772) un 4:5 mediria 965 de alto y empujaria todo lo demas. -->
+      <div style="display:flex;flex-direction:column;gap:11px;max-width:420px">
+        <div style="display:flex;align-items:center;justify-content:space-between;font:600 10px/1 var(--m);letter-spacing:.2em;color:var(--l3)">
+          <span>FIG. 01 &mdash; PORTADA</span><span>1080 &times; 1350</span>
+        </div>
+        <div style="position:relative;width:100%;aspect-ratio:4/5;border:1px solid var(--hair);background:#000;overflow:hidden">
+          <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 38%,rgba(10,132,255,.16) 0%,rgba(0,0,0,0) 62%)"></div>
+          <div style="position:relative;z-index:2;height:100%;padding:26px;display:flex;flex-direction:column">
+            <div style="font:600 9px/1 var(--m);letter-spacing:.24em;color:var(--l3)">EBOOK &middot; VOL. 1</div>
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+              <div style="font:700 36px/.94 var(--f);letter-spacing:-.045em">IA desde cero</div>
+              <div style="font:600 10px/1 var(--m);letter-spacing:.22em;color:var(--l1)">FUNDAMENTOS &middot; VOL. 1</div>
+              <div style="font:400 13px/1.4 var(--f);color:var(--l2);max-width:230px">Como piensa, por que se inventa cosas y como pedirle bien.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- .sintomas es repeat(3,1fr) y colapsa a 1fr por debajo de 800. A 820
+       sigue en 3 columnas de 241 px: cabe, pero dos columnas leen mejor. -->
+  <section class="lsec" style="padding:40px 24px">
+    <p class="lbl" style="margin-bottom:18px">SINTOMAS</p>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--hair2)">
+      <div style="background:var(--bg);padding:26px 22px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 15px/1.3 var(--f)">Le pides algo y responde cualquier cosa</div>
+        <p class="s" style="color:var(--l2)">No adivina lo que tienes en la cabeza. Tu explicacion es todo lo que recibe.</p>
+      </div>
+      <div style="background:var(--bg);padding:26px 22px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 15px/1.3 var(--f)">Te da un dato falso con total seguridad</div>
+        <p class="s" style="color:var(--l2)">No tiene boton de «no se». Si le falta el dato, arma uno que suena perfecto.</p>
+      </div>
+      <div style="background:var(--bg);padding:26px 22px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 15px/1.3 var(--f)">Se olvida de lo que hablaron arriba</div>
+        <p class="s" style="color:var(--l2)">Solo mantiene presente una cantidad limitada de conversacion a la vez.</p>
+      </div>
+      <div style="background:var(--bg);padding:26px 22px;display:flex;flex-direction:column;gap:10px">
+        <div style="font:700 15px/1.3 var(--f)">Crees que aprende de ti y no</div>
+        <p class="s" style="color:var(--l2)">Estudiar y responder son dos momentos separados. Cuando le hablas, el estudio ya termino.</p>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+</body>
+</html>

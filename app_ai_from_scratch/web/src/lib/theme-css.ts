@@ -77,11 +77,49 @@ a:hover{color:var(--ac-solid)}
 .input::placeholder{color:var(--l3);opacity:1}
 .meter{height:4px;background:var(--fill)}
 .mark{width:26px;height:26px;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)}
-#toasts{position:fixed;right:24px;bottom:24px;display:flex;flex-direction:column;gap:10px;width:372px;z-index:50}
+#toasts{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;width:372px;z-index:50}
 .toast{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--hair);background:var(--panel)}
+.pub-split{display:flex;min-height:100dvh}
+.pub-pane{width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px}
+.pub-main{flex:1;min-width:0;display:flex;flex-direction:column;padding:26px 40px 40px}
+.pub-card{width:420px;max-width:100%;display:flex;flex-direction:column}
+.or-txt{font:500 12px/1 var(--f);color:var(--l3);text-transform:lowercase}
+@media (max-width:900px){.or-txt{display:none}}
+.pay-grid{display:grid;grid-template-columns:1fr 560px;min-height:calc(100dvh - 64px)}
+.pay-head{height:64px;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;padding:0 32px;gap:20px}
+/* pago/gracias y pago/error la llevaban escrita en linea, sin media query. */
+.pay-split{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+/* 900 y no 800: es el mismo umbral que App.astro. Con 800, iPad vertical
+   (820 px) seguia recibiendo el split de escritorio y el formulario de login
+   se quedaba con 120 px utiles para una tarjeta de 420. */
+@media (max-width:900px){
+  .pub-split{flex-direction:column}
+  .pub-pane{width:auto;border-right:0;border-top:1px solid var(--hair2);padding:28px 22px 22px;order:2}
+  .pub-main{order:1;padding:8px 22px 36px}
+  .pub-pane .h1{font-size:32px}
+  .pub-card{width:100%}
+  .pay-grid{grid-template-columns:1fr}
+  .pay-head{height:auto;min-height:56px;padding:10px 16px;flex-wrap:wrap}
+  .pay-note{display:none!important}
+  .pay-copy{order:2;border-right:0}
+  .pay-box{order:1}
+  .pay-grid > section{padding:24px 18px!important}
+  #toasts{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));width:auto}
+  .toast{width:auto}
+  .input,.coupon input{font-size:16px}
+  .h1{font-size:clamp(28px,8vw,44px)}
+  .pay-split{grid-template-columns:1fr}
+}
 .seg{display:flex;border:1px solid var(--hair2)}
 .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s}
 .segb:last-child{border-right:0}
 .segb:hover{color:var(--l1);background:var(--fill)}
 .segb[aria-pressed="true"]{background:var(--ac-solid);color:#fff}
+/* Va DESPUES de la declaracion base de .segb a proposito: misma especificidad,
+   gana la ultima, y .seg/.segb se declaran al final de esta hoja. Metida dentro
+   del bloque de 900 de arriba quedaba pisada por el height:30px de abajo.
+   30px incumple el suelo tactil de 44 que .btn, .chip y .input ya respetan. */
+@media (max-width:900px){
+  .segb{height:44px;padding:0 16px;font-size:11px}
+}
 `;

@@ -82,7 +82,7 @@ const camino = Array.from({ length: 12 }, (_, i) => i + 1)
       <span class="s num">{logros.length} {G.deLos} 48</span>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px">
       {perLesson.map((r) => (
         <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair2)">
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">

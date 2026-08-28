@@ -36,6 +36,7 @@
  */
 import { icon } from '../lib/icons';
 import { jsonSafe } from '../lib/json-safe';
+import { gato, gatoCSS } from '../lib/cat';
 import { t } from '../lib/i18n';
 import type { Lang } from '../lib/i18n';
 import type { AiFlags } from '../lib/ai-mode';
@@ -68,9 +69,14 @@ const open = flags.mode && flags.open;
   <section id="ia-panel" class="ia-card" role="dialog" aria-modal="false"
            aria-labelledby="ia-titulo" hidden={!open}>
     <div class="ia-row">
-      <div>
+      <div class="ia-heading">
+        <div class="ia-mascota" aria-label="Cornelius, asistente del curso"
+             set:html={gato(34, 'sentado', 'ia-cornelius')}>
+        </div>
+        <div>
         <p class="eb" id="ia-titulo">{I.titulo}</p>
         <p class="s ia-sub">{I.sub}</p>
+        </div>
       </div>
       <button id="ia-cerrar" class="ia-x" aria-label={I.cerrar} type="button">
         <Fragment set:html={icon('x', 16)} />
@@ -78,6 +84,8 @@ const open = flags.mode && flags.open;
     </div>
 
     <div id="ia-hilo" aria-live="polite"></div>
+
+    <div id="ia-pick"></div>
 
     <div class="ia-form">
       <input class="input" id="ia-q" placeholder={I.ph} autocomplete="off" aria-label={I.ph}>
@@ -117,6 +125,9 @@ const open = flags.mode && flags.open;
     display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
   .ia-card[hidden]{display:none}
   .ia-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .ia-heading{display:flex;align-items:center;gap:9px;min-width:0}
+  .ia-mascota{width:34px;height:34px;flex:none;display:grid;place-items:center}
+  .ia-mascota svg{width:34px;height:34px}
   .ia-sub{margin-top:5px}
   /* The nudge text is a button: clicking it continues the conversation in the
      panel, so it has to be reachable by keyboard like any other control. */
@@ -138,6 +149,17 @@ const open = flags.mode && flags.open;
   .ia-b.bad{border-color:var(--rd);color:var(--rd)}
   .ia-b .lbl{width:70px;flex:none}
   .ia-form{display:flex;gap:8px}
+  .ia-pick{display:flex;flex-direction:column;gap:6px}
+  .ia-picks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .ia-eff{display:flex;gap:6px}
+  .ia-pickb{min-height:44px;padding:8px 10px;border:1px solid var(--hair);background:transparent;
+    color:var(--l1);cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:3px}
+  .ia-eff .ia-pickb{flex:1;align-items:center;text-align:center;font:600 10px/1 var(--m);letter-spacing:.1em;text-transform:uppercase}
+  .ia-pickb .marca{font:600 9px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;color:var(--l3)}
+  .ia-pickb .mod{font:500 11px/1.2 var(--f);color:var(--l1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ia-pickb[aria-pressed="true"]{border-color:var(--ac);background:var(--fill)}
+  .ia-pickb:disabled{opacity:.4;cursor:default}
+  .ia-pickb:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
   .ia-send{height:44px;flex:none;font-size:10px;padding:0 14px}
   .ia-priv{font-size:11px}
   .ia-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -174,22 +196,28 @@ const open = flags.mode && flags.open;
   }
   @keyframes ia-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @media (max-width:900px){
-    #ia-capa{left:16px;right:16px;width:auto;max-width:none;bottom:16px}
+    /* bottom con env(): en un iPhone con indicador, 16px deja el compositor
+       del panel debajo del indicador. */
+    #ia-capa{left:16px;right:16px;width:auto;max-width:none;bottom:calc(16px + env(safe-area-inset-bottom))}
   }
 </style>
 
-<script type="application/json" id="ia-cfg" is:inline set:html={jsonSafe({ lang, nombre, txt: I, flags })}></script>
+<style is:global set:html={gatoCSS('ia-cornelius')}></style>
+
+<script type="application/json" id="ia-cfg" is:inline set:html={jsonSafe({ lang, nombre, txt: I, flags, flujo: L.flujo })}></script>
 
 <script>
   import { COOKIE_MODE, COOKIE_NUDGES, COOKIE_OPEN, readFlags, writeFlag } from '../lib/ai-mode';
   import type { AiFlags } from '../lib/ai-mode';
-  import { preguntarIA } from '../lib/chat-client';
+  import { preguntarIA, cargarHistorial } from '../lib/chat-client';
+  import { montarPick } from '../lib/ai-pick';
   import type { Traza } from '../lib/chat-client';
+  import { armarFlujo, pintarFlujo, flujoDe } from '../lib/workflows';
   import { EMPTY_BUDGET, QUIET_AFTER_KEY_MS, candidates, noted, pickNudge, spend } from '../lib/coach';
   import type { CoachState, Nudge, NudgeBudget, NudgeText } from '../lib/coach';
 
   const cfg = JSON.parse(document.getElementById('ia-cfg')!.textContent!) as
-    { lang: string; nombre: string; txt: Record<string, string>; flags: AiFlags };
+    { lang: string; nombre: string; txt: Record<string, string>; flags: AiFlags; flujo?: import('../lib/workflows').FlujoTxt };
   const T = cfg.txt;
   // The nudge sentences are a subset of the same dictionary; naming that subset
   // is what keeps lib/coach.ts free of every other string in the panel.
@@ -201,6 +229,14 @@ const open = flags.mode && flags.open;
   const hilo = document.getElementById('ia-hilo') as HTMLElement;
   const campo = document.getElementById('ia-q') as HTMLInputElement;
   const enviarBtn = document.getElementById('ia-go') as HTMLButtonElement;
+  const pickHost = document.getElementById('ia-pick') as HTMLElement;
+  let leerPick = (): { proveedor: string | null; esfuerzo: string } => ({ proveedor: null, esfuerzo: 'medio' });
+  void fetch('/api/chat/estado').then((r) => r.ok ? r.json() : null).then((d) => {
+    const ids = Array.isArray(d?.proveedores) ? d.proveedores.map((p: { id?: string }) => String(p.id ?? '')) : [];
+    leerPick = montarPick(pickHost, {
+      modelo: T.modelo, esfuerzo: T.esfuerzo, bajo: T.bajo, medio: T.medio, alto: T.alto,
+    }, ids);
+  }).catch(() => { /* picker stays empty: the turn still uses the default chain */ });
   const swAvisos = document.getElementById('ia-avisos') as HTMLButtonElement;
   const caja = document.getElementById('ia-aviso') as HTMLElement;
   const cajaTxt = document.getElementById('ia-aviso-txt') as HTMLButtonElement;
@@ -344,7 +380,15 @@ const open = flags.mode && flags.open;
       return;
     }
     saludado = true;
-    dice('bot', `${T.hola.replace('{n}', cfg.nombre)} ${T.holaB}`);
+    const hist = await cargarHistorial('panel');
+    if (hist.turns.length) {
+      for (const t of hist.turns) {
+        dice(t.role === 'user' ? 'yo' : 'bot', t.content);
+        historial.push(t);
+      }
+    } else {
+      dice('bot', `${T.hola.replace('{n}', cfg.nombre)} ${T.holaB}`);
+    }
     if (traido) { conAccion(traido.texto, traido.accion); return; }
     const s = await cargarEstado();
     if (!s) return;
@@ -361,6 +405,7 @@ const open = flags.mode && flags.open;
   const ocultarAviso = (): void => { caja.hidden = true; ocultarEn = 0; };
 
   const abrir = (traido?: Nudge | null): void => {
+    toggle?.setAttribute('aria-checked', 'true');
     bandera(COOKIE_MODE, true);
     bandera(COOKIE_OPEN, true);
     pintar();
@@ -432,6 +477,13 @@ const open = flags.mode && flags.open;
     if (cmd === '/silencio' || cmd === '/mute') { dice('yo', q); ponerAvisos(false); return; }
     if (cmd === '/avisos' || cmd === '/nudges') { dice('yo', q); ponerAvisos(true); return; }
     if (cmd === '/ayuda' || cmd === '/help') { dice('yo', q); dice('bot', T.ayuda); return; }
+    if (cmd === '/tutorial' || cmd === '/tour') {
+      dice('yo', q);
+      const host = dice('bot', T.holaB);
+      if (cfg.flujo) pintarFlujo(armarFlujo('tutorial', cfg.flujo, {}), host, false);
+      window.abrirTutorial?.();
+      return;
+    }
 
     dice('yo', q);
 
@@ -442,7 +494,7 @@ const open = flags.mode && flags.open;
     enviarBtn.disabled = true;
     const pensando = dice('bot', T.pensando);
     try {
-      const d = await preguntarIA(historial, cfg.lang);
+      const d = await preguntarIA(historial, cfg.lang, 'panel', leerPick());
       pensando.remove();
       // 429 is not a failure to hide. The server said WHEN to come back, so the
       // panel says it out loud and refuses to send again until then — swallowing
@@ -471,7 +523,9 @@ const open = flags.mode && flags.open;
       const pie = `<p class="s" style="margin-top:8px">${T.proveedorPie
         .replace('{p}', () => esc(String(d.proveedor ?? '')))
         .replace('{m}', () => esc(String(d.modelo ?? '')))}</p>`;
-      burbuja('bot', `<span style="white-space:pre-wrap;color:var(--l1)">${esc(d.respuesta)}</span>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+      const box = burbuja('bot', `<span style="white-space:pre-wrap;color:var(--l1)">${esc(d.respuesta)}</span>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+      const fid = flujoDe(q);
+      if (fid && cfg.flujo) pintarFlujo(armarFlujo(fid, cfg.flujo, {}), box, false);
     } catch {
       pensando.remove();
       historial.pop();
