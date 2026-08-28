@@ -95,6 +95,7 @@ const STALE = [
   { pattern: /\b9\.99\b/, what: 'the old price 9.99' },
   { pattern: /\bUSD\b/, what: "the old currency 'USD'" },
   { pattern: /\$49\b/, what: 'the old $49 anchor' },
+  { pattern: /\b175[.,]000\b/, what: 'the retired 175.000 anchor' },
   { pattern: /\b(total|discount|price)Cents\b/i, what: 'a *Cents field name (COP has no cents)' },
 ];
 
@@ -192,6 +193,30 @@ for (const dir of COPY_DIRS) {
 }
 
 // ---------------------------------------------------------------------------
+// 3. The forward direction. Findings above only catch values that WERE prices.
+//    Moving a constant and forgetting the literals leaves the page advertising a
+//    number no rule knows is stale -- which is how the 175.000 anchor survived
+//    the move to 99.999 in web/src/lib/i18n.ts while this gate stayed green.
+//    So: whatever the constants now say must actually appear in the copy.
+// ---------------------------------------------------------------------------
+const COPY = walk(join(ROOT, 'web/src'))
+  .filter((f) => !SKIP_FILES.has(rel(f)))
+  .map((f) => readFileSync(f, 'utf8'))
+  .join('\n');
+
+for (const [what, needle] of [
+  ['the price, Spanish notation', web.PRECIO_TEXTO.es],
+  ['the price, English notation', web.PRECIO_TEXTO.en],
+  ['the struck-through anchor, Spanish notation', web.ANCLA_TEXTO.es],
+  ['the struck-through anchor, English notation', web.ANCLA_TEXTO.en],
+]) {
+  if (!COPY.includes(needle)) {
+    note(`no copy under web/src contains ${JSON.stringify(needle)} — ${what}. `
+      + `Either the constant moved and the strings did not, or the copy stopped `
+      + `naming the price at all.`);
+  }
+}
+
 const label = `${CHARGED.amount} ${CHARGED.currency} (${CHARGED.decimals} decimals)`;
 if (!problems.length) {
   console.log(`ok: ${label} — charged, advertised and quoted by the agent, all three agree,`);

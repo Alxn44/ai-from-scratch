@@ -13,6 +13,26 @@ const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 const authorized = (request: { headers: Record<string, unknown> }): boolean =>
   serviceAuthorized(request.headers.authorization, config.serviceSecret);
 
+/**
+ * La concesion rechazada, con su codigo separado del mensaje.
+ *
+ * Antes sendEntitlement lanzaba un `Error` con el cuerpo del api concatenado, la
+ * ruta lo relanzaba y Fastify lo servia como 500 con el detalle dentro: el
+ * navegador recibia literalmente `entitlement callback 400: {"code":"refused",
+ * "message":"data refused auth.entitlement_..."}`. Ni el codigo era nuestro ni
+ * ese detalle es del publico.
+ */
+export class EntitlementError extends Error {
+  readonly status: number;
+  readonly body: string;
+  constructor(status: number, body: string) {
+    super(`entitlement callback ${status}`);
+    this.name = 'EntitlementError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function sendEntitlement(userId: number, source: string, externalId: string, deliveryId: number): Promise<void> {
   const active = await store.entitlement(userId);
   // Stable across retries of this delivery, distinct across real state changes.
@@ -21,7 +41,7 @@ async function sendEntitlement(userId: number, source: string, externalId: strin
     method: 'POST', headers: { authorization: `Bearer ${config.serviceSecret}`, 'content-type': 'application/json' },
     body: JSON.stringify({ eventKey, userId, active, source, externalId, occurredAt: new Date().toISOString() }),
   });
-  if (!response.ok) throw new Error(`entitlement callback ${response.status}: ${(await response.text()).slice(0, 300)}`);
+  if (!response.ok) throw new EntitlementError(response.status, (await response.text()).slice(0, 300));
   await store.markDelivered(eventKey, userId, active);
 }
 
@@ -80,11 +100,29 @@ app.post<{ Body: { userId?: unknown; email?: unknown; mode?: unknown; couponCode
   if (couponCode && !reservation) return reply.code(422).send({ error: 'invalid_coupon' });
   try {
     if (reservation?.offer.totalMinor === 0) {
-      const providerId = `coupon:${reservation.id}`;
+      // EL ORDEN ES EL ARREGLO, no un detalle de estilo.
+      //
+      // Antes esto marcaba la redencion como `redeemed` ANTES de llamar a
+      // sendEntitlement. Si la concesion fallaba -- el servicio de datos caido, un
+      // 400 del api -- la ruta respondia 500 y la fila se quedaba en `redeemed`
+      // para siempre: releaseCoupon solo toca `state='reserved'` (db.ts), y el
+      // indice unico coupon_user_redeemed impide que ese usuario lo reintente. El
+      // cupon quedaba quemado, un cupo de los 25 consumido, el usuario sin acceso,
+      // y la unica salida era editar Postgres a mano. Medido: user 4001 / ALXN100
+      // / state=redeemed / respuesta 500 / sin derecho concedido.
+      //
+      // Ahora lo irreversible va ultimo. Si la concesion falla, la fila sigue
+      // `reserved`, el catch la libera y el reintento funciona.
+      //
+      // providerId DETERMINISTA, no `coupon:${reservation.id}`: la reserva cambia
+      // de id en cada reintento, asi que aquel formato dejaba un pago aprobado
+      // nuevo por intento fallido. upsertPayment tiene la clave en providerId, asi
+      // que con este el reintento reescribe la misma fila.
+      const providerId = `coupon:${reservation.offer.code}:${userId}`;
       await store.upsertPayment({ providerId, userId, status: 'approved', amount: 0,
         currency: CURRENCY, raw: { source: 'coupon', coupon: reservation.offer.code } });
-      await store.redeemCouponReservation(reservation.id, providerId);
       await sendEntitlement(userId, 'coupon', providerId, reservation.id);
+      await store.redeemCouponReservation(reservation.id, providerId);
       return { mode, coupon: reservation.offer.code, discountPercent: reservation.offer.percent,
         discountMinor: reservation.offer.discountMinor, totalMinor: 0, granted: true };
     }
@@ -108,6 +146,14 @@ app.post<{ Body: { userId?: unknown; email?: unknown; mode?: unknown; couponCode
       app.log.error({ status: error.status, body: error.body, sent: error.sent, userId, mode },
         'mercadopago rejected checkout');
       return reply.code(502).send({ error: 'provider_rejected' });
+    }
+    // La concesion la rechazo el api, no nosotros. La reserva ya quedo liberada
+    // arriba, asi que el cupon vuelve a estar disponible y el reintento sirve:
+    // por eso el codigo dice que se puede repetir y no «error interno».
+    if (error instanceof EntitlementError) {
+      app.log.error({ status: error.status, body: error.body, userId, mode },
+        'entitlement callback refused the grant');
+      return reply.code(502).send({ error: 'grant_failed' });
     }
     throw error;
   }

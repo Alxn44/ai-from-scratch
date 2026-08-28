@@ -50,15 +50,14 @@ export const PRECIO_TEXTO: Record<string, string> = {
  * El precio TACHADO que la landing muestra al lado del real.
  *
  * NO es un precio que se haya cobrado nunca: es un ancla de marketing, y estaba
- * escrito a mano como `$49` en cuatro sitios cuando el precio eran USD 9.99 —
- * un ratio de 4,9×. Aquí se conserva ese mismo ratio sobre 35.000, redondeado a
- * un número que se lee: 175.000.
+ * escrito a mano como `$49` en cuatro sitios cuando el precio eran USD 9.99.
+ * 99.999 lo eligió el dueño del producto, no un ratio.
  *
  * Vive declarado y con nombre precisamente porque es una afirmación sobre el
  * pasado que nadie puede verificar. Si el dueño del producto no quiere sostener
  * ese «antes», se borra de aquí y desaparece de las cuatro pantallas a la vez.
  */
-export const PRECIO_ANCLA_MENOR = 175_000;
+export const PRECIO_ANCLA_MENOR = 99_999;
 
 /** El ancla como prosa, por idioma. Misma regla de separador que PRECIO_TEXTO. */
 export const ANCLA_TEXTO: Record<string, string> = {

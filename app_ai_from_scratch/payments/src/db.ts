@@ -102,9 +102,23 @@ export class Store {
         ON coupon_redemptions (coupon_id, user_id) WHERE state = 'redeemed';
       CREATE INDEX IF NOT EXISTS coupon_redemptions_coupon_state
         ON coupon_redemptions (coupon_id, state);
-      INSERT INTO coupons (code, percent, max_redemptions, active)
-        VALUES ('ALXN-100', 100, NULL, true)
-        ON CONFLICT (code) DO NOTHING;
+      -- NO SE SIEMBRAN CUPONES AQUI. Este bloque plantaba, en cada migracion y en
+      -- cada entorno, un ALXN-100 al 100 % con max_redemptions NULL: sin limite de
+      -- usos, sin caducidad, activo, y con el codigo escrito en un fichero del
+      -- repositorio. El 100 % ademas salta Mercado Pago entero (server.ts: si
+      -- totalMinor es 0 se concede el acceso directo), y /registro es publica. La
+      -- ruta completa era: crear cuenta con cualquier correo, aplicar el codigo,
+      -- curso completo gratis, repetir con otro correo. Es el mismo fallo que
+      -- api/.env.example documenta sobre publicar un JWT_SECRET, aplicado al
+      -- corpus de pago. Los cupones se crean con 'pnpm coupon crear', que exige
+      -- limite de usos y caducidad.
+      --
+      -- Y se revoca donde ya haya aterrizado: un codigo que estuvo publicado en
+      -- git no vuelve a ser secreto porque se borre el INSERT. El filtro por
+      -- max_redemptions NULL toca SOLO al sembrado, no a un ALXN-100 que alguien
+      -- cree despues con limite.
+      UPDATE coupons SET active = false
+        WHERE code = 'ALXN-100' AND max_redemptions IS NULL AND ends_at IS NULL;
       CREATE TABLE IF NOT EXISTS entitlement_deliveries (
         event_key TEXT PRIMARY KEY,
         user_id BIGINT NOT NULL,
