@@ -50,6 +50,7 @@ jobs:
       # and anything under 32 chars, so this cannot be a friendly short string.
       JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
       IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+      DATA_SECRETO: ci-only-ephemeral-data-secret-value-32plus
       NODE_ENV: test
 
     steps:
@@ -65,12 +66,19 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             ${{ env.DIR }}/api/pnpm-lock.yaml
+            ${{ env.DIR }}/payments/pnpm-lock.yaml
             ${{ env.DIR }}/web/pnpm-lock.yaml
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.DIR }}/data/go.mod
+          cache-dependency-path: ${{ env.DIR }}/data/go.sum
 
       - name: Install
         working-directory: ${{ env.DIR }}
         run: |
           pnpm --dir api install --frozen-lockfile
+          pnpm --dir payments install --frozen-lockfile
           pnpm --dir web install --frozen-lockfile
 
       # The schema is applied by migrations, never by the server at boot. Twenty
@@ -90,6 +98,13 @@ jobs:
       - name: Types (api, pinned baseline)
         working-directory: ${{ env.DIR }}
         run: pnpm --dir api check
+
+      - name: Payments (tsgo + security contracts)
+        working-directory: ${{ env.DIR }}
+        run: |
+          pnpm --dir payments check
+          pnpm --dir payments test
+          pnpm --dir payments build
 
       # The registry is read by IMPORT, not by regex. A regex reader broke twice —
       # once on a rename, once on a file split — and each time the catalogue guard
@@ -255,7 +270,6 @@ jobs:
         working-directory: ${{ env.DIR }}/queue
         env:
           AMQP_URL: amqp://app:ci-broker-password@127.0.0.1:5672/
-          IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
         run: go run ./cmd/queue-verify --require-broker
 
   defense:
@@ -335,4 +349,9 @@ jobs:
           RABBITMQ_PASSWORD: ci-build-only
           JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
           IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+          DATA_SECRETO: ci-only-ephemeral-data-secret-value-32plus
+          PAYMENTS_SECRET: ci-only-ephemeral-payments-secret-32plus
+          PAYMENTS_DB_PASSWORD: ci-payments-db-password
+          MP_ACCESS_TOKEN: ci-provider-token
+          MP_WEBHOOK_SECRET: ci-provider-webhook-secret
         run: docker compose build
