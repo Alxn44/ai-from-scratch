@@ -46,6 +46,15 @@ jobs:
 
     env:
       DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso
+      # `prisma migrate diff --from-migrations` REPLAYS every migration into a
+      # throwaway database and compares the result against schema.prisma. It
+      # cannot do that in `curso`, which already holds the deployed schema and
+      # the seed, so it demands a second one and refuses to guess.
+      #
+      # A SEPARATE DATABASE, never an alias of DATABASE_URL. Prisma DROPS and
+      # recreates whatever it is pointed at here; aiming it at the real database
+      # is how a drift check deletes the data it was meant to protect.
+      SHADOW_DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso_shadow
       # A 48-char ephemeral value. The guard in auth.ts rejects known placeholders
       # and anything under 32 chars, so this cannot be a friendly short string.
       JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
@@ -78,6 +87,13 @@ jobs:
         run: |
           pnpm --dir api install --frozen-lockfile
           pnpm --dir web install --frozen-lockfile
+
+      # The service container creates `curso` from POSTGRES_DB and nothing else.
+      # The shadow database has to exist before the drift check asks for it.
+      - name: Shadow database for the drift check
+        run: |
+          until pg_isready -h 127.0.0.1 -p 5432 -U curso -d curso; do sleep 1; done
+          PGPASSWORD=curso createdb -h 127.0.0.1 -p 5432 -U curso curso_shadow
 
       # The schema is applied by migrations, never by the server at boot. Twenty
       # DDL statements running on startup is how two instances race each other.
