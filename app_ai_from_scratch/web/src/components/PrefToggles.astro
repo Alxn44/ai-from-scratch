@@ -11,7 +11,7 @@ const { lang, theme, labels, sync = false } = Astro.props;
      caben en una fila de 390. Sin envolver, el grupo del tema se salia 23px por
      la derecha en /pago. justify-content al final para que, cuando envuelva, la
      segunda fila quede alineada con la primera y no centrada bajo ella. -->
-<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end" data-sync={sync ? '1' : undefined}>
+<div class="prefs" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end" data-sync={sync ? '1' : undefined}>
   <div class="seg" role="group" aria-label={labels.langAria}>
     <button class="segb" data-pref="lang" data-val="auto" aria-pressed={lang === 'auto'}>{labels.auto}</button>
     {IDIOMAS.map((c) => (

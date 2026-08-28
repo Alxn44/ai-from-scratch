@@ -133,7 +133,9 @@ a:hover{color:var(--ac-solid)}
 .pub-main{flex:1;min-width:0;display:flex;flex-direction:column;padding:26px 40px 40px}
 .pub-card{width:420px;max-width:100%;display:flex;flex-direction:column}
 .or-txt{font:500 12px/1 var(--f);color:var(--l3);text-transform:lowercase}
-@media (max-width:900px){.or-txt{display:none}}
+/* La «o» se ocultaba en movil y dejaba el separador partido en dos rayas
+   con un hueco vacio en medio, que se lee como un error de dibujo. Ocupa
+   doce pixeles: no era el sitio donde ganar espacio. */
 .pay-grid{display:grid;grid-template-columns:1fr 560px;min-height:calc(100dvh - 64px)}
 .pay-head{height:64px;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;padding:0 32px;gap:20px}
 /* pago/gracias y pago/error la llevaban escrita en linea, sin media query. */
@@ -212,6 +214,17 @@ a:hover{color:var(--ac-solid)}
   .input,input.input,select.input,textarea.input,.coupon input{min-height:44px!important;height:auto!important;font-size:16px!important}
 }
 .seg{display:flex;border:1px solid var(--hair2)}
+@media (max-width:900px){
+  .prefs{width:100%;gap:8px;justify-content:flex-start}
+  /* Ancho NATURAL, no repartido a partes iguales. Con flex:1 1 0 los seis
+     botones median lo mismo y OSCURO se cortaba a «OSCU…»: una etiqueta que no
+     se puede leer es peor que una fila de mas. Con el relleno bajado a 8px los
+     dos grupos suman ~326 en los 346 utiles de un telefono de 390 y caben en
+     una fila; por debajo de eso envuelven, cada grupo entero, sin partir
+     ninguna palabra. */
+  .prefs .seg{flex:0 1 auto;min-width:0}
+  .prefs .segb{padding:0 8px;white-space:nowrap}
+}
 .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s}
 .segb:last-child{border-right:0}
 .segb:hover{color:var(--l1);background:var(--fill)}
