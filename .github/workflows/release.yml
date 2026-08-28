@@ -48,15 +48,13 @@ jobs:
           echo "::error::No deploy target configured, so nothing was released."
           echo
           echo "Images ARE published and ready to pull, pinned to this commit:"
-          echo "  ghcr.io/${GITHUB_REPOSITORY,,}/{api,api-migrate,payments,ai,web,queue,defense,data}:${{ inputs.tag }}"
+          echo "  ghcr.io/${GITHUB_REPOSITORY,,}/{api,api-migrate,ai,web,queue}:${{ inputs.tag }}"
           echo
           echo "To turn the deploy on, set the repository VARIABLE DEPLOY_TARGET to"
           echo "the host's name, and add these Environment secrets on '${{ inputs.environment }}':"
           echo "  DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH"
-          echo "  WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO QUEUE_SECRETO DATA_SECRETO"
-          echo "  PAYMENTS_SECRET PAYMENTS_DB_PASSWORD MP_ACCESS_TOKEN MP_WEBHOOK_SECRET"
-          echo "  At least one model key: ANTHROPIC_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, KIMI_API_KEY, HF_TOKEN or OPENCODE_API_KEY"
-          echo "Optional: DEPLOY_PORT, MP_PUBLIC_KEY, PROVEEDOR_ORDEN"
+          echo "  WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO"
+          echo "Optional: DEPLOY_PORT, MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, MP_PUBLIC_KEY"
           echo
           echo "This fails on purpose. A release job that exits 0 without releasing"
           echo "is the worst outcome available: main goes green, everyone believes"
@@ -76,35 +74,18 @@ jobs:
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           IA_SECRETO: ${{ secrets.IA_SECRETO }}
-          QUEUE_SECRETO: ${{ secrets.QUEUE_SECRETO }}
-          DATA_SECRETO: ${{ secrets.DATA_SECRETO }}
-          PAYMENTS_SECRET: ${{ secrets.PAYMENTS_SECRET }}
-          PAYMENTS_DB_PASSWORD: ${{ secrets.PAYMENTS_DB_PASSWORD }}
-          MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
-          MP_WEBHOOK_SECRET: ${{ secrets.MP_WEBHOOK_SECRET }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
           # Checked here, before any ssh, and named one at a time so the log says
           # WHICH one is missing. Discovering a missing secret halfway through the
           # session is how a host ends up half-restarted.
           missing=""
           for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH \
-                   WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO QUEUE_SECRETO DATA_SECRETO \
-                   PAYMENTS_SECRET PAYMENTS_DB_PASSWORD MP_ACCESS_TOKEN MP_WEBHOOK_SECRET; do
+                   WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO; do
             eval "val=\${$v}"
             [ -n "$val" ] || missing="$missing $v"
           done
           if [ -n "$missing" ]; then
             echo "::error::DEPLOY_TARGET is set but these secrets are missing:$missing"
-            exit 1
-          fi
-          if [ -z "$ANTHROPIC_API_KEY$OPENROUTER_API_KEY$DEEPSEEK_API_KEY$KIMI_API_KEY$HF_TOKEN$OPENCODE_API_KEY" ]; then
-            echo "::error::At least one AI provider key is required for the assistant"
             exit 1
           fi
           echo "all deploy secrets present"
@@ -113,9 +94,8 @@ jobs:
         if: vars.DEPLOY_TARGET != ''
         env:
           TAG: ${{ inputs.tag }}
-          # En minusculas: el host hace `docker compose pull` con este
-          # prefijo y GHCR rechaza el nombre con mayusculas igual que lo
-          # rechaza buildx al publicar.
+          # En crudo: una expresion de Actions no sabe bajar a minusculas,
+          # y GHCR las exige. Se convierte en el shell, mas abajo.
           IMAGE_REPO_RAW: ghcr.io/${{ github.repository }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -127,20 +107,9 @@ jobs:
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           IA_SECRETO: ${{ secrets.IA_SECRETO }}
-          QUEUE_SECRETO: ${{ secrets.QUEUE_SECRETO }}
-          DATA_SECRETO: ${{ secrets.DATA_SECRETO }}
-          PAYMENTS_SECRET: ${{ secrets.PAYMENTS_SECRET }}
-          PAYMENTS_DB_PASSWORD: ${{ secrets.PAYMENTS_DB_PASSWORD }}
           MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
           MP_WEBHOOK_SECRET: ${{ secrets.MP_WEBHOOK_SECRET }}
           MP_PUBLIC_KEY: ${{ secrets.MP_PUBLIC_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          PROVEEDOR_ORDEN: ${{ secrets.PROVEEDOR_ORDEN }}
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -166,30 +135,13 @@ jobs:
             app_ai_from_scratch/docker-compose.prod.yml \
             "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
-          # Model credentials belong to the AI container only. Keep them in its
-          # own 0600 env file instead of widening the compose-level .env boundary.
-          ssh_run "mkdir -p '$DEPLOY_PATH/ai' && umask 077 && cat > '$DEPLOY_PATH/ai/.env'" <<EOF
-          IA_SECRETO=$IA_SECRETO
-          NODE_URL=http://api:8787
-          PORT=8799
-          ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
-          OPENROUTER_API_KEY=$OPENROUTER_API_KEY
-          DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
-          KIMI_API_KEY=$KIMI_API_KEY
-          HF_TOKEN=$HF_TOKEN
-          OPENCODE_API_KEY=$OPENCODE_API_KEY
-          PROVEEDOR_ORDEN=$PROVEEDOR_ORDEN
-          EOF
-
           # Read what is running BEFORE changing anything, so the rollback below
-          # GHCR rechaza mayusculas en el nombre del repositorio y el dueno de
-          # este lleva una. La expresion de Actions no sabe bajar a minusculas,
-          # asi que llega en crudo y se convierte aqui, en el shell. El host hace
-          # `docker compose pull` con este prefijo: si va con mayuscula el pull
-          # falla en la maquina remota, cuando ya no hay nada verde que mirar.
+          # has a real tag to return to.
+          # El host hace `docker compose pull` con este prefijo. Si va con
+          # mayuscula el pull falla en la maquina remota, cuando ya no hay
+          # nada verde que mirar.
           IMAGE_REPO="${IMAGE_REPO_RAW,,}"
 
-          # has a real tag to return to.
           previous=$(ssh_run "cat '$DEPLOY_PATH/.deployed-tag' 2>/dev/null || echo none")
           echo "currently deployed: $previous"
           echo "deploying:          $TAG"
@@ -203,21 +155,9 @@ jobs:
           RABBITMQ_PASSWORD=$RABBITMQ_PASSWORD
           JWT_SECRET=$JWT_SECRET
           IA_SECRETO=$IA_SECRETO
-          QUEUE_SECRETO=$QUEUE_SECRETO
-          DATA_SECRETO=$DATA_SECRETO
-          PAYMENTS_SECRET=$PAYMENTS_SECRET
-          PAYMENTS_DB_PASSWORD=$PAYMENTS_DB_PASSWORD
-          PUBLIC_ORIGIN=$WEB_ORIGIN
           MP_ACCESS_TOKEN=$MP_ACCESS_TOKEN
           MP_WEBHOOK_SECRET=$MP_WEBHOOK_SECRET
           MP_PUBLIC_KEY=$MP_PUBLIC_KEY
-          ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
-          OPENROUTER_API_KEY=$OPENROUTER_API_KEY
-          DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
-          KIMI_API_KEY=$KIMI_API_KEY
-          HF_TOKEN=$HF_TOKEN
-          OPENCODE_API_KEY=$OPENCODE_API_KEY
-          PROVEEDOR_ORDEN=$PROVEEDOR_ORDEN
           SEED_DEMO_USERS=0
           EOF
 

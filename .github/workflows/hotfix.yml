@@ -66,7 +66,6 @@ jobs:
       DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso
       JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
       IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
-      DATA_SECRETO: ci-only-ephemeral-data-secret-value-32plus
       NODE_ENV: test
 
     steps:
@@ -80,14 +79,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: |
-            ${{ env.DIR }}/api/pnpm-lock.yaml
-            ${{ env.DIR }}/payments/pnpm-lock.yaml
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ${{ env.DIR }}/data/go.mod
-          cache-dependency-path: ${{ env.DIR }}/data/go.sum
+          cache-dependency-path: ${{ env.DIR }}/api/pnpm-lock.yaml
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -98,7 +90,6 @@ jobs:
         working-directory: ${{ env.DIR }}
         run: |
           pnpm --dir api install --frozen-lockfile
-          pnpm --dir payments install --frozen-lockfile
           uv --directory ai sync --extra dev --frozen
 
       - name: Isolation proof (P1..P4)
@@ -126,10 +117,6 @@ jobs:
       - name: Types
         working-directory: ${{ env.DIR }}
         run: pnpm --dir api check
-
-      - name: Payments contracts
-        working-directory: ${{ env.DIR }}
-        run: pnpm --dir payments check && pnpm --dir payments test
 
       # See the same step in ci.yml for why this is nohup + disown and not `&`:
       # a background child that dies makes the suite print "skipped" and exit 0.
@@ -176,8 +163,12 @@ jobs:
       # image one that no reviewed branch contains.
       - name: Tag
         id: meta
-        # Mismo motivo que en deploy.yml: GHCR rechaza un nombre de
-        # repositorio con mayusculas y el dueno de este lleva una.
+      # GHCR EXIGE MINUSCULAS EN EL NOMBRE DEL REPOSITORIO, y el dueno de este
+      # se escribe Alxn44. Usar github.repository tal cual producia
+      #   invalid tag "ghcr.io/Alxn44/ai-from-scratch/api:...":
+      #   repository name must be lowercase
+      # y mataba `publish images` DESPUES de que las cinco puertas pasaran en
+      # verde. Nunca se habia visto porque el despliegue jamas habia corrido.
         run: |
           echo "tag=hotfix-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
@@ -185,8 +176,7 @@ jobs:
       - name: api
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch
-          file: app_ai_from_scratch/api/Dockerfile
+          context: app_ai_from_scratch/api
           push: true
           tags: ghcr.io/${{ steps.meta.outputs.repo }}/api:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=api
@@ -198,20 +188,11 @@ jobs:
       - name: api-migrate
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch
-          file: app_ai_from_scratch/api/Dockerfile
+          context: app_ai_from_scratch/api
           target: migrate
           push: true
           tags: ghcr.io/${{ steps.meta.outputs.repo }}/api-migrate:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=api
-
-      - name: payments
-        uses: docker/build-push-action@v6
-        with:
-          context: app_ai_from_scratch/payments
-          push: true
-          tags: ghcr.io/${{ steps.meta.outputs.repo }}/payments:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha,scope=payments
 
       - name: ai
         uses: docker/build-push-action@v6
@@ -226,8 +207,6 @@ jobs:
         with:
           context: app_ai_from_scratch/web
           push: true
-          build-args: |
-            PUBLIC_SITE=https://aifromscratch.shop
           tags: ghcr.io/${{ steps.meta.outputs.repo }}/web:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=web
 
@@ -248,27 +227,6 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.meta.outputs.repo }}/queue:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=queue
-
-      # The production overlay pins every service to the hotfix tag. Publishing
-      # only the API-facing images would make `docker compose pull` fail before
-      # the rollback-safe release step can even start.
-      - name: defense
-        uses: docker/build-push-action@v6
-        with:
-          context: app_ai_from_scratch
-          file: app_ai_from_scratch/defense/Dockerfile
-          push: true
-          tags: ghcr.io/${{ steps.meta.outputs.repo }}/defense:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha,scope=defense
-
-      - name: data
-        uses: docker/build-push-action@v6
-        with:
-          context: app_ai_from_scratch
-          file: app_ai_from_scratch/data/Dockerfile
-          push: true
-          tags: ghcr.io/${{ steps.meta.outputs.repo }}/data:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha,scope=data
 
   release:
     name: release

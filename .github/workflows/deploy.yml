@@ -56,8 +56,7 @@ jobs:
       #   invalid tag "ghcr.io/Alxn44/ai-from-scratch/api:...":
       #   repository name must be lowercase
       # y mataba `publish images` DESPUES de que las cinco puertas pasaran en
-      # verde. No se habia visto nunca porque el despliegue jamas habia llegado
-      # a ejecutarse: la primera vez que corrio, fallo aqui.
+      # verde. Nunca se habia visto porque el despliegue jamas habia corrido.
         run: |
           echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
@@ -84,8 +83,7 @@ jobs:
       - name: api
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch
-          file: app_ai_from_scratch/api/Dockerfile
+          context: app_ai_from_scratch/api
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -100,8 +98,7 @@ jobs:
       - name: api-migrate
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch
-          file: app_ai_from_scratch/api/Dockerfile
+          context: app_ai_from_scratch/api
           target: migrate
           push: true
           platforms: linux/amd64,linux/arm64
@@ -110,18 +107,6 @@ jobs:
             ghcr.io/${{ steps.meta.outputs.repo }}/api-migrate:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api-migrate,mode=max
-
-      - name: payments
-        uses: docker/build-push-action@v6
-        with:
-          context: app_ai_from_scratch/payments
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/${{ steps.meta.outputs.repo }}/payments:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ steps.meta.outputs.repo }}/payments:latest
-          cache-from: type=gha,scope=payments
-          cache-to: type=gha,scope=payments,mode=max
 
       - name: ai
         uses: docker/build-push-action@v6
@@ -140,8 +125,6 @@ jobs:
         with:
           context: app_ai_from_scratch/web
           push: true
-          build-args: |
-            PUBLIC_SITE=https://aifromscratch.shop
           platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ steps.meta.outputs.repo }}/web:${{ steps.meta.outputs.tag }}
