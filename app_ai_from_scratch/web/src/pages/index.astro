@@ -22,7 +22,7 @@ const canonical = `${SITE}/`;
 const desc = P.desc;
 // Los dos precios grandes de la pagina eran markup literal, iguales para ES y
 // EN. Con USD 9.99 eso pasaba desapercibido porque el punto decimal se escribe
-// igual en los dos idiomas; con 35.000 no: en ingles «$35.000» son treinta y
+// igual en los dos idiomas; con 38.500 no: en ingles «$38.500» son treinta y
 // cinco dolares con tres decimales, no treinta y cinco mil pesos.
 const precioBig = PRECIO_VISUAL[lang] ?? PRECIO_VISUAL.es;
 const anclaBig = ANCLA_VISUAL[lang] ?? ANCLA_VISUAL.es;
@@ -30,7 +30,7 @@ const anclaBig = ANCLA_VISUAL[lang] ?? ANCLA_VISUAL.es;
 // respuesta exacta. Sirve igual para Google que para un asistente que cite.
 const PREGUNTAS = lang === 'en' ? [
   { q: 'Do I need to know how to code to take the course?', a: 'No. Not one line of code, and no maths. The 36 labs are solved by choosing, ordering and assembling inside the lesson.' },
-  { q: 'What does it cost and what is included?', a: '35,000 COP a month, cancel anytime. It includes the 12 lessons, the 36 labs, the PDF in Spanish and English, and the Claude Code harness, for as long as the subscription is active.' },
+  { q: 'What does it cost and what is included?', a: '38,500 COP a month, cancel anytime. It includes the 12 lessons, the 36 labs, the PDF in Spanish and English, and the Claude Code harness, for as long as the subscription is active.' },
   { q: 'Is there a refund if it is not for me?', a: 'Yes: 14 days from purchase, no explanation needed, back through the same payment method in under 10 business days.' },
   { q: 'Is it available in English?', a: 'Yes. The platform, this page and the lesson content are in Spanish and English, and you switch language from the top bar.' },
   { q: 'What is a token in artificial intelligence?', a: 'A token is the chunk of text the model works with: it sees neither words nor letters, it sees frequent pieces. "Cartagena is beautiful" is three words but five tokens. Everything that gets billed or capped is measured in tokens.' },
@@ -38,7 +38,7 @@ const PREGUNTAS = lang === 'en' ? [
   { q: 'Does AI learn from what I write to it?', a: 'It is not retrained by each conversation. Training and inference are separate moments: when you talk to it, its parameters do not change. If it seems to remember you, the application may have stored your text and included it in the request again.' },
 ] : [
   { q: '¿Necesito saber programar para tomar el curso?', a: 'No. No se escribe una línea de código y no hay matemáticas. Los 36 labs se resuelven eligiendo, ordenando y armando dentro de la lección.' },
-  { q: '¿Cuánto cuesta y qué incluye?', a: '35.000 COP al mes, y se cancela cuando quieras. Incluye las 12 lecciones, los 36 labs, el PDF en español e inglés y el harness de Claude Code, mientras la suscripción esté activa.' },
+  { q: '¿Cuánto cuesta y qué incluye?', a: '38.500 COP al mes, y se cancela cuando quieras. Incluye las 12 lecciones, los 36 labs, el PDF en español e inglés y el harness de Claude Code, mientras la suscripción esté activa.' },
   { q: '¿Hay devolución si no me sirve?', a: 'Sí: 14 días desde la compra, sin explicar por qué, por el mismo medio de pago y en menos de 10 días hábiles.' },
   { q: '¿Está disponible en inglés?', a: 'Sí. La plataforma, esta página y el contenido de las lecciones están en español e inglés, y se cambia de idioma desde la barra superior.' },
   { q: '¿Qué es un token en inteligencia artificial?', a: 'Un token es el trozo de texto con el que trabaja el modelo: no ve palabras ni letras, ve pedazos frecuentes. «Cartagena es hermosa» son tres palabras pero cinco tokens. Todo lo que se cobra y se limita se mide en tokens.' },

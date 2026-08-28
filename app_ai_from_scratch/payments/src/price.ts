@@ -26,10 +26,10 @@ export const DECIMALS = 0;
 /**
  * El precio mensual en unidades MENORES de CURRENCY.
  *
- * COP 35.000 al mes. Con DECIMALS = 0, la unidad menor es el peso, así que este
+ * COP 38.500 al mes. Con DECIMALS = 0, la unidad menor es el peso, así que este
  * número es el precio tal cual.
  */
-export const PRICE_MINOR = 35_000;
+export const PRICE_MINOR = 38_500;
 
 /**
  * De unidad menor al importe que espera el proveedor.

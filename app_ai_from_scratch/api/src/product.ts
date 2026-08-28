@@ -60,12 +60,12 @@ export interface SupportEntry {
 }
 
 export const PRICE: Price = {
-  // 35.000 COP al mes. `monto` esta en unidades MAYORES de `moneda`, y COP no
+  // 38.500 COP al mes. `monto` esta en unidades MAYORES de `moneda`, y COP no
   // tiene decimales, asi que el numero es el precio tal cual. Debe coincidir
   // con PRICE_MINOR/CURRENCY en payments/src/price.ts: lo comprueba
   // scripts/check-price.mjs, porque este es el importe que el agente le CITA
   // al estudiante y el otro es el que se le COBRA.
-  monto: 35000,
+  monto: 38500,
   moneda: 'COP',
   tipo: 'pago_unico',
   garantiaDias: 14,      // 7 was below the EU minimum
