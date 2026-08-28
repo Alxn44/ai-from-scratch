@@ -60,6 +60,19 @@ jobs:
       JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
       IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
       DATA_SECRETO: ci-only-ephemeral-data-secret-value-32plus
+      # The api suite needs the demo accounts as FIXTURES: test/tools.mts:19 does
+      # `SELECT id FROM users WHERE email = 'ricardo@velez.co'` and then
+      # dereferences with `!`, which TypeScript erases, so a missing row is not a
+      # clear failure — it is an undefined that reaches pg and comes back as
+      # `insert or update on table "attempts" violates foreign key constraint`.
+      #
+      # The rows became opt-in for a good reason: they used to be created on every
+      # boot with a password committed to this repository, one of them an admin.
+      # Nothing about that is undone here. seed.ts still throws outright if this
+      # is set with NODE_ENV=production, this job is NODE_ENV=test, and the
+      # password below exists for the ninety seconds this container lives.
+      SEED_DEMO_USERS: '1'
+      SEED_DEMO_PASSWORD: ci-only-ephemeral-demo-password-not-a-credential
       NODE_ENV: test
 
     steps:
