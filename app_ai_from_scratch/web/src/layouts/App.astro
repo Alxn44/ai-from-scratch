@@ -1,6 +1,6 @@
 ---
 import { icon } from '../lib/icons';
-import { initials, type User } from '../lib/session';
+import { initials, satisface, type User } from '../lib/session';
 import { t, resolveLang, IDIOMAS, NOMBRE_IDIOMA, type Lang } from '../lib/i18n';
 import { TOKENS, LANG_FX } from '../lib/theme-css';
 import { jsonSafe } from '../lib/json-safe';
@@ -32,7 +32,9 @@ const NAV = [
   { href: '/admin',     ic: 'shield', key: 'admin',   label: L.nav.admin,   roles: ['admin'] },
   { href: '/perfil',    ic: 'user',   key: 'perfil',  label: L.nav.perfil,  roles: ['student', 'tutor', 'admin'] },
   { href: '/ajustes',   ic: 'gear',   key: 'ajustes', label: L.nav.ajustes, roles: ['student', 'tutor', 'admin'] },
-].filter((n) => n.roles.includes(user.role));
+// satisface, no includes: el enlace de Admin exige ['admin'] y root tiene que
+// verlo sin que esta lista lo nombre. Ver CONTIENE en lib/session.ts.
+].filter((n) => satisface(user.role, n.roles));
 
 const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolTutor, admin: L.ui.rolAdmin };
 

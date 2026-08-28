@@ -8,7 +8,7 @@ import { jsonSafe } from '../lib/json-safe';
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
 const L = t(resolveLang(user!.lang, Astro.request));
-const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as const;
+const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin', root: 'Root' } as const;
 ---
 <App user={user!} title="Ajustes" crumb="AJUSTES / CUENTA" active="Ajustes">
   <div class="app-pad ajustes-split" style="max-width:1180px">

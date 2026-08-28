@@ -17,8 +17,8 @@ const payRes = await apiTry<{ payments: P[] }>('/api/admin/payments', Astro.requ
 const pays = payRes.data?.payments ?? [];
 const paysOk = payRes.status === 200;
 const L = t(resolveLang(user!.lang, Astro.request));
-const ROLEC: Record<string, string> = { student: 'var(--l2)', tutor: 'var(--ac)', admin: 'var(--or)' };
-const ROLE_ES: Record<string, string> = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' };
+const ROLEC: Record<string, string> = { student: 'var(--l2)', tutor: 'var(--ac)', admin: 'var(--or)', root: 'var(--rd)' };
+const ROLE_ES: Record<string, string> = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin', root: 'Root' };
 const sum = pays.filter((p) => p.status === 'approved').reduce((a, p) => a + p.amount, 0);
 ---
 <App user={user!} title="Admin" crumb="ADMIN / PLATAFORMA" active="Admin">
@@ -54,7 +54,7 @@ const sum = pays.filter((p) => p.status === 'approved').reduce((a, p) => a + p.a
                del bloque movil, y por debajo de 16 iOS Safari hace zoom al enfocar.
                34px tambien incumplia el suelo tactil de 44. -->
           <select data-role={u.id} class="input" style="font:500 16px/1 var(--m);letter-spacing:.06em;padding:0 8px">
-            {['student', 'tutor', 'admin'].map((r) => <option value={r} selected={u.role === r} style={`color:${ROLEC[r]}`}>{ROLE_ES[r]}</option>)}
+            {['student', 'tutor', 'admin', 'root'].map((r) => <option value={r} selected={u.role === r} style={`color:${ROLEC[r]}`}>{ROLE_ES[r]}</option>)}
           </select>
           <span class="num s">{u.created_at.slice(0, 10)}</span>
           <span class="s" style={`color:${u.paid ? 'var(--ok)' : 'var(--l3)'}`}>{u.paid ? 'Sí' : 'No'}</span>
