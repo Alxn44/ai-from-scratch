@@ -56,7 +56,16 @@ app_ai_from_scratch/data/data
 # El patron lleva ** delante A PROPOSITO: un patron con barra se ancla a la
 # carpeta de este .gitignore, asi que `design/**/x` NO coincide con
 # app_ai_from_scratch/design/**/x. Cada canvas nuevo necesita su linea aqui.
-**/design/**/cornelius-mascota.html
+# Renombrado desde cornelius-mascota.html. Cada rename de un canvas necesita
+# tocar esta linea, y el patron se verifica con `git check-ignore -q <ruta>`
+# ANTES de dar por bueno el rename.
+#
+# OJO CON EL ORDEN: gitignore no se aplica a lo que ya esta seguido, asi que
+# `git check-ignore` responde «no coincide» tanto si el patron esta mal como si
+# el fichero ya entro al indice. Los 2,3 MB de este payload entraron en af675d5
+# por un `git add` sobre el directorio; se quitaron con `git rm --cached` y solo
+# entonces se pudo comprobar que el patron era correcto desde el principio.
+**/design/**/conito-mascota.html
 **/design/**/plataforma-movil-tablet.html
 
 # --- Secretos: los escribe scripts/claves.sh, nunca se suben ---
