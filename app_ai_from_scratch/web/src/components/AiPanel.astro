@@ -70,8 +70,8 @@ const open = flags.mode && flags.open;
            aria-labelledby="ia-titulo" hidden={!open}>
     <div class="ia-row">
       <div class="ia-heading">
-        <div class="ia-mascota" aria-label="Cornelius, asistente del curso"
-             set:html={gato(34, 'sentado', 'ia-cornelius')}>
+        <div class="ia-mascota" aria-label="Conito, asistente del curso"
+             set:html={gato(34, 'sentado', 'ia-conito')}>
         </div>
         <div>
         <p class="eb" id="ia-titulo">{I.titulo}</p>
@@ -202,7 +202,7 @@ const open = flags.mode && flags.open;
   }
 </style>
 
-<style is:global set:html={gatoCSS('ia-cornelius')}></style>
+<style is:global set:html={gatoCSS('ia-conito')}></style>
 
 <script type="application/json" id="ia-cfg" is:inline set:html={jsonSafe({ lang, nombre, txt: I, flags, flujo: L.flujo })}></script>
 

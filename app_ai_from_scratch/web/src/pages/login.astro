@@ -79,7 +79,14 @@ const jsonld = grafo(org());
           <div style="display:flex;align-items:center;gap:12px">
             <div style="flex:1;height:1px;background:var(--hair2)"></div><span class="or-txt">{P.o}</span><div style="flex:1;height:1px;background:var(--hair2)"></div>
           </div>
-          <a class="btn ghost block" href="/recuperar" style="text-decoration:none">{P.enlace}</a>
+          <!-- Era «Enviarme un enlace de acceso» y apuntaba a /recuperar: el mismo
+               sitio que «¿La olvidaste?», con una etiqueta que promete entrar sin
+               contraseña. Ademas no hay proveedor de correo conectado
+               (auth/src/index.ts: «recover: link generated (no mail provider
+               configured)»), asi que ese enlace no sale de los logs. El hueco lo
+               ocupa la unica accion que si funciona de punta a punta:
+               /api/auth/register responde 201 y abre sesion. -->
+          <a class="btn ghost block" href="/registro" style="text-decoration:none">{P.crear}</a>
           <p class="s" style="text-align:center">{P.noTienes} <a href="/pago">{P.verCurso}</a></p>
         </form>
       </div>
