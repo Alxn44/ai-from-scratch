@@ -64,7 +64,7 @@ const avg = students.length ? Math.round(students.reduce((a, s) => a + s.solved,
         {stuck.map((x) => (
           <div style="display:flex;flex-direction:column;gap:6px">
             <div style="display:flex;justify-content:space-between">
-              <a href={`/leccion/${x.lab_id.split('.')[0]}`} style="font:600 13px/1 var(--f)">Lab {x.lab_id}</a>
+              <a class="fila-lab" href={`/leccion/${x.lab_id.split('.')[0]}`} style="font:600 13px/1 var(--f)">Lab {x.lab_id}</a>
               <span class="num s" style="color:var(--or)">{x.tries} intentos · {x.wins} aciertos</span>
             </div>
             <div class="bar"><div class="barfill" style={`width:${Math.min(100, x.tries * 12)}%;background:var(--or)`}></div></div>

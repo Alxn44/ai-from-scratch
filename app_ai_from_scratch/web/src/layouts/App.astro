@@ -186,11 +186,11 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
     .app-pad{padding:30px 28px 40px}
     .stack-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
     .span-2{grid-column:span 2}
-    .lec-list-head,.lec-list-row{display:grid;grid-template-columns:46px 1fr 190px 92px 104px;gap:18px}
-    .ajustes-split{display:grid;grid-template-columns:200px 1fr;gap:34px;align-items:start}
+    .lec-list-head,.lec-list-row{display:grid;grid-template-columns:46px minmax(0,1fr) 190px 92px 104px;gap:18px}
+    .ajustes-split{display:grid;grid-template-columns:200px minmax(0,1fr);gap:34px;align-items:start}
     .ajustes-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
     .lec-top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
-    .lec-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+    .lec-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
     /* Rejillas que estaban escritas en linea pagina por pagina, sin media query
        que las rescatase. En .app-pad a 390 px hay 362 utiles, y con las pistas
        fijas mas los gaps se pasaban todas:
@@ -211,9 +211,25 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
     .tbl-rank{display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px}
     .tbl-admin{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 150px 110px 90px;gap:16px}
     .tbl-tutor{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 110px;gap:16px}
+/* EL SUELO TACTIL NO DEPENDE DEL ANCHO, DEPENDE DEL DEDO.
+       Las reglas de arriba viven en max-width:900px, que es el umbral correcto para
+       el LAYOUT y equivocado para esto: un iPad Pro son 1024px CSS y se toca con el
+       pulgar, y iPadOS amplia igual al enfocar un campo de menos de 16px. Medido a
+       1024 sin esta regla, /login y /registro volvian a 15px y .segb a 30px de alto.
+       pointer:coarse es la pregunta que de verdad importa -- «¿el puntero de este
+       aparato es impreciso?» -- y responde que si en cualquier pantalla tactil sea
+       cual sea su ancho, y que no en un escritorio con raton a 800px.
+       NO VERIFICADO EN ESTA MAQUINA: Chrome headless declara pointer:fine y browse
+       no expone emulacion de dispositivo, asi que esta regla esta escrita a partir
+       de la definicion de la media query, no de una medicion. Lo que si esta medido
+       es el fallo que arregla. */
+    @media (pointer: coarse){
+      .btn,.chip,.segb,button,[role="button"]{min-height:44px!important;height:auto!important}
+      .input,input.input,select.input,textarea.input,.coupon input{min-height:44px!important;height:auto!important;font-size:16px!important}
+    }
     @media (max-width:900px){
       .app-pad{padding:18px 14px 32px}
-      .stack-3,.ajustes-split,.ajustes-fields,.lec-cols{grid-template-columns:1fr}
+      .stack-3,.ajustes-split,.ajustes-fields,.lec-cols{grid-template-columns:minmax(0,1fr)}
       .span-2{grid-column:auto}
       .lec-list-head{display:none}
       .lec-list-row{grid-template-columns:46px 1fr auto;height:auto;padding:12px 4px;gap:10px 12px}
@@ -221,7 +237,35 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
       .lec-top{flex-direction:column;align-items:stretch}
       .lec-math{width:auto!important}
       .toast{width:min(372px, calc(100vw - 24px))}
-      .input{font-size:16px}
+      /* EL SUELO TACTIL, POR ENCIMA DE TODO LO DEMAS.
+         44px no es una preferencia de diseno, es el minimo con el que un dedo
+         acierta. El problema no era declararlo -- .btn y .input ya dicen 44 --
+         sino que once sitios lo pisan con height:36px o height:34px ESCRITO EN
+         EL ATRIBUTO style, y uno mas lo inyecta desde JavaScript. Una media
+         query no le gana a un estilo en linea, asi que la unica forma de que
+         esos doce respeten el suelo es esta.
+         !important es un martillo y aqui es el correcto: la afirmacion es
+         justamente que en un telefono NADA puede bajar de 44, ni un ajuste
+         local ni codigo que escriba estilos en caliente. Lo que se cede es
+         poder fijar a mano una altura menor en movil, que es exactamente lo
+         que se quiere impedir.
+         height:auto junto a min-height para que un boton de dos lineas crezca
+         en vez de recortar su texto. */
+      /* `button` a secas y no solo .btn: en /leccion un control usa la clase
+         .lbl (10px mayusculas) y medía 26px de alto. Un elemento button SIEMPRE
+         es un control, lleve la clase que lleve, asi que el suelo es del
+         elemento, no de una clase que alguien recuerde poner. */
+      .btn,.chip,.segb,button,[role="button"]{min-height:44px!important;height:auto!important}
+      /* Enlaces dentro de una tabla de datos. En /tutor son <a> de 19px de alto:
+         texto, no botones, asi que no entran en la regla de arriba -- darle 44px
+         a todo <a> convertiria cada enlace dentro de un parrafo en un bloque y
+         rompería el flujo del texto. Aqui son celdas, y ahi si es una fila que
+         se toca. */
+      .tblwrap a,.tbl-tutor a,.tbl-admin a,.fila-lab{display:inline-flex;align-items:center;min-height:44px}
+      /* 16px es el umbral por debajo del cual Safari en iOS hace zoom al
+         enfocar el campo, y ese zoom no se deshace solo: el usuario se queda
+         con la pagina ampliada y desplazada. */
+      .input,input.input,select.input,textarea.input{min-height:44px!important;height:auto!important;font-size:16px!important}
       .sidebar-open{display:grid}
       .sidebar-chevron{display:none}
       .sidebar-x{display:grid}
@@ -260,7 +304,31 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
       .app-head-tools:empty{display:none}
       .app-head-tools .seg{width:100%}
       .app-head-tools .segb{flex:1}
+      /* Filas de .chip (idioma, tema) en /ajustes. Su contenedor lleva
+         display:flex;gap:8px;flex:none EN LINEA, asi que no puede encoger, y no
+         declara flex-wrap -- que es justo la propiedad que si se puede poner
+         desde aqui, porque no esta en el atributo. Sin envolver, tres chips de
+         80px mas huecos no caben a 320 y sacaban 24px por la derecha.
+         El selector mira quien CONTIENE un chip, porque esos contenedores son
+         div anonimos sin clase a los que no se puede apuntar de otra forma. */
+      *:has(> .chip){flex-wrap:wrap}
+      /* Cada ajuste es una fila [texto | grupo de botones] con space-between y
+         el grupo en flex:none. A 320 el texto y tres chips de 80px no caben en
+         la misma linea y sacaban 24px. Al envolver, el grupo baja a su propia
+         linea y se alinea a la izquierda: leerlo debajo de su titulo es ademas
+         mas claro que buscarlo pegado al borde derecho. */
+      .fila-ajuste{flex-wrap:wrap;gap:12px!important;align-items:flex-start!important}
+      .fila-ajuste > *{min-width:0}
+      /* La columna de la derecha lleva align-items:flex-end;flex:none EN LINEA.
+         Cuando la fila envuelve, ese flex-end deja los chips pegados al borde
+         derecho -- fuera de el, de hecho: sobraban 8px. Al bajar de linea el
+         sitio correcto es el margen izquierdo, alineado con su titulo. */
+      .fila-ajuste > :last-child{align-items:flex-start!important;flex:1 1 100%!important}
       .segb{height:44px;padding:0 16px}
+      @media (max-width:420px){
+        .seg{max-width:100%}
+        .segb{flex:1 1 0;min-width:0;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      }
       /* Barra de accion en la zona del pulgar. Solo /panel y /curso. */
       .actionbar{display:flex;align-items:center;gap:12px;position:sticky;bottom:0;z-index:6;
         background:var(--bg);border-top:1px solid var(--hair2);
@@ -272,7 +340,7 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
       /* En movil manda la barra inferior, asi que la copia de la cabecera se
          apaga. Cada anchura ensena exactamente una. */
       .app-head-action{display:none}
-      .curso-card,.cerrada-split,.chat-split,.perfil-split,.tutor-split,.soporte-2{grid-template-columns:minmax(0,1fr)}
+      .curso-card,.cerrada-split,.chat-split,.perfil-split,.tutor-split,.soporte-2,.ajustes-split{grid-template-columns:minmax(0,1fr)}
       /* 2 y no 4: a 362 px cuatro columnas dan 74 por tarjeta, y .card gasta 44
          en padding. Dentro hay numeros a font:700 34px, que piden ~90. */
       .perfil-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}

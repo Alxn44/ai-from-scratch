@@ -82,6 +82,8 @@ input[type=text]::placeholder{color:rgba(235,235,245,.26)}
    mix-blend-mode:multiply, ni cargar un PNG antes de poder animar.
    El tamano entra por --lg para que los cuatro usos (186, 24, 22 y 18 px)
    compartan proporciones en vez de repetir numeros sueltos. */
+.deslizador{height:26px}
+@media (max-width:900px){.deslizador{height:44px}}
 .lg{display:grid;place-items:center;flex:none;box-sizing:border-box;
   width:var(--lg,24px);height:var(--lg,24px);color:inherit;
   border:max(1px,calc(var(--lg,24px) * .04)) solid currentColor;
@@ -132,6 +134,13 @@ section[id]{scroll-margin-top:72px}
 }
 .tokin:focus{border-color:#fff!important}
 .navlink:hover{color:#fff!important}
+/* Los enlaces de la barra medían 10px de ALTO: son destinos de navegacion, no
+   texto dentro de una frase, y con el pulgar no se aciertan. En escritorio el
+   raton apunta fino y la barra es de 56px, asi que el suelo solo entra en el
+   ancho donde se toca. */
+@media (max-width:900px){
+  .navlink{display:inline-flex;align-items:center;min-height:44px}
+}
 @media print{
   @page{size:Letter;margin:.42in}
   html,body{background:#fff!important}
@@ -358,7 +367,7 @@ section[id]{scroll-margin-top:72px}
           <div style="font:600 10px/1 var(--m);letter-spacing:.18em;color:var(--l3)">TEMPERATURA</div>
           <div id="tempLabel" style="font:600 15px/1 var(--m);color:var(--ac);font-variant-numeric:tabular-nums">0.30</div>
         </div>
-        <input id="tempin" type="range" min="1" max="180" step="1" value="30" style="width:100%;height:26px">
+        <input id="tempin" class="deslizador" type="range" min="1" max="180" step="1" value="30" style="width:100%">
         <div style="display:flex;align-items:center;justify-content:space-between;font:500 9px/1 var(--m);letter-spacing:.14em;color:var(--l3)"><div>SEGURO</div><div id="tempVerdict" style="color:var(--l1)">PREDECIBLE</div><div>SE ARRIESGA</div></div>
       </div>
     </div>

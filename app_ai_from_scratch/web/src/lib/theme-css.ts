@@ -112,7 +112,7 @@ a:hover{color:var(--ac-solid)}
 .fnota[data-est="bien"]{color:var(--ok)}
 .field[data-mal] .input{border-color:var(--rd)}
 .field[data-mal] .input:focus{border-color:var(--rd)}
-.fver{background:none;border:0;padding:0;color:var(--ac);font:500 11px/1 var(--m);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.fver{background:none;border:0;padding:0 6px;color:var(--ac);font:500 11px/1 var(--m);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 .fver:hover{color:var(--ac-solid)}
 .mark{width:26px;height:26px;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)}
 #toasts{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;width:372px;z-index:50}
@@ -155,9 +155,61 @@ a:hover{color:var(--ac-solid)}
   .pay-grid > section{padding:24px 18px!important}
   #toasts{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));width:auto}
   .toast{width:auto}
-  .input,.coupon input{font-size:16px}
+  /* EL SUELO TACTIL, POR ENCIMA DE TODO LO DEMAS.
+     44px no es una preferencia de diseno, es el minimo con el que un dedo
+     acierta. El problema no era declararlo -- .btn y .input ya dicen 44 --
+     sino que once sitios lo pisan con height:36px o height:34px ESCRITO EN
+     EL ATRIBUTO style, y uno mas lo inyecta desde JavaScript. Una media
+     query no le gana a un estilo en linea, asi que la unica forma de que
+     esos doce respeten el suelo es esta.
+     !important es un martillo y aqui es el correcto: la afirmacion es
+     justamente que en un telefono NADA puede bajar de 44, ni un ajuste
+     local ni codigo que escriba estilos en caliente. Lo que se cede es
+     poder fijar a mano una altura menor en movil, que es exactamente lo
+     que se quiere impedir.
+     height:auto junto a min-height para que un boton de dos lineas crezca
+     en vez de recortar su texto. */
+  .btn,.chip,.segb,button,[role="button"]{min-height:44px!important;height:auto!important}
+  /* 16px es el umbral por debajo del cual Safari en iOS hace zoom al
+     enfocar el campo, y ese zoom no se deshace solo: el usuario se queda
+     con la pagina ampliada y desplazada. */
+  .input,input.input,select.input,textarea.input{min-height:44px!important;height:auto!important;font-size:16px!important}
+  /* El cupon de /pago es un <input> pelado dentro de .coupon, sin clase .input,
+     asi que la regla de arriba no lo alcanza. Lo cubria una linea aparte que yo
+     mismo borre al insertar este bloque; sin ella Safari volvia a ampliar la
+     pagina al tocar el campo, que es justo lo que este suelo evita. */
+  .coupon input{min-height:44px;font-size:16px}
+  /* Enlaces que son destino y no prosa: la marca de la cabecera y los del pie.
+     No entran en la regla de button porque son <a>, y no se puede dar 44px a
+     todo <a> sin convertir cada enlace dentro de un parrafo en un bloque. */
+  .pub-head > a,.lk{display:inline-flex;align-items:center;min-height:44px}
+  /* El enlace de marca, dondequiera que este. Se identifica por lo que
+     CONTIENE -- el cuadro .mark -- y no por una clase que cada una de las cinco
+     paginas tendria que acordarse de poner. Medía 26px de alto, la altura de
+     .mark, en /login, /registro, /recuperar y /pago. */
+  a:has(.mark){display:inline-flex;align-items:center;min-height:44px}
+  /* Acciones sueltas de 11px junto a una etiqueta, del tipo «¿La olvidaste?».
+     NO se toca un enlace dentro de una frase: WCAG 2.5.8 los exime justamente
+     porque estirarlos a 44px parte el parrafo. Este va aparte, no en prosa. */
+  .accion-lbl{display:inline-flex;align-items:center;min-height:44px;padding-left:8px}
   .h1{font-size:clamp(28px,8vw,44px)}
   .pay-split{grid-template-columns:1fr}
+}
+/* EL SUELO TACTIL NO DEPENDE DEL ANCHO, DEPENDE DEL DEDO.
+   Las reglas de arriba viven en max-width:900px, que es el umbral correcto para
+   el LAYOUT y equivocado para esto: un iPad Pro son 1024px CSS y se toca con el
+   pulgar, y iPadOS amplia igual al enfocar un campo de menos de 16px. Medido a
+   1024 sin esta regla, /login y /registro volvian a 15px y .segb a 30px de alto.
+   pointer:coarse es la pregunta que de verdad importa -- «¿el puntero de este
+   aparato es impreciso?» -- y responde que si en cualquier pantalla tactil sea
+   cual sea su ancho, y que no en un escritorio con raton a 800px.
+   NO VERIFICADO EN ESTA MAQUINA: Chrome headless declara pointer:fine y browse
+   no expone emulacion de dispositivo, asi que esta regla esta escrita a partir
+   de la definicion de la media query, no de una medicion. Lo que si esta medido
+   es el fallo que arregla. */
+@media (pointer: coarse){
+  .btn,.chip,.segb,button,[role="button"]{min-height:44px!important;height:auto!important}
+  .input,input.input,select.input,textarea.input,.coupon input{min-height:44px!important;height:auto!important;font-size:16px!important}
 }
 .seg{display:flex;border:1px solid var(--hair2)}
 .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s}

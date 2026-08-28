@@ -35,7 +35,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
       <div style="display:flex;flex-direction:column;gap:18px;border-top:1px solid var(--hair);padding-top:26px">
         <h2 class="h2">{L.ajustes.curso}</h2>
 
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
+        <div class="fila-ajuste" style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
           <div style="max-width:520px">
             <div class="h3">{L.ajustes.idiomaTit}</div>
             <p class="s" style="color:var(--l2);margin-top:4px">
@@ -52,7 +52,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+        <div class="fila-ajuste" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
           <div style="max-width:520px"><div class="h3">{L.ajustes.sonidoTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.sonidoNota}</p></div>
           <div style="display:flex;gap:8px;flex:none">
             <button class="chip" data-son="on" style="min-width:80px">{L.ajustes.sonidoOn}</button>
@@ -60,7 +60,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+        <div class="fila-ajuste" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
           <div style="max-width:520px">
             <div class="h3">{L.tutorial.replay}</div>
             <p class="s" style="color:var(--l2);margin-top:4px">{L.tutorial.replayB}</p>
@@ -68,7 +68,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
           <a class="btn ghost" href="/panel?tutorial=1" style="flex:none;text-decoration:none">{L.tutorial.replay}</a>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+        <div class="fila-ajuste" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
           <div><div class="h3">{L.ajustes.temaTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.temaNota}</p></div>
           <div style="display:flex;gap:8px;flex:none">
             <button class="chip" data-theme="auto" data-on={user!.theme === 'auto' ? '' : undefined} style="min-width:80px">{L.automatico}</button>
@@ -86,7 +86,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
         </div>
 
         <div style="display:flex;flex-direction:column;gap:14px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
+          <div class="fila-ajuste" style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
             <div style="max-width:520px">
               <div class="h3">{L.ajustes.eliminar}</div>
               <p class="s" style="color:var(--l2);margin-top:4px">Se desactiva el acceso y tu nombre se anonimiza. Tus intentos permanecen en las estadísticas de la cohorte, sin datos personales. Tu correo queda libre para que puedas registrarte de nuevo.</p>
