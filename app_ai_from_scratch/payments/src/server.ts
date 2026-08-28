@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { loadConfig } from './config.ts';
 import { Store } from './db.ts';
 import { MercadoPago, MercadoPagoError } from './mercadopago.ts';
+import { CURRENCY } from './price.ts';
 import { serviceAuthorized, verifyMercadoPagoSignature } from './security.ts';
 
 const config = loadConfig();
@@ -47,7 +48,7 @@ async function processOne(): Promise<boolean> {
       const userId = userIdFrom(item);
       await store.upsertPayment({ providerId: event.providerId, userId,
         status: String(item.status ?? 'unknown'), amount: Number(item.transaction_amount ?? 0),
-        currency: String(item.currency_id ?? 'USD'), raw: item });
+        currency: String(item.currency_id ?? CURRENCY), raw: item });
       const metadata = item.metadata as Record<string, unknown> | undefined;
       const redemptionId = Number(metadata?.coupon_redemption_id);
       if (String(item.status) === 'approved' && Number.isSafeInteger(redemptionId) && redemptionId > 0) {
@@ -78,33 +79,34 @@ app.post<{ Body: { userId?: unknown; email?: unknown; mode?: unknown; couponCode
   const reservation = couponCode ? await store.reserveCoupon(couponCode, userId) : null;
   if (couponCode && !reservation) return reply.code(422).send({ error: 'invalid_coupon' });
   try {
-    if (reservation?.offer.totalCents === 0) {
+    if (reservation?.offer.totalMinor === 0) {
       const providerId = `coupon:${reservation.id}`;
       await store.upsertPayment({ providerId, userId, status: 'approved', amount: 0,
-        currency: 'USD', raw: { source: 'coupon', coupon: reservation.offer.code } });
+        currency: CURRENCY, raw: { source: 'coupon', coupon: reservation.offer.code } });
       await store.redeemCouponReservation(reservation.id, providerId);
       await sendEntitlement(userId, 'coupon', providerId, reservation.id);
       return { mode, coupon: reservation.offer.code, discountPercent: reservation.offer.percent,
-        discountCents: reservation.offer.discountCents, totalCents: 0, granted: true };
+        discountMinor: reservation.offer.discountMinor, totalMinor: 0, granted: true };
     }
     if (!config.mpAccessToken) {
       if (reservation) await store.releaseCoupon(reservation.id);
       return reply.code(501).send({ error: 'provider_not_configured' });
     }
     const result = await provider.checkout({ userId, email }, mode, reservation ? {
-      totalCents: reservation.offer.totalCents, couponRedemptionId: reservation.id,
+      totalMinor: reservation.offer.totalMinor, couponRedemptionId: reservation.id,
     } : undefined);
     const providerId = String(result.preferenceId ?? result.subscriptionId ?? '');
     if (reservation && providerId) await store.attachCoupon(reservation.id, providerId);
     return { ...result, ...(reservation ? { discountPercent: reservation.offer.percent,
-      discountCents: reservation.offer.discountCents, totalCents: reservation.offer.totalCents } : {}) };
+      discountMinor: reservation.offer.discountMinor, totalMinor: reservation.offer.totalMinor } : {}) };
   } catch (error) {
     if (reservation) await store.releaseCoupon(reservation.id);
     // Un 4xx de Mercado Pago no es un fallo nuestro de 500: es el proveedor
     // rechazando el cobro (cuenta en otra moneda, monto por debajo del minimo,
     // token sin permiso). El detalle va al log, al cliente va un codigo.
     if (error instanceof MercadoPagoError) {
-      app.log.error({ status: error.status, body: error.body, userId, mode }, 'mercadopago rejected checkout');
+      app.log.error({ status: error.status, body: error.body, sent: error.sent, userId, mode },
+        'mercadopago rejected checkout');
       return reply.code(502).send({ error: 'provider_rejected' });
     }
     throw error;

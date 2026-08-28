@@ -18,7 +18,7 @@
 // WHY NOT RABBITMQ (yet)
 //
 // A broker solves fan-out between services, high throughput and consumers on
-// several machines. Today there is one job, one consumer and a USD 9.99 payment
+// several machines. Today there is one job, one consumer and a 35.000 COP payment
 // per person. Adding RabbitMQ would be one more container, one more protocol, a
 // dead-letter queue to watch and a new failure mode (broker down = payments not
 // processed) in order to move one message every so often.

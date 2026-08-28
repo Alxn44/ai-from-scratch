@@ -4,6 +4,7 @@ import { grafo, org, curso, faq } from '../lib/seo';
 import { mercadoDe } from '../lib/region';
 import { narrativaDe } from '../lib/narrative';
 import { SITE, MARCA } from '../lib/site';
+import { ANCLA_VISUAL, PRECIO_VISUAL } from '../lib/price';
 import { publicPrefs } from '../lib/prefs';
 import { t } from '../lib/i18n';
 import { modulos, candidatos, preguntas, micro, ticker } from '../data/landing';
@@ -19,11 +20,17 @@ const L = t(lang);
 const P = L.pub.land;
 const canonical = `${SITE}/`;
 const desc = P.desc;
+// Los dos precios grandes de la pagina eran markup literal, iguales para ES y
+// EN. Con USD 9.99 eso pasaba desapercibido porque el punto decimal se escribe
+// igual en los dos idiomas; con 35.000 no: en ingles «$35.000» son treinta y
+// cinco dolares con tres decimales, no treinta y cinco mil pesos.
+const precioBig = PRECIO_VISUAL[lang] ?? PRECIO_VISUAL.es;
+const anclaBig = ANCLA_VISUAL[lang] ?? ANCLA_VISUAL.es;
 // El FAQ no es relleno de SEO: son las preguntas que llegan por correo, con la
 // respuesta exacta. Sirve igual para Google que para un asistente que cite.
 const PREGUNTAS = lang === 'en' ? [
   { q: 'Do I need to know how to code to take the course?', a: 'No. Not one line of code, and no maths. The 36 labs are solved by choosing, ordering and assembling inside the lesson.' },
-  { q: 'What does it cost and what is included?', a: 'USD 9.99 a month, cancel anytime. It includes the 12 lessons, the 36 labs, the PDF in Spanish and English, and the Claude Code harness, for as long as the subscription is active.' },
+  { q: 'What does it cost and what is included?', a: '35,000 COP a month, cancel anytime. It includes the 12 lessons, the 36 labs, the PDF in Spanish and English, and the Claude Code harness, for as long as the subscription is active.' },
   { q: 'Is there a refund if it is not for me?', a: 'Yes: 14 days from purchase, no explanation needed, back through the same payment method in under 10 business days.' },
   { q: 'Is it available in English?', a: 'Yes. The platform, this page and the lesson content are in Spanish and English, and you switch language from the top bar.' },
   { q: 'What is a token in artificial intelligence?', a: 'A token is the chunk of text the model works with: it sees neither words nor letters, it sees frequent pieces. "Cartagena is beautiful" is three words but five tokens. Everything that gets billed or capped is measured in tokens.' },
@@ -31,7 +38,7 @@ const PREGUNTAS = lang === 'en' ? [
   { q: 'Does AI learn from what I write to it?', a: 'It is not retrained by each conversation. Training and inference are separate moments: when you talk to it, its parameters do not change. If it seems to remember you, the application may have stored your text and included it in the request again.' },
 ] : [
   { q: '¿Necesito saber programar para tomar el curso?', a: 'No. No se escribe una línea de código y no hay matemáticas. Los 36 labs se resuelven eligiendo, ordenando y armando dentro de la lección.' },
-  { q: '¿Cuánto cuesta y qué incluye?', a: 'USD 9.99 al mes, y se cancela cuando quieras. Incluye las 12 lecciones, los 36 labs, el PDF en español e inglés y el harness de Claude Code, mientras la suscripción esté activa.' },
+  { q: '¿Cuánto cuesta y qué incluye?', a: '35.000 COP al mes, y se cancela cuando quieras. Incluye las 12 lecciones, los 36 labs, el PDF en español e inglés y el harness de Claude Code, mientras la suscripción esté activa.' },
   { q: '¿Hay devolución si no me sirve?', a: 'Sí: 14 días desde la compra, sin explicar por qué, por el mismo medio de pago y en menos de 10 días hábiles.' },
   { q: '¿Está disponible en inglés?', a: 'Sí. La plataforma, esta página y el contenido de las lecciones están en español e inglés, y se cambia de idioma desde la barra superior.' },
   { q: '¿Qué es un token en inteligencia artificial?', a: 'Un token es el trozo de texto con el que trabaja el modelo: no ve palabras ni letras, ve pedazos frecuentes. «Cartagena es hermosa» son tres palabras pero cinco tokens. Todo lo que se cobra y se limita se mide en tokens.' },
@@ -482,8 +489,8 @@ section[id]{scroll-margin-top:72px}
     </div>
     <div style="padding:46px 40px;display:flex;flex-direction:column;gap:20px">
       <div style="display:flex;align-items:flex-end;gap:12px">
-        <div style="font:700 68px/.9 var(--f);letter-spacing:-.055em">$9.99</div>
-        <div style="font:500 15px/1 var(--m);color:rgba(0,0,0,.45);text-decoration:line-through;padding-bottom:8px">$49</div>
+        <div style="font:700 68px/.9 var(--f);letter-spacing:-.055em">{precioBig}</div>
+        <div style="font:500 15px/1 var(--m);color:rgba(0,0,0,.45);text-decoration:line-through;padding-bottom:8px">{anclaBig}</div>
       </div>
       <div style="font:400 15px/1.45 var(--f);color:rgba(0,0,0,.66)">{P.preNota}</div>
       <a href="/pago" class="buyblk" style="display:flex;align-items:center;justify-content:center;gap:11px;font:600 12px/1 var(--m);letter-spacing:.16em;padding:21px">
@@ -533,7 +540,7 @@ section[id]{scroll-margin-top:72px}
 <div data-el="sticky" style="position:fixed;left:0;right:0;bottom:0;z-index:65;transform:translateY(110%);background:rgba(0,0,0,.9);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--hair);padding-bottom:env(safe-area-inset-bottom)">
   <div style="max-width:1240px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:22px">
     <div style="display:flex;align-items:center;gap:18px">
-      <div style="display:flex;align-items:baseline;gap:9px"><div style="font:700 21px/1 var(--f);letter-spacing:-.03em">$9.99</div><div style="font:500 12px/1 var(--m);color:var(--l3);text-decoration:line-through">$49</div></div>
+      <div style="display:flex;align-items:baseline;gap:9px"><div style="font:700 21px/1 var(--f);letter-spacing:-.03em">{precioBig}</div><div style="font:500 12px/1 var(--m);color:var(--l3);text-decoration:line-through">{anclaBig}</div></div>
       <div class="sticky-rule" style="width:1px;height:18px;background:var(--hair)"></div>
       <div class="sticky-copy" style="font:500 10px/1 var(--m);letter-spacing:.16em;color:var(--l2)">{P.barraMeta}</div>
     </div>

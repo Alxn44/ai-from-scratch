@@ -1,7 +1,8 @@
 import type { Config } from './config.ts';
+import { CURRENCY, PRICE_MINOR, providerAmount } from './price.ts';
 
 export interface CheckoutActor { userId: number; email: string }
-export interface CheckoutOffer { totalCents: number; couponRedemptionId?: number }
+export interface CheckoutOffer { totalMinor: number; couponRedemptionId?: number }
 export type CheckoutMode = 'one_time' | 'subscription';
 
 /**
@@ -15,11 +16,14 @@ export type CheckoutMode = 'one_time' | 'subscription';
 export class MercadoPagoError extends Error {
   readonly status: number;
   readonly body: string;
-  constructor(status: number, body: string) {
+  /** Lo que enviamos, para que el rechazo se pueda diagnosticar sin adivinar. */
+  readonly sent: string;
+  constructor(status: number, body: string, sent = '') {
     super(`mercadopago ${status}`);
     this.name = 'MercadoPagoError';
     this.status = status;
     this.body = body;
+    this.sent = sent;
   }
 }
 
@@ -38,7 +42,10 @@ export class MercadoPago {
       headers: { authorization: `Bearer ${this.config.mpAccessToken}`,
         'content-type': 'application/json', ...init.headers },
     });
-    if (!response.ok) throw new MercadoPagoError(response.status, (await response.text()).slice(0, 400));
+    if (!response.ok) {
+      throw new MercadoPagoError(response.status, (await response.text()).slice(0, 400),
+        typeof init.body === 'string' ? init.body.slice(0, 600) : '');
+    }
     return await response.json() as Record<string, unknown>;
   }
 
@@ -51,7 +58,12 @@ export class MercadoPago {
         reason: 'IA desde cero · membresía mensual', external_reference: String(actor.userId),
         payer_email: actor.email,
         back_url: `${this.config.publicOrigin}/pago/gracias`,
-        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 9.99, currency_id: 'USD' },
+        // El importe y la moneda salen de price.ts. Con USD 9.99 este endpoint
+        // respondia 400 «Cannot pay an amount lower than $ 1600.00»: MP Colombia
+        // tasa el preapproval contra el minimo en COP y no honra el USD, aunque
+        // /checkout/preferences si lo acepte. Medido contra la cuenta real.
+        auto_recurring: { frequency: 1, frequency_type: 'months',
+          transaction_amount: providerAmount(PRICE_MINOR), currency_id: CURRENCY },
         status: 'pending',
         ...webhook,
       }) });
@@ -59,7 +71,7 @@ export class MercadoPago {
     }
     const result = await this.request('/checkout/preferences', { method: 'POST', body: JSON.stringify({
       items: [{ title: 'IA desde cero · Fundamentos Vol. 1', quantity: 1,
-        unit_price: Number(((offer?.totalCents ?? 999) / 100).toFixed(2)), currency_id: 'USD' }],
+        unit_price: providerAmount(offer?.totalMinor ?? PRICE_MINOR), currency_id: CURRENCY }],
       payer: { email: actor.email }, metadata: { user_id: actor.userId,
         ...(offer?.couponRedemptionId ? { coupon_redemption_id: offer.couponRedemptionId } : {}) },
       external_reference: String(actor.userId),

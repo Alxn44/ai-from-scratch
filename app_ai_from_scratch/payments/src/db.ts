@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { PRICE_MINOR } from './price.ts';
 
 const { Pool } = pg;
 
@@ -13,8 +14,11 @@ export interface CouponOffer {
   id: number;
   code: string;
   percent: number;
-  discountCents: number;
-  totalCents: number;
+  // *Minor, no *Cents: COP no tiene decimales, asi que la unidad menor es el
+  // peso. Un campo llamado «cents» con pesos dentro invita al `/100` que cobraba
+  // la centesima parte. Ver src/price.ts.
+  discountMinor: number;
+  totalMinor: number;
 }
 
 export interface CouponReservation {
@@ -22,7 +26,8 @@ export interface CouponReservation {
   offer: CouponOffer;
 }
 
-const PRICE_CENTS = 999;
+// El precio vive en src/price.ts, no aqui: la conversion al importe del
+// proveedor tiene que salir del mismo sitio que el numero.
 const normalizeCode = (value: string): string => value.trim().toUpperCase().replace(/\s+/g, '');
 
 export class Store {
@@ -54,7 +59,9 @@ export class Store {
         user_id BIGINT,
         status TEXT NOT NULL,
         amount NUMERIC(12,2) NOT NULL DEFAULT 0,
-        currency TEXT NOT NULL DEFAULT 'USD',
+        -- El default acompaña a CURRENCY en src/price.ts. Las filas viejas
+        -- conservan su USD a proposito: es lo que se cobro de verdad.
+        currency TEXT NOT NULL DEFAULT 'COP',
         raw JSONB NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (provider, provider_id)
@@ -205,10 +212,12 @@ export class Store {
       const inserted = await client.query(
         `INSERT INTO coupon_redemptions (coupon_id,user_id) VALUES ($1,$2) RETURNING id`, [row.id, userId]);
       await client.query('COMMIT');
-      const discountCents = Math.floor(PRICE_CENTS * Number(row.percent) / 100);
+      // El `/ 100` de aqui es el PORCENTAJE del cupon, no la moneda: un 30%
+      // sobre PRICE_MINOR. No se toca al cambiar de moneda.
+      const discountMinor = Math.floor(PRICE_MINOR * Number(row.percent) / 100);
       return { id: Number(inserted.rows[0].id), offer: {
-        id: Number(row.id), code: String(row.code), percent: Number(row.percent), discountCents,
-        totalCents: PRICE_CENTS - discountCents,
+        id: Number(row.id), code: String(row.code), percent: Number(row.percent), discountMinor,
+        totalMinor: PRICE_MINOR - discountMinor,
       } };
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }

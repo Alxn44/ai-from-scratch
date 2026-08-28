@@ -7,6 +7,7 @@ import { grafo, org, curso } from '../lib/seo';
 import { mercadoDe } from '../lib/region';
 import { narrativaDe } from '../lib/narrative';
 import { SITE, MARCA } from '../lib/site';
+import { ANCLA_TEXTO, MONEDA, PRECIO_TEXTO } from '../lib/price';
 import { TOKENS, PUBLIC_BASE } from '../lib/theme-css';
 import { icon } from '../lib/icons';
 import PrefToggles from '../components/PrefToggles.astro';
@@ -21,6 +22,10 @@ const theme = user ? user.theme : dev.theme;
 const lang = user ? resolveLang(user.lang, Astro.request) : dev.lang;
 const L = t(lang);
 const P = L.pub.pay;
+// El precio y el ancla salen de price.ts, no de un literal por pantalla: esta
+// pagina los pintaba tres veces a mano y el cupon los formateaba una cuarta.
+const precio = `${PRECIO_TEXTO[lang] ?? PRECIO_TEXTO.es} ${MONEDA}`;
+const ancla = `${ANCLA_TEXTO[lang] ?? ANCLA_TEXTO.es} ${MONEDA}`;
 const canonical = new URL(Astro.url.pathname, SITE).href;
 // Narrativa según de dónde se conecta: en Colombia hay PSE y efectivo, en la UE
 // manda el retracto de 14 días, y prometer un medio que no existe es peor que callar.
@@ -86,10 +91,10 @@ const hayCobro = cobros.data?.disponible === true;
         </div>
       </div>
       <div style="display:flex;flex-direction:column;border-top:1px solid var(--hair);padding-top:18px">
-        <div class="row"><span class="s" style="color:var(--l2)">{P.curso}</span><span class="num" style="font:500 15px/1 var(--m)">USD 9.99</span></div>
-        <div class="row"><span class="s" style="color:var(--l2)">{P.antes}</span><span class="num s" style="text-decoration:line-through">USD 49.00</span></div>
+        <div class="row"><span class="s" style="color:var(--l2)">{P.curso}</span><span class="num" style="font:500 15px/1 var(--m)">{precio}</span></div>
+        <div class="row"><span class="s" style="color:var(--l2)">{P.antes}</span><span class="num s" style="text-decoration:line-through">{ancla}</span></div>
         <div class="row"><span class="s" style="color:var(--l2)">{P.comision}</span><span class="s">{P.comisionV}</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 0"><span class="lbl">{P.totalHoy}</span><span class="num" style="font:700 30px/1 var(--f);letter-spacing:-.035em">USD 9.99</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 0"><span class="lbl">{P.totalHoy}</span><span class="num" style="font:700 30px/1 var(--f);letter-spacing:-.035em">{precio}</span></div>
       </div>
       <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:2px solid var(--ok)">
         <Fragment set:html={icon('check', 18, 'var(--ok)')} />
@@ -161,7 +166,7 @@ const hayCobro = cobros.data?.disponible === true;
   </div>
   <div id="toasts"></div>
 
-  <script define:vars={{ P, logged: !!user }}>
+  <script define:vars={{ P, logged: !!user, moneda: MONEDA, loc: lang === 'en' ? 'en-US' : 'es-CO' }}>
     const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
     const box = document.getElementById('toasts');
     const toast = (k, tt, b) => {
@@ -200,7 +205,12 @@ const hayCobro = cobros.data?.disponible === true;
       if (result.granted) { toast('ok', P.cuponOtorgado, P.cuponOtorgadoB); window.location.assign('/panel'); return; }
       const { preferenceId, initPoint } = result;
       if (!initPoint) { toast('bad', P.mpErr, P.mpErrB); return; }
-      if (result.totalCents !== undefined) couponStatus.textContent = `${P.descuento}: ${result.discountPercent}% · ${P.total}: USD ${(result.totalCents / 100).toFixed(2)}`;
+      // totalMinor viene en unidades MENORES y COP no tiene decimales. El `/100`
+      // que habia aqui pintaba «USD 350.00» sobre un cobro real de 35.000 pesos.
+      if (result.totalMinor !== undefined) {
+        const total = Number(result.totalMinor).toLocaleString(loc);
+        couponStatus.textContent = `${P.descuento}: ${result.discountPercent}% · ${P.total}: ${total} ${moneda}`;
+      }
       toast('info', P.prefOk, preferenceId);
       window.location.assign(initPoint);
     });

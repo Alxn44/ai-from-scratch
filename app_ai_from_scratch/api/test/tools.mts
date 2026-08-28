@@ -30,7 +30,9 @@ interface NextResult { item: Focus; lab: { lesson_n: number }; mis: unknown; lec
 interface BackResult { cerrado: Focus; vuelvoA: Focus | null; ruta: string | null }
 interface MistakesResult { atascados: number; labs: { lab_id: string; misRespuestasMalas: unknown[] }[] }
 interface DiagResult { memo: { consultasAhorradas: number } }
-interface PriceResult { precio: { monto: number }; garantiaDias: number }
+// `moneda` esta en el tipo porque la asercion la comprueba: el importe sin la
+// moneda no dice nada — 35000 es un precio razonable en pesos y absurdo en dolares.
+interface PriceResult { precio: { monto: number; moneda: string }; garantiaDias: number }
 interface SearchResult { resultados: { leccion: number }[] }
 interface PrivacyResult { deTi: { intentosGuardados: number } }
 interface LessonTextResult { idioma: string; tecnica: string; analogia: string; nota?: string | null }
@@ -141,7 +143,8 @@ ok(paso.hay && paso.lab_id === '1.2', `«¿qué hago ahora?» → el 1.2 (dijo $
 const acceso = await llamar('mi_acceso', {}, 'D');
 ok(Array.isArray(acceso.abiertas) && acceso.abiertas.includes(1), '«¿por qué no puedo abrir la 4?» → lista de abiertas y cerradas');
 const precio = await llamar<PriceResult>('precio_y_compra', {}, 'D');
-ok(precio.precio.monto === 9.99 && precio.garantiaDias === 14, '«¿cuánto cuesta?» → 9.99 USD y 14 días de garantía');
+ok(precio.precio.monto === 35000 && precio.precio.moneda === 'COP' && precio.garantiaDias === 14,
+   '«¿cuánto cuesta?» → 35.000 COP y 14 días de garantía');
 const donde = await llamar('donde_encuentro', { consulta: 'descargar el pdf' }, 'D');
 ok(donde.rutas[0]?.ruta === '/perfil', '«¿dónde descargo el pdf?» → /perfil');
 const sop = await llamar('soporte', { tema: 'pagué y sigue cerrado' }, 'D');

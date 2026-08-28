@@ -4,6 +4,7 @@ import App from '../layouts/App.astro';
 import { gate, apiFetch, apiTry } from '../lib/session';
 import { t, resolveLang } from '../lib/i18n';
 import { icon } from '../lib/icons';
+import { MONEDA } from '../lib/price';
 const { user, redirect } = await gate(Astro.request, ['admin']);
 if (redirect) return Astro.redirect(redirect);
 type U = { id: number; email: string; name: string; role: string; paid: number; cohort: string | null; created_at: string };
@@ -19,7 +20,25 @@ const paysOk = payRes.status === 200;
 const L = t(resolveLang(user!.lang, Astro.request));
 const ROLEC: Record<string, string> = { student: 'var(--l2)', tutor: 'var(--ac)', admin: 'var(--or)', root: 'var(--rd)' };
 const ROLE_ES: Record<string, string> = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin', root: 'Root' };
-const sum = pays.filter((p) => p.status === 'approved').reduce((a, p) => a + p.amount, 0);
+// Cobrado, AGRUPADO POR MONEDA. Antes esto era un `reduce` sobre `p.amount` con
+// «USD» escrito encima, y la tabla de cobros guarda la moneda por fila: los
+// cobros viejos son USD y los nuevos COP, asi que aquel numero sumaba 9.99
+// dolares con 35.000 pesos y presentaba el resultado como dolares. Un total que
+// mezcla monedas no es un total.
+const porMoneda = new Map<string, number>();
+for (const p of pays) {
+  if (p.status !== 'approved') continue;
+  porMoneda.set(p.currency, (porMoneda.get(p.currency) ?? 0) + p.amount);
+}
+// COP no tiene decimales y USD si, asi que el formato lo decide la moneda de la
+// fila y no un `toFixed(2)` global.
+const DEC: Record<string, number> = { COP: 0, CLP: 0, JPY: 0 };
+const cobrado = [...porMoneda.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .map(([mon, tot]) => {
+    const d = DEC[mon] ?? 2;
+    return `${tot.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d })} ${mon}`;
+  });
 ---
 <App user={user!} title="Admin" crumb="ADMIN / PLATAFORMA" active="Admin">
   <span slot="topbar" class="lbl" style="color:var(--or)">MODO ADMIN</span>
@@ -32,7 +51,7 @@ const sum = pays.filter((p) => p.status === 'approved').reduce((a, p) => a + p.a
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px">
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Cuentas activas</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{users.length}</div><p class="s">las cuentas eliminadas no cuentan</p></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Tutores</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em">{users.filter((u) => u.role === 'tutor').length}</div><p class="s">de {users.length} cuentas</p></div>
-      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Cobrado</p><div class="num" style={`font:700 34px/1 var(--f);letter-spacing:-.04em;color:${paysOk ? 'var(--ok)' : 'var(--l3)'}`}>{paysOk ? `USD ${sum.toFixed(2)}` : '—'}</div><p class="s">{paysOk ? `${pays.filter((p) => p.status === 'approved').length} pagos aprobados` : 'cobros sin responder'}</p></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Cobrado</p><div class="num" style={`font:700 34px/1 var(--f);letter-spacing:-.04em;color:${paysOk ? 'var(--ok)' : 'var(--l3)'}`}>{paysOk ? (cobrado[0] ?? `0 ${MONEDA}`) : '—'}</div><p class="s">{paysOk ? `${pays.filter((p) => p.status === 'approved').length} pagos aprobados${cobrado.length > 1 ? ` · y ${cobrado.slice(1).join(' · ')}` : ''}` : 'cobros sin responder'}</p></div>
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Pendientes</p><div class="num" style={`font:700 34px/1 var(--f);letter-spacing:-.04em;color:${paysOk ? 'var(--or)' : 'var(--l3)'}`}>{paysOk ? pays.filter((p) => p.status === 'pending').length : '—'}</div><p class="s">{paysOk ? 'suscripciones por cobrar' : 'cobros sin responder'}</p></div>
     </div>
 

@@ -5,8 +5,10 @@ export const MARCA = 'IA desde cero';
 export const AUTOR = 'Alejandro Padrón';
 export const ORG = 'Alpadev';
 export const CORREO = 'founder.alpadev@gmail.com';
-export const PRECIO = '9.99';
-export const MONEDA = 'USD';
+// El precio vive en price.ts, que si es importable desde Node: asi `pnpm verify`
+// puede compararlo con lo que cobra el servicio de pagos. Aqui solo se reexporta
+// para que seo.ts y llms.txt.ts sigan importando de un sitio.
+export { PRECIO, MONEDA, PRECIO_MENOR, PRECIO_TEXTO } from './price';
 export const LECCIONES = 12;
 export const LABS = 36;
 

@@ -113,6 +113,9 @@ const GATES = [
   { id: 'ontology-drift', what: 'ontology declares every real column',
     cmd: ['node', ['scripts/check-ontology-drift.mjs']] },
 
+  { id: 'price', what: 'one price: charged == advertised == quoted, and no stale copy',
+    cmd: ['node', ['--experimental-strip-types', 'scripts/check-price.mjs']] },
+
   { id: 'tool-catalog', what: '41 tools readable from the registry by import',
     cmd: ['node', ['--experimental-strip-types', 'scripts/emit-tool-catalog.mjs']] },
 
