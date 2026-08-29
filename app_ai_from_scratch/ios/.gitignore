@@ -1,0 +1,6 @@
+# Artefactos de xcodegen y xcodebuild. La fuente es project.yml y Sources/.
+IAdesdeCero.xcodeproj/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
