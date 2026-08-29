@@ -36,6 +36,26 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+    # THE FOUR STATEFUL SERVICES NEED THIS AS MUCH AS THE ELEVEN STATELESS ONES,
+    # and for six and a half hours they did not have it.
+    #
+    # The Raspberry Pi rebooted at 14:45 UTC on 2026-08-29. Everything carrying
+    # `restart: unless-stopped` -- api, web, data, ia, the workers, the five
+    # defence agents -- came back forty-nine seconds later. db, broker,
+    # payments-db and messages-db did not, because none of the four declared a
+    # policy at all, and `no` is the default.
+    #
+    # That combination is worse than the whole box staying down. The site kept
+    # serving: the landing rendered, TLS was valid, the health endpoint answered.
+    # It answered HTTP 400 `data refused auth.user_by_email ... lookup db on
+    # 127.0.0.11:53: no such host`. Nobody could log in and nobody could pay,
+    # while every external signal said the service was alive. It was found by
+    # hand, not by an alarm.
+    #
+    # `unless-stopped`, not `always`: an operator who deliberately stops a
+    # database to take a backup should not have Docker start it again underneath
+    # them. A reboot is not that, and this is the case that separates the two.
+    restart: unless-stopped
 
   # Separate persistence boundary for the extractable payments repository.
   # It stores provider payloads and webhook history; the course database sees
@@ -55,6 +75,10 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+    # See db. This one is the reason `/api/payments/estado` answered
+    # `{"disponible":false}` after the reboot: checkout was off and the landing
+    # never said so.
+    restart: unless-stopped
 
   payments:
     build: ./payments
@@ -99,6 +123,10 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+    # See db. Without it `messages` restart-looped against ENOTFOUND messages-db
+    # for six hours, which is `unless-stopped` doing its job for the service that
+    # had it, aimed at a host that could never appear.
+    restart: unless-stopped
 
   messages:
     build: ./messages
@@ -169,6 +197,9 @@ services:
       timeout: 10s
       retries: 12
       start_period: 40s
+    # See db. The bus going down takes the retry ladder and the dead-letter
+    # exchange with it, so work is not merely delayed, it has nowhere to queue.
+    restart: unless-stopped
 
   init:
     build:
