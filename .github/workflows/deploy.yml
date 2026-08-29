@@ -267,6 +267,15 @@ jobs:
   release:
     name: release
     needs: publish
+    # Only when there is somewhere to deploy TO. Without this guard the job runs
+    # release.yml, which refuses on an unset DEPLOY_TARGET and exits 1 -- correct
+    # in itself, but it painted main permanently red on a repository that has
+    # never had the deploy configured. A red that is always red stops being a
+    # signal: after a week nobody can tell "red because no automated deploy" from
+    # "red because something broke", which is the failure the red was supposed to
+    # prevent. The step in release.yml stays exactly as it is -- it still guards
+    # hotfix.yml and any other caller.
+    if: vars.DEPLOY_TARGET != ''
     # One deploy script, in release.yml, called by both this and hotfix.yml.
     # Two copies would drift, and the hotfix copy is the one that runs while
     # production is already broken and nobody is reading it carefully.
@@ -274,3 +283,59 @@ jobs:
     with:
       tag: ${{ needs.publish.outputs.tag }}
     secrets: inherit
+
+  # The other half of the guard above, and the reason turning the red off is not
+  # the same as hiding it. A skipped job is easy to miss, so this one RUNS, and
+  # its name is what the checks list shows next to the commit. Green pipeline,
+  # and the line still reads NOT DEPLOYED.
+  no-release:
+    name: NOT DEPLOYED - deploy by hand
+    needs: publish
+    if: vars.DEPLOY_TARGET == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: State that the images are published and nothing was deployed
+        env:
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY,,}"
+          {
+            echo "## Images published. Nothing was deployed."
+            echo
+            echo "\`DEPLOY_TARGET\` is not set on this repository, so there is no host to"
+            echo "release to. The images for this commit ARE in the registry, pinned:"
+            echo
+            echo '```'
+            echo "TAG=$TAG"
+            echo "IMAGE_REPO=ghcr.io/$repo"
+            echo '```'
+            echo
+            echo "### Deploy it by hand"
+            echo
+            echo '```sh'
+            echo "cd \$DEPLOY_PATH"
+            echo "sed -i 's/^TAG=.*/TAG=$TAG/' .env"
+            echo "docker compose -f docker-compose.yml -f docker-compose.prod.yml pull"
+            echo "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --wait"
+            echo '```'
+            echo
+            echo "### Or turn the automated deploy on"
+            echo
+            echo "Set the repository **variable** \`DEPLOY_TARGET\` to the host name, and add"
+            echo "these **Environment secrets** on \`production\`:"
+            echo
+            echo "    DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH"
+            echo "    WEB_ORIGIN POSTGRES_PASSWORD RABBITMQ_PASSWORD JWT_SECRET IA_SECRETO"
+            echo "    DATA_SECRETO QUEUE_SECRETO PAYMENTS_SECRET PAYMENTS_DB_PASSWORD"
+            echo "    MESSAGES_SECRET MESSAGES_DB_PASSWORD"
+            echo
+            echo "Optional: \`DEPLOY_PORT\`, \`MP_ACCESS_TOKEN\`, \`MP_WEBHOOK_SECRET\`, \`MP_PUBLIC_KEY\`."
+            echo
+            echo "A GitHub-hosted runner has to be able to REACH the host. This one sits"
+            echo "behind CGNAT, so that means putting the runner on the tailnet first (or"
+            echo "a self-hosted runner on the box). Setting the secrets alone is not enough."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::warning title=Not deployed::Images for $TAG are published; no DEPLOY_TARGET is configured, so no host was updated."
+
