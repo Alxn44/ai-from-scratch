@@ -214,6 +214,42 @@ jobs:
           cache-from: type=gha,scope=data
           cache-to: type=gha,scope=data,mode=max
 
+      # payments and messages arrived with the extraction (e729418) and nobody
+      # added them here, while docker-compose.prod.yml:58 and :65 started pulling
+      # them. Nothing caught it because DEPLOY_TARGET was unset: the release job
+      # refused before it ever ran `compose pull`. The first deploy with a target
+      # configured would have died on the host with `manifest unknown` for
+      # ghcr.io/<repo>/payments -- after CI went green and after the other seven
+      # images had already been published.
+      #
+      # Context is the service directory, unlike data and defense above: both
+      # Dockerfiles COPY only from their own tree, which is also what compose
+      # declares (`build: ./payments`). A wider context here would upload the
+      # monorepo to the daemon for nothing.
+      - name: payments
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/payments
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.repo }}/payments:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/payments:latest
+          cache-from: type=gha,scope=payments
+          cache-to: type=gha,scope=payments,mode=max
+
+      - name: messages
+        uses: docker/build-push-action@v6
+        with:
+          context: app_ai_from_scratch/messages
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.repo }}/messages:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/messages:latest
+          cache-from: type=gha,scope=messages
+          cache-to: type=gha,scope=messages,mode=max
+
   release:
     name: release
     needs: publish
