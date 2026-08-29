@@ -80,10 +80,23 @@ jobs:
       # amd64 is kept alongside it rather than dropped: CI's `images` job builds
       # on amd64, and developer machines are a mix. A single-arch arm64 publish
       # would make every local `docker compose pull` fail instead.
+      # CONTEXTO PADRE, no app_ai_from_scratch/api. Desde la extraccion
+      # (e729418) el Dockerfile hace `COPY auth /app/auth` y `COPY package.json
+      # /app/package.json`, y ninguno de los dos esta dentro de api/. Con el
+      # contexto estrecho buildx muere en Dockerfile:66 con
+      #   failed to calculate checksum of ref ...: "/api/pnpm-lock.yaml": not found
+      # y como `api` es el primer paso, los otros ocho quedan en skipped.
+      #
+      # docker-compose.yml ya declara `context: .` con `dockerfile: api/Dockerfile`,
+      # asi que CI (que hace `docker compose build`) siempre construyo bien y esta
+      # deriva solo vivia aqui. .dockerignore es un allowlist y ya trae api/src,
+      # api/prisma, api/package.json, api/pnpm-lock.yaml, api/tsconfig.json,
+      # el package.json de la raiz y auth/.
       - name: api
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch/api
+          context: app_ai_from_scratch
+          file: app_ai_from_scratch/api/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -98,7 +111,8 @@ jobs:
       - name: api-migrate
         uses: docker/build-push-action@v6
         with:
-          context: app_ai_from_scratch/api
+          context: app_ai_from_scratch
+          file: app_ai_from_scratch/api/Dockerfile
           target: migrate
           push: true
           platforms: linux/amd64,linux/arm64
