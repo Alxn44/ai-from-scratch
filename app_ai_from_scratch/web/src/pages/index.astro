@@ -198,10 +198,18 @@ section[id]{scroll-margin-top:72px}
    .navlink, que esta a 20px de distancia. La jerarquia la hacen el peso y el
    color, no una caja. 44px de alto tactil aunque el texto mida 10: la landing no
    carga el suelo de 44 de PUBLIC_BASE, asi que sin esto el objetivo tactil se
-   queda en los 21,5px medidos arriba. */
+   queda en los 21,5px medidos arriba.
+
+   Y 44px de ANCHO, que es la otra mitad del mismo suelo. Con `padding:0 7px`
+   los botones median 44 de alto y 30 de ancho: un objetivo tactil no es una
+   altura, es un area, y 30 de ancho se sigue fallando con el pulgar. Con 14px
+   miden [59, 44, 44]. Medido en produccion contra la nav real a 390, 480, 520,
+   560, 640, 768 y 900px: `scrollWidth == innerWidth` en los siete, y la barra
+   conserva sus dos filas por debajo de 560 y una sola por encima. No lleva
+   media query justamente por eso -- no habia ancho donde estorbara. */
 .lnav-lang .seg{display:flex;align-items:center;gap:2px;border:0}
 .lnav-lang .segb{
-  display:inline-flex;align-items:center;min-height:44px;padding:0 7px;
+  display:inline-flex;align-items:center;min-height:44px;padding:0 14px;
   background:none;border:0;cursor:pointer;
   font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;
   color:var(--l3);transition:color .15s
