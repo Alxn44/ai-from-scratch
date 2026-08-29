@@ -3,6 +3,11 @@ import SwiftUI
 struct LoginView: View {
     @Environment(Sesion.self) private var sesion
 
+    /// El teclado sale con la pantalla y el foco esta en el correo. Un login que
+    /// obliga a tocar el primer campo cobra un toque por cada entrada al curso.
+    enum Campo { case correo, clave }
+    @FocusState private var foco: Campo?
+
     @State private var email = ""
     @State private var clave = ""
     @State private var cargando = false
@@ -46,10 +51,21 @@ struct LoginView: View {
                 VStack(spacing: 18) {
                     CampoTexto(etiqueta: "Correo", valor: $email,
                                contentType: .username, keyboard: .emailAddress)
+                        .focused($foco, equals: .correo)
                     CampoTexto(etiqueta: "Contraseña", valor: $clave,
                                seguro: true, contentType: .password)
+                        .focused($foco, equals: .clave)
                 }
                 .padding(.bottom, 18)
+                // Return encadena: del correo pasa a la clave, y desde la clave
+                // envia. Sin esto hay que bajar el teclado para llegar al boton.
+                .onSubmit {
+                    switch foco {
+                    case .correo: foco = .clave
+                    case .clave:  if completo { Task { await entrar() } }
+                    case nil:     break
+                    }
+                }
 
                 if let error {
                     Aviso(texto: error).padding(.bottom, 18)
@@ -72,6 +88,7 @@ struct LoginView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(T.bg)
+        .onAppear { foco = .correo }
     }
 
     private func entrar() async {
