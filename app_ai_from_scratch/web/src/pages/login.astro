@@ -25,6 +25,7 @@ const jsonld = grafo(org());
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <title>{P.entrar} · IA desde cero</title>
   <link rel="canonical" href={canonical}>
   <meta property="og:site_name" content={MARCA}>
@@ -34,13 +35,13 @@ const jsonld = grafo(org());
   <style is:global set:html={TOKENS + PUBLIC_BASE}></style>
 </head>
 <body>
-  <div style="display:flex;min-height:100vh">
-    <section style="width:620px;flex:none;border-right:1px solid var(--hair2);padding:54px 48px;display:flex;flex-direction:column;gap:30px">
-      <div style="display:flex;align-items:center;gap:11px">
+  <div class="pub-split">
+    <section class="pub-pane">
+      <a href="/" style="display:flex;align-items:center;gap:11px;color:var(--l1)">
         <span class="mark">IA</span>
         <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
         <span class="lbl" style="margin-left:6px">{L.pub.marca}</span>
-      </div>
+      </a>
       <div style="margin-top:26px;display:flex;flex-direction:column;gap:20px">
         <h1 class="h1">{P.h1a}<br>{P.h1b}</h1>
         <p class="p" style="max-width:430px">{P.pitch}</p>
@@ -53,12 +54,12 @@ const jsonld = grafo(org());
       </div>
     </section>
 
-    <section style="flex:1;display:flex;flex-direction:column;padding:26px 40px 40px">
+    <section class="pub-main">
       <div style="display:flex;justify-content:flex-end">
         <PrefToggles lang={langPref} theme={theme} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
       </div>
       <div style="flex:1;display:flex;align-items:center;justify-content:center">
-        <form id="f" style="width:420px;display:flex;flex-direction:column;gap:22px" novalidate>
+        <form id="f" class="pub-card" style="gap:22px" novalidate>
           <div style="display:flex;flex-direction:column;gap:8px">
             <p class="eb">{P.eb}</p>
             <h2 class="h1" style="font-size:28px">{P.h2}</h2>
@@ -70,30 +71,34 @@ const jsonld = grafo(org());
           <div style="display:flex;flex-direction:column;gap:7px">
             <div style="display:flex;justify-content:space-between;align-items:baseline">
               <label class="lbl" for="pass">{P.clave}</label>
-              <a href="/recuperar" style="font:500 11px/1 var(--m)">{P.olvidaste}</a>
+              <a class="accion-lbl" href="/recuperar" style="font:500 11px/1 var(--m)">{P.olvidaste}</a>
             </div>
             <input class="input" id="pass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
           </div>
           <button class="btn block" id="go" type="submit">{P.entrar}</button>
           <div style="display:flex;align-items:center;gap:12px">
-            <div style="flex:1;height:1px;background:var(--hair2)"></div><span class="lbl">{P.o}</span><div style="flex:1;height:1px;background:var(--hair2)"></div>
+            <div style="flex:1;height:1px;background:var(--hair2)"></div><span class="or-txt">{P.o}</span><div style="flex:1;height:1px;background:var(--hair2)"></div>
           </div>
-          <button class="btn ghost block" type="button">{P.enlace}</button>
+          <!-- Era «Enviarme un enlace de acceso» y apuntaba a /recuperar: el mismo
+               sitio que «¿La olvidaste?», con una etiqueta que promete entrar sin
+               contraseña. Ademas no hay proveedor de correo conectado
+               (auth/src/index.ts: «recover: link generated (no mail provider
+               configured)»), asi que ese enlace no sale de los logs. El hueco lo
+               ocupa la unica accion que si funciona de punta a punta:
+               /api/auth/register responde 201 y abre sesion. -->
+          <a class="btn ghost block" href="/registro" style="text-decoration:none">{P.crear}</a>
           <p class="s" style="text-align:center">{P.noTienes} <a href="/pago">{P.verCurso}</a></p>
         </form>
       </div>
     </section>
   </div>
   <div id="toasts"></div>
-
+  <script>
+    import { montarAvisos } from '../lib/avisos';
+    montarAvisos(document.documentElement.lang === 'en' ? 'Close' : 'Cerrar');
+  </script>
   <script define:vars={{ P, prefs }}>
-    const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
-    const box = document.getElementById('toasts');
-    const toast = (k, tt, b) => {
-      box.innerHTML = `<div class="toast" style="border-color:${COLOR[k]}"><div style="flex:1">
-        <div class="h3" style="color:${COLOR[k]}">${tt}</div><p class="s" style="color:var(--l2);margin-top:4px">${b}</p></div></div>`;
-      if (k === 'ok') setTimeout(() => (box.innerHTML = ''), 4000);
-    };
+    const toast = (k, tt, b) => window.toast(k, tt, b);
     const fill = (str, n) => String(str).replace('{n}', n);
     const form = document.getElementById('f');
     const go = document.getElementById('go');

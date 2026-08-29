@@ -19,6 +19,7 @@ Everything runs from the repository working directory
 | "run it all in Docker" | `pnpm docker` | Every service containerised, including the workers. Closer to production, no hot reload. |
 | "stop it" | `pnpm stop` | Kills the Astro daemon (it survives a closed terminal) and brings the containers down. |
 | "just the database" | `pnpm db` | Postgres alone, waits for its healthcheck. |
+| "the AI chat log" | `pnpm --dir messages dev` | Document store on 8786. Needs `messages-db` (compose, port 5436). |
 
 `pnpm dev` refuses to start if a port is held by a process from another project,
 prints that process and offers two ways out. It will not kill what it does not
@@ -28,13 +29,14 @@ own — it used to, and that is how you lose a colleague's running service.
 
 | You say | Command | What it proves |
 |---|---|---|
-| "check everything", "is it green?" | `pnpm verify` | All 11 gates, one verdict. ~12s. |
+| "check everything", "is it green?" | `pnpm verify` | All 19 gates, one verdict. |
 | "quick check" | `pnpm verify:fast` | Everything that needs no database or server. Prints what it did **not** run. |
+| "check the message store" | `pnpm check:messages` | tsgo + document contracts for `messages/`. |
 | "what are the gates?" | `pnpm verify:list` | The list, and which are slow. |
 | "run the tests" | `pnpm test` | The eight api suites. |
 | "test the Python side" | `pnpm test:py` | pytest. |
 | "prove the isolation" | `pnpm prove` | P1..P4 over the bridged tools, P5 over the native ones. |
-| "how good is the search we are beating?" | `uv --directory ai run python tests/baseline.py` | Runs `scripts/emit-search-baseline.mjs`, which CALLS `buscar_en_curso` over the corpus `api/src/seed.ts` defines, and prints what it scores over the 138 fixture questions (70/138 = 51%). It is generated on every `pytest` run and never stored: the version of this column that was typed by hand was wrong on 53 of 138 entries. |
+| "how good is the search we are beating?" | `uv --directory ai run python tests/baseline.py` | Runs `scripts/emit-search-baseline.mjs`, which CALLS `buscar_en_curso` over the corpus `api/src/seed.ts` defines, and prints what it scores over the 138 fixture questions (71/138 = 51%). It is generated on every `pytest` run and never stored: the version of this column that was typed by hand was wrong on 53 of 138 entries. |
 | "check the routing map" | `pnpm concepts` | The concept map in `ai/src/course_ai/retrieval/concepts.py` vs the lesson index Node serves. Fails on a concept pointing at a lesson that does not exist, a lesson no concept covers, an invented glossary term, a term pinned to the wrong lesson, one phrasing routed to two lessons, one slug pointing at two lessons, or a concept nothing can route to. If it cannot read the index it FAILS — it never skips. |
 | "check the types" | `pnpm check:types` | tsgo against the pinned baseline (currently 0). |
 | "check the lesson animations" | `pnpm check:scenes` | Every lesson has exactly one scene and no scene file is orphaned. Type checking cannot catch this: a lesson with no animation falls back to the static rows and nothing errors. |
@@ -54,7 +56,7 @@ never be mistaken for a pass.
 | "regenerate the ontology" | `pnpm ontology:export` | Rewrites `api/src/ontologia.json` from `ai/src/course_ai/ontology/data.py`. Refuses to write if the proof fails or the catalogue drifted. |
 | "update the ontology doc" | `pnpm ontology` | Rewrites `ONTOLOGY.md`. Every number in it is counted at render time, never typed. |
 | "check for drift" | `pnpm check:ontology` | Artefact vs `schema.prisma`. Catches a column with no declared class — the direction that silently weakens the guard. |
-| "what tools exist?" | `pnpm check:catalog` | Reads the registry by importing it. 37 tools, 7 paywalled. |
+| "what tools exist?" | `pnpm check:catalog` | Reads the registry by importing it. 39 tools, 7 paywalled. |
 
 To change the ontology, edit `data.py` — never the artefact, never `ONTOLOGY.md`.
 Then `pnpm ontology:export && pnpm ontology` and commit all three.
@@ -85,10 +87,11 @@ development database it currently reports three matches, including the `admin` �
 that is expected there and unacceptable anywhere else. It is not in `pnpm verify`
 because scrypt is deliberately slow and this takes seconds per account.
 
-Writes `api/.env`, `web/.env`, `ai/.env` and the compose `.env`. Model API keys
+Writes `api/.env`, `payments/.env`, `web/.env`, `ai/.env` and the compose `.env`. Model API keys
 are pasted by hand. No secret has a working default anywhere: `JWT_SECRET`
-refuses known placeholders and anything under 32 characters, and `DATABASE_URL`
-has no default outside development.
+refuses known placeholders and anything under 32 characters. `DATABASE_URL` is
+present only for local migration/seed commands; deployed API and worker receive
+the database credential only through `data`.
 
 ---
 
@@ -128,8 +131,10 @@ running version silently stops matching the repository.
    | `DEPLOY_HOST` `DEPLOY_USER` `DEPLOY_SSH_KEY` | SSH access. `DEPLOY_PORT` optional, defaults to 22. |
    | `DEPLOY_PATH` | Directory on the host holding the compose files and `.env`. |
    | `WEB_ORIGIN` | The real public origin. The dev value is `http://localhost:4321`, and a cookie scoped to localhost never arrives — every request would look unauthenticated. |
-   | `POSTGRES_PASSWORD` `RABBITMQ_PASSWORD` `JWT_SECRET` `IA_SECRETO` | Same secrets compose already demands. Generate with `pnpm keys`. |
-   | `MP_ACCESS_TOKEN` `MP_WEBHOOK_SECRET` `MP_PUBLIC_KEY` | Optional. Without them checkout answers 501 rather than faking a payment. |
+   | `POSTGRES_PASSWORD` `RABBITMQ_PASSWORD` `JWT_SECRET` `IA_SECRETO` `QUEUE_SECRETO` `DATA_SECRETO` | Same secrets compose already demands. Generate with `pnpm keys`. |
+   | `PAYMENTS_SECRET` `PAYMENTS_DB_PASSWORD` | Service-to-service authentication and the separate payments database. |
+   | `MP_ACCESS_TOKEN` `MP_WEBHOOK_SECRET` | Required to sell. `MP_PUBLIC_KEY` remains optional. |
+   | At least one of `ANTHROPIC_API_KEY` `OPENROUTER_API_KEY` `DEEPSEEK_API_KEY` `KIMI_API_KEY` `HF_TOKEN` `OPENCODE_API_KEY` | Required for the AI assistant; `PROVEEDOR_ORDEN` is optional. |
 
    All of them are checked before the first SSH, and named one at a time in the
    log, so a missing secret cannot leave the host half-restarted.
@@ -184,7 +189,9 @@ which is exactly when the isolation proof earns its keep.
 
 | Directory | What it is | Its own tools |
 |---|---|---|
-| `api/` | Node + TypeScript (tsgo). HTTP, sessions, the 37 agent tools, the Postgres job queue. | `scripts/types.mjs` (the pinned type baseline), `scripts/audit-passwords.mjs`, `scripts/close-leagues.mjs`, `scripts/league-demo.mjs` |
+| `api/` | Node + TypeScript (tsgo). HTTP, the 39 agent tools and the data-backed job queue. | `scripts/types.mjs` (the pinned type baseline), `scripts/audit-passwords.mjs`, `scripts/close-leagues.mjs`, `scripts/league-demo.mjs` |
+| `auth/` | The sole owner of login, registration, recovery, sessions, roles, account lifecycle and entitlements. | Boundary tests live in `api/test/auth-boundary.mts`. |
+| `payments/` | Independent TS7/tsgo service for checkout, subscriptions, signed webhooks and payment persistence. | `pnpm check`, `pnpm test`, `pnpm build`. |
 | `ai/` | Python + FastAPI. The agent loop, the providers, and the ontology — the source of truth. | `ai-export` (the artefact), `ai-doc` (`ONTOLOGY.md`), `ai-verify`, `ai-prove-isolation`, `ai-check-concepts`, `ai-worker` |
 | `web/` | Astro. The lessons, labs, chat, and the 12 animated lesson scenes. | `scripts/scenes-check.mjs`, `scripts/i18n-check.mjs` |
 | `queue/` | Go + Fiber. Owns the RabbitMQ topology between services. | `cmd/queue-topology`, `cmd/queue-verify`, plus `scripts/` and `tools/` |

@@ -1,5 +1,4 @@
 // Grading lives ONLY on the server: the client never receives `solution`.
-import type { LabRow } from './db.ts';
 
 const norm = (xs: unknown[]): string => xs.map(String).map((s) => s.trim()).sort().join('|');
 
@@ -21,8 +20,8 @@ export interface Solution {
 /** What the browser sends back. Shape depends on the mechanic. */
 export type Answer = unknown;
 
-/** The columns grading needs. A whole LabRow satisfies it; so does a narrow SELECT. */
-export type GradableLab = Pick<LabRow, 'kind' | 'solution'>;
+/** The narrow row the grader is allowed to receive from data. */
+export interface GradableLab { kind: string; solution: string }
 
 export function grade(lab: GradableLab, answer: Answer): boolean {
   const sol = JSON.parse(lab.solution) as Solution;
@@ -93,8 +92,20 @@ export interface PublicLab {
   attempts: number;
 }
 
+/** Paid lab fields that may cross to the browser. `solution` cannot be named here. */
+export interface PublicLabSource {
+  id: string;
+  lesson_n: number;
+  idx: number;
+  level: string;
+  kind: string;
+  prompt: string;
+  payload: string;
+  draft: number;
+}
+
 /** What the client MAY see. */
-export function publicLab(lab: LabRow, best: BestAttempt | null | undefined): PublicLab {
+export function publicLab(lab: PublicLabSource, best: BestAttempt | null | undefined): PublicLab {
   return {
     id: lab.id,
     lesson: lab.lesson_n,

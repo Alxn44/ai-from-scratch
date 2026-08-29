@@ -3,7 +3,7 @@
 WHY THIS FILE REPLACED A DICT. `queries.py` used to carry the column as literal
 data, documented as «the measured output of the real ranking over the real content,
 frozen». Measured against the real scorer it disagreed on 53 of its 138 entries.
-The real substring hit rate is 70 of 138 (51%), not the 75 (54%) every docstring in
+The real substring hit rate is 71 of 138 (51%), not the 75 (54%) every docstring in
 this package quoted, so every «+N points» here was computed against a column no run
 produces — and the test that was supposed to protect it only checked that the typed
 dict still summed to the number the docstring claimed. It compared the copy against

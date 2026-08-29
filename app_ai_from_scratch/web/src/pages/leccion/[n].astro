@@ -15,8 +15,11 @@ type Lab = { id: string; idx: number; level: string; kind: string; prompt: strin
 type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string };
 type Ejemplo = { titulo: string; entrada: string; salida: string; nota: string };
 type Texto = { technical: string; analogy: string; examples: Ejemplo[] };
+type QuizQ = { id: string; idx: number; prompt: string; options: { id: string; text: string }[]; solved: boolean; attempts: number };
+type QuizScore = { correct: number; total: number; passed: boolean; passAt: number };
 const lang0 = resolveLang(user!.lang, Astro.request);
-const r = await apiTry<{ lesson: Lesson; labs: Lab[]; texto: Texto | null; textoIdioma: string | null }>(`/api/lessons/${n}?lang=${lang0}`, Astro.request);
+const r = await apiTry<{ lesson: Lesson; labs: Lab[]; texto: Texto | null; textoIdioma: string | null;
+  quiz?: QuizQ[]; quizScore?: QuizScore }>(`/api/lessons/${n}?lang=${lang0}`, Astro.request);
 if (r.status === 401 || r.status === 403) return Astro.redirect('/login');
 // Cualquier otra cosa (404, 500) no tiene ficha que pintar: al índice del curso.
 if ((r.status !== 200 && r.status !== 402) || !r.data?.lesson) return Astro.redirect('/curso');
@@ -25,6 +28,8 @@ const cerrada = r.status === 402;
 const { lesson, labs } = r.data;
 const texto = r.data.texto;
 const textoIdioma = r.data.textoIdioma;
+const quiz = r.data.quiz ?? [];
+const quizScore = r.data.quizScore ?? { correct: 0, total: quiz.length, passed: false, passAt: quiz.length };
 const LEVEL: Record<string, [string, string]> = { facil: ['FÁCIL', 'var(--ok)'], medio: ['MEDIO', 'var(--or)'], dificil: ['DIFÍCIL', 'var(--rd)'] };
 const lang = lang0;
 const L = t(lang);
@@ -34,7 +39,7 @@ const solved = labs.filter((l) => l.solved).length;
 <App user={user!} title={lesson.title} crumb={`CURSO / LECCIÓN ${String(n).padStart(2, '0')} DE 12`} active="Curso">
   <span slot="topbar" class="lbl num">{solved} / {labs.length} LABS DE ESTA LECCIÓN</span>
 
-  <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:30px;max-width:1180px">
+  <div class="app-pad" style="display:flex;flex-direction:column;gap:30px;max-width:1180px">
 
     {textoIdioma && textoIdioma !== lang && (
       <div class="card" style="border-color:var(--or);border-left:2px solid var(--or);display:flex;gap:12px;align-items:flex-start">
@@ -43,14 +48,14 @@ const solved = labs.filter((l) => l.solved).length;
       </div>
     )}
 
-    <div id="lectura" style="display:flex;flex-direction:column;gap:30px">
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--hair);padding-bottom:22px">
+    <div id="lectura" data-tut="leccion-1" style="display:flex;flex-direction:column;gap:30px">
+    <div class="lec-top" style="border-bottom:1px solid var(--hair);padding-bottom:22px">
       <div style="display:flex;flex-direction:column;gap:14px">
         <p class="eb">{String(n).padStart(2, '0')} · {lesson.eyebrow}</p>
-        <h1 class="h1" style="font-size:40px" data-narra>{lesson.title}</h1>
+        <h1 class="h1" style="font-size:clamp(28px,6vw,40px)" data-narra>{lesson.title}</h1>
         <p class="p" style="max-width:620px" data-narra>{lesson.summary}</p>
       </div>
-      <div class="card" style="width:280px;flex:none;border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:10px">
+      <div class="card lec-math" data-tut="leccion-2" style="width:280px;flex:none;border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:10px">
         <p class="lbl">{L.laMatematica}</p>
         <div class="num" style="font:700 26px/1.1 var(--f);letter-spacing:-.03em">{lesson.math}</div>
         <p class="s" style="color:var(--l2)">{lesson.math_cap}</p>
@@ -58,7 +63,7 @@ const solved = labs.filter((l) => l.solved).length;
     </div>
 
     {texto && (
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start">
+      <div class="lec-cols">
         <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair)">
           <p class="eb">{L.lec.comoFunciona}</p>
           <p class="p" data-narra>{texto.technical}</p>
@@ -73,7 +78,7 @@ const solved = labs.filter((l) => l.solved).length;
     {texto && texto.examples.length > 0 && (
       <div style="display:flex;flex-direction:column;gap:14px">
         <p class="lbl">{L.lec.ejemplos}</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:16px">
           {/* Card anatomy: title, scene, the two text lines, note.
               scenes/mount.ts builds the scene and, once it has, hides [data-example-io]:
               the scene is already saying those two sentences with the example's own words.
@@ -108,6 +113,35 @@ const solved = labs.filter((l) => l.solved).length;
 
     </div>
 
+    {quiz.length > 0 && (
+      <div id="quiz" style="display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--hair);padding-top:22px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <p class="lbl">{L.quiz.titulo}</p>
+            <p class="s" style="margin-top:6px">{L.quiz.sub}</p>
+          </div>
+          <p class="lbl num" id="quiz-score">{quizScore.passed ? L.quiz.hecho : L.quiz.progreso.replace('{a}', String(quizScore.correct)).replace('{b}', String(quizScore.total))}</p>
+        </div>
+        {quiz.map((item) => (
+          <div class="card" data-q={item.id} style="display:flex;flex-direction:column;gap:14px;border-color:var(--hair)">
+            <p class="lbl">{L.quiz.q.replace('{n}', String(item.idx))}</p>
+            <h2 class="h3">{item.prompt}</h2>
+            <div data-q-stage></div>
+            <div style="display:flex;gap:12px;align-items:center">
+              <button class="btn" data-q-check>{L.comprobar}</button>
+              <button class="btn ghost" data-q-reset>{L.deNuevo}</button>
+            </div>
+            <div data-q-out></div>
+          </div>
+        ))}
+        <script type="application/json" id="quiz-data" is:inline set:html={jsonSafe({
+          questions: quiz,
+          txt: { ...L.lab, ...L.quiz },
+          hecho: L.quiz.hecho, progreso: L.quiz.progreso,
+        })}></script>
+      </div>
+    )}
+
     <div style="display:flex;align-items:center;gap:14px;border-top:1px solid var(--hair);padding-top:22px">
       <p class="lbl">{L.lec.ahoraTu}</p>
       <span class="s">{L.lec.ahoraTuB}</span>
@@ -122,9 +156,13 @@ const solved = labs.filter((l) => l.solved).length;
     })}></script>
 
     <script type="application/json" id="narra-txt" is:inline set:html={jsonSafe({ ...L.narra, lang })}></script>
+    <script type="application/json" id="tutorial-txt" is:inline set:html={jsonSafe({
+      aria: L.tutorial.aria, skip: L.tutorial.skip, next: L.tutorial.next, done: L.tutorial.done,
+      ...L.tutorial.leccion,
+    })}></script>
 
-    {labs.map((lab) => (
-      <div class="card" data-lab={lab.draft ? undefined : lab.id} style="border-color:var(--hair);display:flex;flex-direction:column;gap:18px">
+    {labs.map((lab, i) => (
+      <div class="card" data-tut={i === 0 ? 'leccion-3' : undefined} data-lab={lab.draft ? undefined : lab.id} style="border-color:var(--hair);display:flex;flex-direction:column;gap:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
           <div style="display:flex;align-items:center;gap:12px">
             <span style="display:inline-flex;align-items:center;gap:9px;height:30px;padding:0 12px;border:1px solid var(--hair)">
@@ -171,6 +209,16 @@ const solved = labs.filter((l) => l.solved).length;
     (window as any).gsap = gsap;
     import { mountLabs } from '../../lib/labs-client';
     mountLabs();
+    import { mountQuestions } from '../../lib/quiz-client';
+    const quizCfg = document.getElementById('quiz-data');
+    if (quizCfg) {
+      const cfg = JSON.parse(quizCfg.textContent ?? '{}');
+      const scoreEl = document.getElementById('quiz-score');
+      mountQuestions(document.getElementById('quiz')!, cfg.questions ?? [], cfg.txt, (s) => {
+        if (!scoreEl) return;
+        scoreEl.textContent = s.passed ? cfg.hecho : cfg.progreso.replace('{a}', String(s.correct)).replace('{b}', String(s.total));
+      });
+    }
 
     // Example scenes: one per lesson concept, parameterised by the example's own
     // data. Mounted BEFORE the narrator: it hides the two static lines, and the
@@ -187,6 +235,17 @@ const solved = labs.filter((l) => l.solved).length;
     if (lectura && nt) {
       const T = JSON.parse(nt.textContent!);
       montarNarrador(lectura, lectura, T.lang, T);
+      const bar = lectura.lastElementChild as HTMLElement | null;
+      if (bar) bar.setAttribute('data-tut', 'leccion-4');
+    }
+
+    import { abrirTutorial, pasosDe, tutorialHecho } from '../../lib/tutorial';
+    const tut = document.getElementById('tutorial-txt');
+    if (tut) {
+      const TT = JSON.parse(tut.textContent!);
+      window.abrirTutorial = () => abrirTutorial('leccion', pasosDe('leccion', TT), TT);
+      const force = new URLSearchParams(location.search).get('tutorial') === '1';
+      if (force || !tutorialHecho('leccion')) window.abrirTutorial();
     }
   </script>
 </App>

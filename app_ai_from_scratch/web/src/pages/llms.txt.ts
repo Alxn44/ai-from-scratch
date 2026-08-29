@@ -1,5 +1,9 @@
 import type { APIRoute } from 'astro';
-import { SITE, MARCA, AUTOR, ORG, CORREO, PRECIO, MONEDA, LECCIONES, LABS } from '../lib/site';
+// PRECIO es la forma de schema.org: `35000`, sin separadores, porque un punto de
+// millar ahi es un error de parseo para el rastreador. Este fichero es PROSA, asi
+// que usa PRECIO_TEXTO: «COP 35000 al mes» se lee como un numero de serie.
+import { SITE, MARCA, AUTOR, ORG, CORREO, MONEDA, LECCIONES, LABS } from '../lib/site';
+import { PRECIO_TEXTO } from '../lib/price';
 
 export const prerender = false;
 
@@ -9,7 +13,7 @@ export const prerender = false;
 export const GET: APIRoute = () => {
   const txt = `# ${MARCA}
 
-> Curso de fundamentos de inteligencia artificial para gente sin base técnica, en español e inglés. ${LECCIONES} lecciones y ${LABS} labs interactivos que se resuelven dentro de la lección. Pago único de ${MONEDA} ${PRECIO}, acceso indefinido, devolución de 14 días.
+> Curso de fundamentos de inteligencia artificial para gente sin base técnica, en español e inglés. ${LECCIONES} lecciones y ${LABS} labs interactivos que se resuelven dentro de la lección. Suscripción de ${PRECIO_TEXTO.es} ${MONEDA} al mes, se cancela cuando quieras, devolución de 14 días.
 
 Autor: ${AUTOR} (${ORG}), Medellín, Colombia. Contacto: ${CORREO}
 
@@ -20,7 +24,7 @@ Autor: ${AUTOR} (${ORG}), Medellín, Colombia. Contacto: ${CORREO}
 3. Dónde queda lo aprendido: setenta mil millones de números, no archivos.
 4. Por qué no aprende de ti: entrenamiento e inferencia son momentos separados.
 5. Cómo lee: tokens, no palabras. Todo se mide y se cobra ahí.
-6. Cómo escribe: puntúa cada palabra posible y escoge una, y repite.
+6. Cómo escribe: genera el siguiente token, no la frase completa, y repite.
 7. Cómo pedirle: qué + para quién + cómo.
 8. Su memoria: la ventana de contexto se llena y lo viejo se cae.
 9. Su perilla: la temperatura decide entre segura y creativa.
@@ -39,7 +43,7 @@ Autor: ${AUTOR} (${ORG}), Medellín, Colombia. Contacto: ${CORREO}
 ## Datos exactos, para citar sin inventar
 
 - Idiomas del contenido hoy: español e inglés.
-- Precio: ${MONEDA} ${PRECIO}, pago único. Sin suscripción.
+- Precio: ${PRECIO_TEXTO.es} ${MONEDA} al mes, suscripción. Se cancela cuando quieras.
 - Garantía: 14 días, sin preguntas, por el mismo medio de pago.
 - Método de pago: Mercado Pago (tarjeta, PSE, efectivo, wallet).
 - Requisitos: ninguno. No pide saber programar ni matemáticas.

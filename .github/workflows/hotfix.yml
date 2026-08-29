@@ -163,14 +163,22 @@ jobs:
       # image one that no reviewed branch contains.
       - name: Tag
         id: meta
-        run: echo "tag=hotfix-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      # GHCR EXIGE MINUSCULAS EN EL NOMBRE DEL REPOSITORIO, y el dueno de este
+      # se escribe Alxn44. Usar github.repository tal cual producia
+      #   invalid tag "ghcr.io/Alxn44/ai-from-scratch/api:...":
+      #   repository name must be lowercase
+      # y mataba `publish images` DESPUES de que las cinco puertas pasaran en
+      # verde. Nunca se habia visto porque el despliegue jamas habia corrido.
+        run: |
+          echo "tag=hotfix-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: api
         uses: docker/build-push-action@v6
         with:
           context: app_ai_from_scratch/api
           push: true
-          tags: ghcr.io/${{ github.repository }}/api:${{ steps.meta.outputs.tag }}
+          tags: ghcr.io/${{ steps.meta.outputs.repo }}/api:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=api
 
       # Needed by docker-compose.prod.yml's `init` service. The runtime stage
@@ -183,7 +191,7 @@ jobs:
           context: app_ai_from_scratch/api
           target: migrate
           push: true
-          tags: ghcr.io/${{ github.repository }}/api-migrate:${{ steps.meta.outputs.tag }}
+          tags: ghcr.io/${{ steps.meta.outputs.repo }}/api-migrate:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=api
 
       - name: ai
@@ -191,7 +199,7 @@ jobs:
         with:
           context: app_ai_from_scratch/ai
           push: true
-          tags: ghcr.io/${{ github.repository }}/ai:${{ steps.meta.outputs.tag }}
+          tags: ghcr.io/${{ steps.meta.outputs.repo }}/ai:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=ai
 
       - name: web
@@ -199,7 +207,7 @@ jobs:
         with:
           context: app_ai_from_scratch/web
           push: true
-          tags: ghcr.io/${{ github.repository }}/web:${{ steps.meta.outputs.tag }}
+          tags: ghcr.io/${{ steps.meta.outputs.repo }}/web:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=web
 
       - name: Is there a queue service yet?
@@ -217,7 +225,7 @@ jobs:
         with:
           context: app_ai_from_scratch/queue
           push: true
-          tags: ghcr.io/${{ github.repository }}/queue:${{ steps.meta.outputs.tag }}
+          tags: ghcr.io/${{ steps.meta.outputs.repo }}/queue:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=queue
 
   release:

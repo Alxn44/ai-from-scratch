@@ -1,378 +1,431 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IA desde cero — arquitectura animada</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:,">
+<title>IA desde cero: mapa operativo</title>
 <style>
-  :root{
-    --bg:#070B14; --panel:#0E1420; --border:#232B3E;
-    --blue:#3355FF; --hi:#5C7BFF; --ok:#2ED47A; --warn:#FFB03A; --bad:#FF6B6B;
-    --ink:#E8ECF5; --dim:#8A93A8; --faint:#4A5470;
+  :root,
+  [data-theme="dark"]{
+    --bg:#090D13;
+    --surface:#0F151F;
+    --surface-2:#131B28;
+    --surface-3:#172131;
+    --line:#29364A;
+    --line-strong:#40506A;
+    --ink:#EDF2F8;
+    --dim:#9CA8BC;
+    --faint:#68758B;
+    --accent:#5E78F2;
+    --accent-soft:#18264E;
+    --defense:#42C987;
+    --defense-soft:#112B22;
+    --warning:#EFB054;
+    --warning-soft:#332514;
+    --threat:#EF7373;
+    --threat-soft:#351A20;
+    --async:#9AA7BA;
+    --canvas-grid:rgb(87 105 133 / .14);
+    --canvas-vignette:rgb(9 13 19 / .94);
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:28px 24px 40px}
-  .wrap{max-width:1600px;margin:0 auto}
-  h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
-  h1 b{color:var(--hi)}
-  .sub{color:var(--dim);margin:6px 0 18px;font-size:15px}
-  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
-  .pill{border:1px solid var(--border);background:var(--panel);color:var(--ink);
-        border-radius:999px;padding:8px 16px;font-size:14px;cursor:pointer;transition:.15s}
-  .pill:hover{border-color:var(--hi)}
-  .pill.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
-  .pill.atk.on{background:var(--bad);border-color:var(--bad)}
-  .ctl{margin-left:auto;display:flex;gap:8px}
-  .ctl button{border:1px solid var(--border);background:var(--panel);color:var(--ink);
-        border-radius:10px;padding:8px 14px;font-size:14px;cursor:pointer}
-  .ctl button:hover{border-color:var(--hi)}
-  .stage{border:1px solid var(--border);border-radius:18px;background:
-        radial-gradient(1200px 500px at 70% -10%,#0D1730 0%,var(--bg) 60%);overflow:hidden}
-  svg{display:block;width:100%;height:auto}
-  .note{margin-top:14px;border:1px solid var(--border);border-radius:14px;background:var(--panel);
-        padding:16px 18px;min-height:76px;display:flex;gap:16px;align-items:baseline}
-  #counter{color:var(--hi);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #noteTxt{font-size:17px}
-  #noteTxt b{color:#fff}
-  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;color:var(--dim);font-size:13px}
-  .chip{display:inline-flex;align-items:center;gap:7px}
-  .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor;background:currentColor}
-  .foot{margin-top:18px;color:var(--faint);font-size:13px;text-align:center}
 
-  /* ---- SVG ---- */
-  .zone{fill:none;stroke:var(--border);stroke-dasharray:3 7;rx:18}
-  .zlbl{fill:var(--faint);font-size:13px;font-weight:700;letter-spacing:.14em}
-  .node rect.body{fill:var(--panel);stroke:var(--border);stroke-width:1.5}
-  .node text{fill:var(--ink)}
-  .node .t{font-size:19px;font-weight:800}
-  .node .s{font-size:13px;fill:var(--dim)}
-  .node.on rect.body{stroke:var(--hi);filter:drop-shadow(0 0 14px rgba(92,123,255,.55))}
-  .node.bad rect.body{stroke:var(--bad);filter:drop-shadow(0 0 14px rgba(255,107,107,.6))}
-  .node{transition:filter .2s}
-  .wire{fill:none;stroke:#3A4souh}
-  .wire{stroke:#3A4560;stroke-width:1.6;stroke-dasharray:5 7;opacity:.55}
-  .wire.lit{opacity:1;stroke-width:2.4}
-  .wlbl{fill:var(--faint);font-size:11.5px;font-style:italic}
-  .sub{fill:none}
-  .subbox{fill:#0A1020;stroke:var(--border)}
-  .subbox.dlq{stroke:#5A2B2B}
-  .subbox text{font-size:12px;fill:var(--dim)}
-  .xline{stroke:var(--bad);stroke-width:1.6;stroke-dasharray:4 6;opacity:.45}
-  .xlbl{fill:var(--bad);font-size:13px;font-weight:700;opacity:.85}
-  .pkt{filter:drop-shadow(0 0 7px currentColor)}
-  .plbl{font-size:12px;font-weight:700;paint-order:stroke;stroke:var(--bg);stroke-width:4px}
-  .boom text{font-size:26px;font-weight:900;fill:var(--bad)}
-  .boom circle{fill:none;stroke:var(--bad);stroke-width:2}
-  .boom{animation:boom .8s ease-out forwards;transform-origin:center;transform-box:fill-box}
-  @keyframes boom{0%{opacity:1;transform:scale(.4)}70%{opacity:1}100%{opacity:0;transform:scale(1.5)}}
+  [data-theme="light"]{
+    --bg:#EEF2F7;
+    --surface:#FFFFFF;
+    --surface-2:#F5F7FA;
+    --surface-3:#EAF0F7;
+    --line:#D2DCE8;
+    --line-strong:#A9B8CB;
+    --ink:#172033;
+    --dim:#5C687B;
+    --faint:#8290A5;
+    --accent:#3655D9;
+    --accent-soft:#E8EDFF;
+    --defense:#147F4D;
+    --defense-soft:#E5F4EC;
+    --warning:#9D6207;
+    --warning-soft:#FFF1D7;
+    --threat:#C93E49;
+    --threat-soft:#FCE8EA;
+    --async:#64748B;
+    --canvas-grid:rgb(83 101 126 / .12);
+    --canvas-vignette:rgb(238 242 247 / .94);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg)}
+  body{min-width:320px;min-height:100dvh;color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;transition:background .2s ease,color .2s ease}
+  button{font:inherit}
+  button:focus-visible,[tabindex]:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 40%,transparent);outline-offset:2px}
+
+  .app{display:flex;min-height:100dvh;flex-direction:column;overflow:hidden}
+  .topbar{position:relative;display:flex;min-height:68px;align-items:center;justify-content:space-between;gap:24px;padding:10px clamp(14px,2.2vw,32px);border-bottom:1px solid var(--line);background:var(--surface)}
+  .brand{display:flex;min-width:0;align-items:baseline;gap:14px}
+  .brand h1{font-size:clamp(19px,2.2vw,27px);font-weight:760;letter-spacing:-.035em;white-space:nowrap}
+  .brand p{overflow:hidden;color:var(--dim);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+  .system-facts{display:flex;flex:0 0 auto;align-items:center;gap:18px;color:var(--faint);font:650 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .system-facts b{color:var(--ink);font-weight:720}
+
+  .toolbar{display:flex;min-height:52px;align-items:center;justify-content:space-between;gap:18px;padding:7px clamp(10px,2vw,28px);border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .tool-group{display:flex;min-width:0;align-items:center;gap:6px}
+  .tool-group.filters{overflow-x:auto;scrollbar-width:none}
+  .tool-group.filters::-webkit-scrollbar{display:none}
+  .tool-button{min-height:34px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--dim);padding:7px 11px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+  .tool-button:hover{border-color:var(--line-strong);color:var(--ink)}
+  .tool-button:active{transform:translateY(1px)}
+  .tool-button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .tool-button.primary{border-color:var(--accent);background:var(--accent);color:#F8FAFF}
+  .tool-button.primary:hover{background:color-mix(in srgb,var(--accent) 84%,var(--ink));color:#F8FAFF}
+  .tool-button.compact{min-width:34px;padding-inline:9px}
+  .toolbar-divider{width:1px;height:24px;background:var(--line)}
+  #zoomLabel{min-width:54px;text-align:center;font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  .graph-viewport{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;cursor:grab;touch-action:none;background-color:var(--bg);background-image:linear-gradient(var(--canvas-grid) 1px,transparent 1px),linear-gradient(90deg,var(--canvas-grid) 1px,transparent 1px);background-size:24px 24px}
+  .graph-viewport.dragging{cursor:grabbing}
+  .graph-viewport::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 45%,transparent 58%,var(--canvas-vignette) 120%)}
+  .graph-canvas{--canvas-width:2250px;--canvas-height:1140px;position:absolute;left:0;top:0;width:var(--canvas-width);height:var(--canvas-height);transform-origin:0 0;user-select:none;will-change:transform}
+
+  .canvas-caption{position:absolute;left:40px;top:18px;color:var(--faint);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}
+  .topology-note{position:absolute;right:40px;top:18px;color:var(--dim);font:650 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  .rail{position:absolute;left:40px;width:2170px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--surface) 94%,transparent)}
+  .rail::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--accent)}
+  .usecase-rail{top:42px;height:145px}
+  .attack-rail{top:650px;height:166px}
+  .attack-rail::before{background:var(--threat)}
+  .rail-head{display:flex;height:35px;align-items:center;justify-content:space-between;padding:0 14px 0 18px;border-bottom:1px solid var(--line)}
+  .rail-head strong{font-size:12px;letter-spacing:.01em}
+  .rail-head span{color:var(--faint);font:650 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .rail-items{display:flex;height:calc(100% - 35px);padding-left:4px}
+  .scenario-item{position:relative;display:flex;min-width:0;flex:1 1 0;flex-direction:column;align-items:flex-start;justify-content:center;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);padding:10px 12px;text-align:left;cursor:pointer;transition:background .16s ease,opacity .16s ease,transform .16s ease}
+  .scenario-item:last-child{border-right:0}
+  .scenario-item:hover{background:var(--surface-3)}
+  .scenario-item:active{transform:translateY(1px)}
+  .scenario-item.is-active{background:var(--accent-soft)}
+  .attack-rail .scenario-item.is-active{background:var(--threat-soft)}
+  .scenario-item strong{display:block;font-size:12px;font-weight:760;letter-spacing:-.01em}
+  .scenario-item small{display:block;margin-top:3px;color:var(--dim);font-size:9.5px;line-height:1.25}
+  .scenario-item code{display:block;margin-top:5px;color:var(--faint);font:650 8.5px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .attack-rail .scenario-item{padding-block:8px}
+  .attack-rail .scenario-item strong{color:var(--threat)}
+  .attack-rail .scenario-item code{color:var(--warning)}
+
+  .architecture-label{position:absolute;left:40px;top:212px;color:var(--faint);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}
+  .architecture-rule{position:absolute;left:40px;right:40px;top:235px;height:1px;background:var(--line)}
+  .trust-boundary{position:absolute;left:250px;top:246px;width:510px;border-top:2px dashed var(--warning)}
+  .trust-boundary span{position:absolute;left:12px;top:-19px;color:var(--warning);font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  .service-node{position:absolute;z-index:2;display:flex;min-width:0;flex-direction:column;justify-content:center;border:1px solid var(--line-strong);border-left:4px solid var(--async);border-radius:12px;background:var(--surface);padding:11px 13px;transition:background .18s ease,border-color .18s ease,opacity .18s ease,transform .18s ease}
+  .service-node:hover{background:var(--surface-2);transform:translateY(-1px)}
+  .service-node.is-active{border-color:var(--accent);border-left-color:var(--accent);background:var(--accent-soft)}
+  .service-node.is-threat{border-color:var(--threat);border-left-color:var(--threat);background:var(--threat-soft)}
+  .service-node.is-defense{border-color:var(--defense);border-left-color:var(--defense);background:var(--defense-soft)}
+  .service-node.data{border-left-color:var(--defense)}
+  .service-node.external{border-left-color:var(--warning)}
+  .node-kind{color:var(--faint);font:700 8.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}
+  .service-node strong{display:block;margin-top:7px;font-size:16px;font-weight:760;letter-spacing:-.02em}
+  .service-node p{margin-top:3px;color:var(--dim);font-size:10.5px;line-height:1.25}
+  .node-metrics{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:8px;color:var(--faint);font:650 8.5px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .node-metrics b{color:var(--ink);font-weight:720}
+  .mini-stack{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:7px}
+  .mini-stack span{border:1px solid var(--line);border-radius:7px;background:var(--surface-2);padding:5px 4px;color:var(--dim);font:650 8px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center}
+
+  #node-browser{left:40px;top:335px;width:180px;height:88px}
+  #node-mercadopago{left:40px;top:500px;width:180px;height:88px}
+  #node-edge{left:270px;top:335px;width:200px;height:88px}
+  #node-tunnel{left:520px;top:335px;width:200px;height:88px}
+  #node-web{left:770px;top:335px;width:200px;height:88px}
+  #node-api{left:1020px;top:315px;width:230px;height:128px}
+  #node-ia{left:1300px;top:255px;width:220px;height:112px}
+  #node-data{left:1300px;top:455px;width:220px;height:112px}
+  #node-broker{left:1590px;top:255px;width:220px;height:112px}
+  #node-db{left:1590px;top:455px;width:220px;height:112px}
+  #node-workers{left:1870px;top:255px;width:300px;height:112px}
+  #node-panel{left:1870px;top:455px;width:300px;height:112px}
+
+  .guard-note{position:absolute;z-index:3;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);padding:7px 9px;color:var(--dim);font:650 8.5px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;transition:background .18s ease,border-color .18s ease,color .18s ease,opacity .18s ease}
+  .guard-note b{display:block;margin-bottom:3px;color:var(--ink);font-size:9px}
+  .guard-note.is-active{border-color:var(--defense);background:var(--defense-soft);color:var(--defense)}
+  .guard-note.is-threat{border-color:var(--threat);background:var(--threat-soft);color:var(--threat)}
+  #guard-tool{left:1030px;top:458px;width:210px}
+  #guard-isolation{left:1300px;top:382px;width:220px}
+  #guard-dlq{left:1590px;top:382px;width:220px}
+
+  .wire-layer{position:absolute;inset:0;z-index:1;width:2250px;height:1140px;overflow:visible;pointer-events:none}
+  .wire{fill:none;stroke:var(--line-strong);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;opacity:.72}
+  .wire.async{stroke:var(--async);stroke-dasharray:6 7}
+  .wire.data{stroke:var(--defense)}
+  .wire.boundary{stroke:var(--warning);stroke-dasharray:5 7}
+  .wire.attack{stroke:var(--threat);stroke-dasharray:4 8;opacity:.22}
+  .wire.defense{stroke:var(--defense);stroke-dasharray:5 7;opacity:.42}
+  .wire.is-active{stroke:var(--accent);stroke-width:3;opacity:1;animation:flow .55s linear infinite}
+  .wire.is-threat{stroke:var(--threat);stroke-width:3;opacity:1;animation:flow .42s linear infinite}
+  .wire.is-defense{stroke:var(--defense);stroke-width:3;opacity:1;animation:flow .55s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-13}}
+  .wire-label{fill:var(--faint);font:650 8.5px ui-monospace,SFMono-Regular,Menlo,monospace;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+  .wire-label.warning{fill:var(--warning)}
+  #packet{display:none;filter:none}
+  #packetHalo{fill:currentColor;opacity:.22}
+  #packetCore{fill:currentColor}
+
+  .defense-band{position:absolute;left:40px;top:875px;width:2170px;height:235px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .defense-band::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--defense)}
+  .agent-row{display:flex;height:100%;padding-left:4px}
+  .agent{position:relative;display:grid;min-width:0;grid-template-rows:auto auto 1fr;border-right:1px solid var(--line);padding:15px 16px;background:transparent;transition:background .18s ease,opacity .18s ease,transform .18s ease}
+  .agent:last-child{border-right:0}
+  #agent-morpheus{flex:0 0 336px}
+  #agent-trinity{flex:0 0 380px}
+  #agent-smith{flex:0 0 420px}
+  #agent-oracle{flex:0 0 420px}
+  #agent-neo{flex:1 1 auto}
+  .agent.is-active{background:var(--defense-soft);transform:translateY(-2px)}
+  .agent.is-threat{background:var(--threat-soft)}
+  .agent-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .agent-name{display:flex;align-items:baseline;gap:10px}
+  .agent-number{color:var(--defense);font:760 20px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .agent-name strong{font-size:15px;letter-spacing:-.02em}
+  .agent-mode{color:var(--faint);font:700 8px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:right}
+  .agent-role{margin:7px 0 10px;color:var(--dim);font-size:10.5px;line-height:1.3}
+  .agent-tools{display:flex;align-content:flex-start;flex-wrap:wrap;gap:5px}
+  .agent-tools code{border:1px solid var(--line);border-radius:7px;background:var(--surface-2);color:var(--dim);padding:5px 6px;font:650 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;transition:background .16s ease,border-color .16s ease,color .16s ease}
+  .agent-tools code.is-active{border-color:var(--defense);background:color-mix(in srgb,var(--defense) 12%,var(--surface));color:var(--defense)}
+  .agent-tools code.is-threat{border-color:var(--threat);background:var(--threat-soft);color:var(--threat)}
+  .agent-policy{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;color:var(--faint);font:650 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .agent-policy span{padding-right:7px;border-right:1px solid var(--line)}
+  .agent-policy span:last-child{border-right:0}
+  .defense-bus-label{position:absolute;left:48px;top:838px;color:var(--defense);font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .one-way-note{position:absolute;right:55px;top:838px;color:var(--defense);font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  .trace-panel{position:absolute;z-index:6;left:50%;bottom:12px;display:grid;width:min(780px,calc(100% - 24px));min-height:58px;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;transform:translateX(-50%);border:1px solid var(--line-strong);border-radius:12px;background:color-mix(in srgb,var(--surface) 95%,transparent);padding:10px 13px;box-shadow:0 12px 30px color-mix(in srgb,var(--bg) 70%,transparent);backdrop-filter:blur(10px)}
+  .trace-kind{color:var(--accent);font:750 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;white-space:nowrap}
+  .trace-copy{min-width:0}
+  .trace-copy strong{display:block;overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+  .trace-copy p{overflow:hidden;margin-top:2px;color:var(--dim);font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}
+  .trace-step{color:var(--faint);font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+
+  .graph-canvas.is-focused .service-node:not(.is-active):not(.is-threat):not(.is-defense),.graph-canvas.is-focused .guard-note:not(.is-active):not(.is-threat),.graph-canvas.is-focused .scenario-item:not(.is-active),.graph-canvas.is-focused .agent:not(.is-active):not(.is-threat){opacity:.34}
+  .graph-canvas.is-focused .wire:not(.is-active):not(.is-threat):not(.is-defense){opacity:.12}
+  .graph-canvas[data-view="cases"] .attack-rail,.graph-canvas[data-view="cases"] .defense-band{opacity:.28}
+  .graph-canvas[data-view="attacks"] .usecase-rail{opacity:.25}
+  .graph-canvas[data-view="defense"] .usecase-rail,.graph-canvas[data-view="defense"] .attack-rail{opacity:.3}
+  .rail,.defense-band{transition:opacity .18s ease}
+
+  @media (max-width:980px){
+    .topbar{min-height:58px;padding-block:8px}
+    .brand p,.system-facts span:nth-child(-n+2){display:none}
+    .toolbar{min-height:48px;padding-inline:8px}
+    .tool-button{min-height:32px;padding:6px 9px}
+    .toolbar-divider{display:none}
+    .tool-group.actions{flex:0 0 auto}
+  }
+  @media (max-width:620px){
+    .topbar{min-height:52px;padding-inline:10px}
+    .brand h1{font-size:17px}
+    .system-facts{display:none}
+    .toolbar{flex-wrap:wrap;align-content:center;gap:6px;padding-block:6px}
+    .tool-group.filters{order:1;width:100%;flex:1 1 100%}
+    .tool-group.actions{order:2;width:100%;overflow-x:auto;scrollbar-width:none}
+    .tool-group.actions::-webkit-scrollbar{display:none}
+    #playBtn,#speedBtn,#fullscreenBtn{display:none}
+    .trace-panel{bottom:8px;grid-template-columns:auto minmax(0,1fr);gap:8px;padding:8px 10px}
+    .trace-copy p{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+    .trace-step{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+  @media (prefers-reduced-transparency:reduce){.trace-panel{backdrop-filter:none;background:var(--surface)}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>IA desde cero — <b>arquitectura animada</b></h1>
-  <p class="sub">Cómo fluye cada escenario por la plataforma y dónde se bloquean los ataques. Referencia visual de <code>docs/ARCHITECTURE.md</code>.</p>
+<main class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Mapa operativo</h1>
+      <p>Casos de uso, arquitectura, ataques y respuesta agentic en un solo diagrama.</p>
+    </div>
+    <div class="system-facts" aria-label="Datos verificados del sistema">
+      <span><b>37</b> tools bridge</span><span><b>3</b> tools IA</span><span><b>5</b> acciones Neo</span><span><b>2</b> puertos publicados</span>
+    </div>
+  </header>
 
-  <div class="bar" id="scenarios"></div>
+  <nav class="toolbar" aria-label="Controles del mapa">
+    <div class="tool-group filters" role="group" aria-label="Vista del mapa">
+      <button class="tool-button" type="button" data-view="all" aria-pressed="true">Todo</button>
+      <button class="tool-button" type="button" data-view="cases" aria-pressed="false">Casos de uso</button>
+      <button class="tool-button" type="button" data-view="attacks" aria-pressed="false">Ataques</button>
+      <button class="tool-button" type="button" data-view="defense" aria-pressed="false">Agentes y tools</button>
+    </div>
+    <div class="tool-group actions">
+      <button class="tool-button primary" id="playBtn" type="button">Recorrer selección</button>
+      <button class="tool-button" id="speedBtn" type="button">1x</button><span class="toolbar-divider" aria-hidden="true"></span>
+      <button class="tool-button compact" id="zoomOut" type="button" aria-label="Alejar">-</button>
+      <button class="tool-button" id="zoomFit" type="button">Encajar</button><span class="tool-button" id="zoomLabel" aria-live="polite">100%</span>
+      <button class="tool-button compact" id="zoomIn" type="button" aria-label="Acercar">+</button>
+      <button class="tool-button" id="themeBtn" type="button">Tema</button><button class="tool-button" id="fullscreenBtn" type="button">Pantalla completa</button>
+    </div>
+  </nav>
 
-  <div class="stage">
-  <svg viewBox="0 0 1600 1000" role="img" aria-label="Diagrama animado de la arquitectura">
-    <defs></defs>
+  <section class="graph-viewport" id="viewport" tabindex="0" aria-label="Diagrama operativo desplazable. Arrastra para mover y usa los controles para acercar o alejar.">
+    <div class="graph-canvas" id="canvas" data-view="all">
+      <p class="canvas-caption">Flujo completo del proyecto</p><p class="topology-note">Raspberry Pi 4B / arm64 / CGNAT / course.events</p>
 
-    <!-- zonas -->
-    <rect class="zone" x="30"  y="70"  width="490" height="170" rx="18"/>
-    <text class="zlbl" x="52" y="98">USUARIO</text>
-    <rect class="zone" x="540" y="70"  width="620" height="170" rx="18"/>
-    <text class="zlbl" x="562" y="98">SÍNCRONO · HTTP — ALGUIEN ESPERA</text>
-    <rect class="zone" x="30"  y="340" width="1160" height="560" rx="18"/>
-    <text class="zlbl" x="52" y="368">ASÍNCRONO · NADIE ESPERA · COLAS Y DATOS</text>
+      <section class="rail usecase-rail" aria-labelledby="usecaseTitle">
+        <header class="rail-head"><strong id="usecaseTitle">Casos de uso del producto</strong><span>selecciona uno para recorrer su ruta</span></header>
+        <div class="rail-items">
+          <button class="scenario-item" type="button" data-scenario="discover"><strong>Descubrir</strong><small>Landing, regiones, SEO y AEO</small><code>web público</code></button>
+          <button class="scenario-item" type="button" data-scenario="account"><strong>Cuenta</strong><small>Registro, login y recuperación</small><code>sesión httpOnly</code></button>
+          <button class="scenario-item" type="button" data-scenario="course"><strong>Aprender</strong><small>Curso, lección y paywall</small><code>12 lecciones</code></button>
+          <button class="scenario-item" type="button" data-scenario="labs"><strong>Resolver labs</strong><small>Intentos, grading y progreso</small><code>36 labs</code></button>
+          <button class="scenario-item" type="button" data-scenario="chat"><strong>Tutor IA</strong><small>Chat, tools y recuperación</small><code>40 tools</code></button>
+          <button class="scenario-item" type="button" data-scenario="purchase"><strong>Comprar</strong><small>Checkout, webhook y PDF</small><code>HMAC + idempotencia</code></button>
+          <button class="scenario-item" type="button" data-scenario="progress"><strong>Progresar</strong><small>Logros, rangos y racha</small><code>12 rangos</code></button>
+          <button class="scenario-item" type="button" data-scenario="community"><strong>Competir</strong><small>Ranking y ligas con opt-in</small><code>sin nombre ni email</code></button>
+          <button class="scenario-item" type="button" data-scenario="profile"><strong>Gestionar</strong><small>Perfil, ajustes y privacidad</small><code>ES / EN / FR / PT</code></button>
+          <button class="scenario-item" type="button" data-scenario="admin"><strong>Operar</strong><small>Tutor, admin, soporte y auditoría</small><code>Access + roles</code></button>
+        </div>
+      </section>
 
-    <!-- cables -->
-    <path class="wire" id="P1"  d="M280,155 L300,155"/>
-    <path class="wire" id="P2"  d="M520,155 L560,155"/>
-    <path class="wire" id="P3"  d="M780,155 L900,155"/>
-    <path class="wire" id="P4"  d="M900,183 Q840,214 780,183"/>
-    <path class="wire" id="P5"  d="M660,200 L660,620"/>
-    <path class="wire" id="P6"  d="M520,620 L520,540 L410,540 L410,470"/>
-    <path class="wire" id="P7"  d="M780,178 L1180,178 L1180,700 L1160,700"/>
-    <path class="wire" id="P8"  d="M1030,620 L1030,470"/>
-    <path class="wire" id="P9"  d="M1030,790 L1030,850 L410,850 L410,470"/>
-    <path class="wire" id="P10" d="M280,695 L340,695 L340,260 L540,260 L540,178 L560,178"/>
-    <path class="wire" id="PDLQ" d="M1010,690 L1010,728"/>
+      <p class="architecture-label">Arquitectura de ejecución</p><div class="architecture-rule" aria-hidden="true"></div>
+      <div class="trust-boundary" aria-label="Límite de confianza CGNAT"><span>CGNAT: no existe puerto entrante</span></div>
 
-    <!-- la línea que NO existe: ai nunca toca la db -->
-    <path class="xline" d="M900,192 L858,192 L858,705 L680,705"/>
-    <text class="xlbl" transform="rotate(-90 846 470)" x="846" y="470" text-anchor="middle">✕ ai nunca toca la DB</text>
+      <svg class="wire-layer" viewBox="0 0 2250 1140" aria-hidden="true">
+        <defs>
+          <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="var(--defense)"/></marker>
+          <marker id="arrowGrey" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="var(--async)"/></marker>
+          <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="var(--threat)"/></marker>
+        </defs>
+        <path class="wire" id="r-browser-edge" d="M220 379 H270"/><path class="wire boundary" id="r-tunnel-edge" d="M520 369 H470" marker-end="url(#arrowGrey)"/>
+        <path class="wire" id="r-tunnel-web" d="M720 379 H770"/><path class="wire" id="r-web-api" d="M970 379 H1020"/>
+        <path class="wire" id="r-api-ia" d="M1250 344 C1270 344 1270 311 1300 311"/><path class="wire data" id="r-api-data" d="M1250 414 C1275 414 1275 511 1300 511"/>
+        <path class="wire data" id="r-data-db" d="M1520 511 H1590"/><path class="wire async" id="r-api-broker" d="M1135 315 V226 H1700 V255"/>
+        <path class="wire async" id="r-ia-broker" d="M1520 311 H1590"/><path class="wire async" id="r-broker-workers" d="M1810 311 H1870"/>
+        <path class="wire data" id="r-data-panel" d="M1520 545 V610 H2020 V567"/><path class="wire boundary" id="r-edge-panel" d="M370 335 V285 H2020 V455"/>
+        <path class="wire" id="r-mp-api" d="M220 544 H900 V429 H1020"/>
+        <path class="wire attack" id="a-bypass" d="M220 404 C410 615 590 615 770 404" marker-end="url(#arrowRed)"/>
+        <path class="wire attack" id="a-tool" d="M1300 344 C1270 375 1270 390 1250 390" marker-end="url(#arrowRed)"/>
+        <path class="wire attack" id="a-data" d="M1300 531 H1250" marker-end="url(#arrowRed)"/>
+        <path class="wire attack" id="a-webhook" d="M220 563 H900 V438 H1020" marker-end="url(#arrowRed)"/>
+        <path class="wire attack" id="a-queue" d="M1590 330 C1510 610 1870 610 1870 330" marker-end="url(#arrowRed)"/>
+        <path class="wire defense" id="d-finding-bus" d="M208 875 V848 H1390 V875"/><path class="wire defense" id="d-trinity-bus" d="M570 875 V848"/>
+        <path class="wire defense" id="d-smith-bus" d="M970 875 V848"/><path class="wire defense" id="d-broker-oracle" d="M1700 367 V835 H1390 V875" marker-end="url(#arrowGreen)"/>
+        <path class="wire defense" id="d-oracle-neo" d="M1390 875 V828 H1905 V875" marker-end="url(#arrowGreen)"/><path class="wire defense" id="d-neo-api" d="M2050 875 V610 H1135 V443" marker-end="url(#arrowGreen)"/>
+        <text class="wire-label" x="478" y="357">túnel saliente</text><text class="wire-label" x="988" y="368">HTTP</text><text class="wire-label" x="1260" y="300">turno / tool call</text>
+        <text class="wire-label" x="1264" y="488">10 operaciones</text><text class="wire-label" x="1538" y="499">pgx</text><text class="wire-label" x="1468" y="216">AMQP</text>
+        <text class="wire-label" x="1822" y="300">workers</text><text class="wire-label warning" x="508" y="557">webhook firmado</text><text class="wire-label" x="1745" y="824">sin retorno a Oracle</text>
+        <g id="packet"><circle id="packetHalo" r="12"/><circle id="packetCore" r="5"/></g>
+      </svg>
 
-    <!-- etiquetas de cable -->
-    <text class="wlbl" x="528" y="140">HTTP</text>
-    <text class="wlbl" x="796" y="140">HTTP</text>
-    <text class="wlbl" x="812" y="222">tool call</text>
-    <text class="wlbl" x="668" y="420">SQL</text>
-    <text class="wlbl" x="1188" y="440">AMQP</text>
-    <text class="wlbl" x="640" y="862">AMQP</text>
-    <text class="wlbl" x="348" y="252">webhook</text>
+      <article class="service-node" id="node-browser" data-node="browser"><span class="node-kind">Persona</span><strong>Navegador</strong><p>Un solo origen y cookie de sesión.</p></article>
+      <article class="service-node external" id="node-mercadopago" data-node="mercadopago"><span class="node-kind">Externo</span><strong>Mercado Pago</strong><p>Checkout y webhook firmado.</p></article>
+      <article class="service-node external" id="node-edge" data-node="edge"><span class="node-kind">Borde</span><strong>Cloudflare</strong><p>WAF, TLS y Access.</p></article>
+      <article class="service-node external" id="node-tunnel" data-node="tunnel"><span class="node-kind">Única puerta</span><strong>cloudflared</strong><p>Conexión saliente desde el Pi.</p></article>
+      <article class="service-node" id="node-web" data-node="web"><span class="node-kind">Publicado :4321</span><strong>web / Astro</strong><p>SSR, islands y proxy del API.</p></article>
+      <article class="service-node" id="node-api" data-node="api"><span class="node-kind">Publicado :8787</span><strong>api / TypeScript</strong><p>Sesión, paywall y ejecución de tools.</p><div class="node-metrics"><span><b>7</b> contenido</span><span><b>16</b> propio</span><span><b>7</b> producto</span><span><b>7</b> coordinar</span></div></article>
+      <article class="service-node" id="node-ia" data-node="ia"><span class="node-kind">Interno :8799</span><strong>ia / Python</strong><p>Modelo, loop, ontología y retrieval.</p><div class="node-metrics"><span><b>3 nativas</b></span><span>sin DATABASE_URL</span></div></article>
+      <article class="service-node data" id="node-data" data-node="data"><span class="node-kind">Interno :8788</span><strong>data / Go</strong><p>Único dueño de la credencial.</p><div class="node-metrics"><span><b>10</b> operaciones</span><span>sin SQL libre</span></div></article>
+      <article class="service-node" id="node-broker" data-node="broker"><span class="node-kind">Estado asíncrono</span><strong>RabbitMQ 4</strong><p>course.events, .dlx y retry.</p><div class="node-metrics"><span>topic</span><span>4 tiers</span><span>18 bindings</span></div></article>
+      <article class="service-node data" id="node-db" data-node="db"><span class="node-kind">Estado interno</span><strong>Postgres 17</strong><p>Schema Prisma, queries pgx.</p><div class="node-metrics"><span>46 columnas jamás</span><span>3 CHECK</span></div></article>
+      <article class="service-node" id="node-workers" data-node="workers"><span class="node-kind">Procesamiento asíncrono</span><strong>Workers y queue</strong><div class="mini-stack"><span>api-worker</span><span>ai-worker</span><span>queue :8790</span></div></article>
+      <article class="service-node" id="node-panel" data-node="panel"><span class="node-kind">Host separado</span><strong>panel / Astro</strong><p>Super-admin detrás de Access.</p><div class="node-metrics"><span>roles</span><span>cohortes</span><span>auditoría</span></div></article>
 
-    <!-- nodos -->
-    <g class="node" id="n-browser">
-      <rect class="body" x="60" y="110" width="220" height="90" rx="14"/>
-      <text class="t" x="170" y="150" text-anchor="middle">navegador</text>
-      <text class="s" x="170" y="176" text-anchor="middle">el estudiante</text>
-    </g>
-    <g class="node" id="n-web">
-      <rect class="body" x="300" y="110" width="220" height="90" rx="14"/>
-      <text class="t" x="410" y="150" text-anchor="middle">web · Astro</text>
-      <text class="s" x="410" y="176" text-anchor="middle">SSR + islands</text>
-    </g>
-    <g class="node" id="n-api">
-      <rect class="body" x="560" y="110" width="220" height="90" rx="14"/>
-      <text class="t" x="670" y="150" text-anchor="middle">api · TypeScript</text>
-      <text class="s" x="670" y="176" text-anchor="middle">sesiones · 37 tools · guard</text>
-    </g>
-    <g class="node" id="n-ai">
-      <rect class="body" x="900" y="110" width="220" height="90" rx="14"/>
-      <text class="t" x="1010" y="150" text-anchor="middle">ai · Python</text>
-      <text class="s" x="1010" y="176" text-anchor="middle">loop · providers · ontología</text>
-    </g>
-    <g class="node" id="n-apiw">
-      <rect class="body" x="300" y="380" width="220" height="90" rx="14"/>
-      <text class="t" x="410" y="420" text-anchor="middle">api-worker</text>
-      <text class="s" x="410" y="446" text-anchor="middle">misma imagen que api</text>
-    </g>
-    <g class="node" id="n-aiw">
-      <rect class="body" x="900" y="380" width="220" height="90" rx="14"/>
-      <text class="t" x="1010" y="420" text-anchor="middle">ai-worker</text>
-      <text class="s" x="1010" y="446" text-anchor="middle">embeddings · grading</text>
-    </g>
-    <g class="node" id="n-db">
-      <rect class="body" x="420" y="620" width="260" height="170" rx="14"/>
-      <text class="t" x="550" y="664" text-anchor="middle">db · Postgres 17</text>
-      <text class="s" x="550" y="688" text-anchor="middle">Prisma = schema · pg = queries</text>
-      <rect class="subbox" x="440" y="730" width="220" height="44" rx="8"/>
-      <text x="550" y="757" text-anchor="middle" style="font-size:12px;fill:var(--dim)">jobs · SKIP LOCKED</text>
-    </g>
-    <g class="node" id="n-broker">
-      <rect class="body" x="900" y="620" width="260" height="170" rx="14"/>
-      <text class="t" x="1030" y="664" text-anchor="middle">broker · RabbitMQ</text>
-      <text class="s" x="1030" y="688" text-anchor="middle">topic exchange — ES el orquestador</text>
-      <rect class="subbox dlq" x="920" y="730" width="220" height="44" rx="8"/>
-      <text x="1030" y="757" text-anchor="middle" style="font-size:12px;fill:var(--bad)">DLQ · dead-letter</text>
-    </g>
-    <g class="node" id="n-mp">
-      <rect class="body" x="60" y="650" width="220" height="90" rx="14"/>
-      <text class="t" x="170" y="690" text-anchor="middle">Mercado Pago</text>
-      <text class="s" x="170" y="716" text-anchor="middle">externo</text>
-    </g>
+      <aside class="guard-note" id="guard-tool"><b>Guard de tools</b>allowlist de argumentos, identidad solo desde cookie</aside>
+      <aside class="guard-note" id="guard-isolation"><b>P1-P5 + catálogo cerrado</b>7 tools gated, 3 nativas cercadas, no IA a DB</aside>
+      <aside class="guard-note" id="guard-dlq"><b>Entrega durable</b>claims, idempotencia, cuatro retries y DLQ</aside>
 
-    <!-- paquete animado -->
-    <g id="pktG" style="display:none">
-      <circle id="pkt" class="pkt" r="8" fill="currentColor"/>
-      <text id="pktLbl" class="plbl" y="-16" text-anchor="middle"></text>
-    </g>
-    <g id="fx"></g>
-  </svg>
-  </div>
+      <section class="rail attack-rail" aria-labelledby="attackTitle">
+        <header class="rail-head"><strong id="attackTitle">Ataques y fallos que el diseño contempla</strong><span>rojo: intento / verde: control o agente</span></header>
+        <div class="rail-items">
+          <button class="scenario-item" type="button" data-scenario="port"><strong>Puerto expuesto</strong><small>Entrada que evita el túnel</small><code>Morpheus</code></button>
+          <button class="scenario-item" type="button" data-scenario="credential"><strong>Credential stuffing</strong><small>8 fallos en 5 minutos</small><code>Oracle → Neo</code></button>
+          <button class="scenario-item" type="button" data-scenario="session"><strong>Reuso de sesión</strong><small>Token visto 3 veces</small><code>revoke_session</code></button>
+          <button class="scenario-item" type="button" data-scenario="identity"><strong>Inyección de identidad</strong><small>user_id en tool call</small><code>guard P3</code></button>
+          <button class="scenario-item" type="button" data-scenario="paywall"><strong>Fuga de pago</strong><small>25 bloqueos en 5 minutos</small><code>P1 / P4 / P5</code></button>
+          <button class="scenario-item" type="button" data-scenario="webhook"><strong>Webhook falso</strong><small>Firma inválida o replay</small><code>HMAC primero</code></button>
+          <button class="scenario-item" type="button" data-scenario="queue"><strong>Cola en tormenta</strong><small>Poison job y reintentos</small><code>claims + DLQ</code></button>
+          <button class="scenario-item" type="button" data-scenario="container"><strong>Escape de contenedor</strong><small>socket, caps, shell o secretos</small><code>Smith detecta / Neo contiene</code></button>
+          <button class="scenario-item" type="button" data-scenario="audit"><strong>Auditoría alterada</strong><small>Registro editado o truncado</small><code>hash chain</code></button>
+        </div>
+      </section>
 
-  <div class="note">
-    <span id="counter">– / –</span>
-    <span id="noteTxt">Elige un escenario arriba para ver el flujo paso a paso.</span>
-  </div>
+      <p class="defense-bus-label">defense.finding.* / defense.signal.*</p><p class="one-way-note">Oracle publica amenaza, Neo decide. No existe ciclo.</p>
+      <section class="defense-band" aria-label="Cinco agentes de defensa y sus tools">
+        <div class="agent-row">
+          <article class="agent" id="agent-morpheus" data-agent="morpheus"><div class="agent-head"><div class="agent-name"><span class="agent-number">1</span><strong>Morpheus</strong></div><span class="agent-mode">solo lectura</span></div><p class="agent-role">Cuida la puerta. Comprueba listeners públicos y que mira el namespace real del host.</p><div class="agent-tools"><code id="tool-morpheus-read">ReadOrReport</code><code id="tool-morpheus-parse">ParseProcNetTCP</code><code id="tool-morpheus-wild">WildcardListeners</code><code id="tool-morpheus-netns">verify netns</code></div></article>
+          <article class="agent" id="agent-trinity" data-agent="trinity"><div class="agent-head"><div class="agent-name"><span class="agent-number">2</span><strong>Trinity</strong></div><span class="agent-mode">propone reglas</span></div><p class="agent-role">Cuida el host. Audita SSH, listeners y updates. Renderiza nftables para revisión humana, nunca lo aplica.</p><div class="agent-tools"><code id="tool-trinity-ssh">SSHConfig</code><code id="tool-trinity-listen">WildcardListeners</code><code id="tool-trinity-update">check updates</code><code id="tool-trinity-nft">Ruleset()</code></div></article>
+          <article class="agent" id="agent-smith" data-agent="smith"><div class="agent-head"><div class="agent-name"><span class="agent-number">3</span><strong>Smith</strong></div><span class="agent-mode">sin red / sin caps</span></div><p class="agent-role">Ataca nuestra propia imagen y mide el blast radius real de una intrusión dentro del contenedor.</p><div class="agent-tools"><code id="tool-smith-caps">Capabilities</code><code id="tool-smith-socket">DockerSocket</code><code id="tool-smith-root">RunningAsRoot</code><code id="tool-smith-env">SecretsInEnvironment</code><code id="tool-smith-shell">detect shell</code><code id="tool-smith-rootfs">probe rootfs</code></div></article>
+          <article class="agent" id="agent-oracle" data-agent="oracle"><div class="agent-head"><div class="agent-name"><span class="agent-number">4</span><strong>Oracle</strong></div><span class="agent-mode">read-only por construcción</span></div><p class="agent-role">Consume señales, agrupa por sujeto en una ventana de 5 minutos y publica amenazas puntuadas.</p><div class="agent-tools"><code id="tool-oracle-signal">consume signal</code><code id="tool-oracle-window">window score</code><code id="tool-oracle-threshold">thresholds</code><code id="tool-oracle-publish">publish threat</code></div></article>
+          <article class="agent" id="agent-neo" data-agent="neo"><div class="agent-head"><div class="agent-name"><span class="agent-number">5</span><strong>Neo</strong></div><span class="agent-mode">único actor / propose por defecto</span></div><p class="agent-role">Valida objetivo y TTL, limita el ritmo, actúa con allowlist cerrada o escala con el comando exacto.</p><div class="agent-tools"><code id="tool-neo-revoke">revoke_session</code><code id="tool-neo-throttle">throttle_identity</code><code id="tool-neo-edge">block_edge</code><code id="tool-neo-quarantine">quarantine_container</code><code id="tool-neo-ban">ban_host_ip</code><code id="tool-neo-audit">audit.Verify</code></div><div class="agent-policy"><span>10 acciones / 10 min</span><span>todo expira</span><span>never-touch</span><span>audit hash-chain</span><span>sin shell</span></div></article>
+        </div>
+      </section>
+    </div>
 
-  <div class="legend">
-    <span class="chip" style="color:var(--hi)"><span class="dot"></span>HTTP síncrono</span>
-    <span class="chip" style="color:var(--warn)"><span class="dot"></span>asíncrono · broker</span>
-    <span class="chip" style="color:var(--ok)"><span class="dot"></span>base de datos</span>
-    <span class="chip" style="color:var(--bad)"><span class="dot"></span>ataque bloqueado</span>
-  </div>
-
-  <p class="foot">Regla de transporte: HTTP en el camino que un humano espera · el broker para todo lo demás.</p>
-</div>
+    <aside class="trace-panel" id="tracePanel" aria-live="polite"><span class="trace-kind" id="traceKind">Vista completa</span><div class="trace-copy"><strong id="traceTitle">Todo el sistema está visible</strong><p id="traceText">Selecciona un caso de uso o un ataque. El mapa resaltará la ruta, el control y las tools que intervienen.</p></div><span class="trace-step" id="traceStep">0 / 0</span></aside>
+  </section>
+</main>
 
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const C={http:"#5C7BFF",async:"#FFB03A",db:"#2ED47A",bad:"#FF6B6B"};
-const S={token:0,paused:false,speed:1,playing:false};
-
-/* ---------- primitivas de animación ---------- */
-function wire(id){return $(id);}
-function lit(id,on){wire(id).classList.toggle("lit",on);}
-function flash(nodeId,bad){
-  const n=$(nodeId); n.classList.remove("on","bad"); void n.getBBox();
-  n.classList.add(bad?"bad":"on");
-  setTimeout(()=>n.classList.remove("on","bad"),1000);
-}
-function showPkt(color,label){
-  const g=$("pktG"); g.style.display="block";
-  g.style.color=color; $("pkt").setAttribute("fill",color);
-  const l=$("pktLbl"); l.textContent=label||""; l.setAttribute("fill",color);
-}
-function hidePkt(){$("pktG").style.display="none";}
-function movePkt(pt){$("pktG").setAttribute("transform",`translate(${pt.x},${pt.y})`);}
-
-async function travel(pathId,opts={},tok){
-  const p=wire(pathId), len=p.getTotalLength();
-  const dur=(opts.dur||950)/S.speed/(RM?8:1);
-  const from=opts.from??0, to=opts.to??1;
-  showPkt(opts.color||C.http,opts.label);
-  lit(pathId,true);
-  let acc=0,last=performance.now();
-  while(acc<dur){
-    if(tok!==S.token){hidePkt();lit(pathId,false);return false;}
-    if(!S.paused){acc+=performance.now()-last;}
-    last=performance.now();
-    const e=Math.min(1,acc/dur), ease=e<.5?2*e*e:1-Math.pow(-2*e+2,2)/2;
-    movePkt(p.getPointAtLength((from+(to-from)*ease)*len));
-    await sleep(16);
-  }
-  lit(pathId,false);
-  if(!opts.keep)hidePkt();
-  return tok===S.token;
-}
-function boom(pathId,frac,tok){
-  const p=wire(pathId),pt=p.getPointAtLength(p.getTotalLength()*frac);
-  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
-  g.setAttribute("class","boom");
-  g.setAttribute("transform",`translate(${pt.x},${pt.y})`);
-  g.innerHTML=`<circle r="14"/><text text-anchor="middle" y="9">✕</text>`;
-  $("fx").appendChild(g);
-  setTimeout(()=>g.remove(),900);
-}
-async function note(html,k,n){
-  $("counter").textContent=`${k} / ${n}`;
-  $("noteTxt").innerHTML=html;
-  await sleep((650)/S.speed);
-}
-async function pulse(nodeId,bad,tok){
-  flash(nodeId,bad); await sleep(420/S.speed);
-  if(tok!==S.token)return false;
-  flash(nodeId,bad); await sleep(420/S.speed);
-  return tok===S.token;
-}
-
-/* ---------- escenarios ---------- */
-const SCENARIOS=[
-{id:"chat",name:"1 · Chat síncrono",steps:[
- async t=>{await note("El estudiante escribe en el chat. <b>Un humano está esperando</b> → esto va por HTTP síncrono.",1,8);
-   if(!await travel("P1",{color:C.http,label:"escribe"},t))return 0;flash("n-web");return 1},
- async t=>{await note("La petición llega a <b>api</b> con la cookie de sesión. La identidad vive en la cookie — nunca un userId suelto.",2,8);
-   if(!await travel("P2",{color:C.http,label:"POST /api/chat"},t))return 0;flash("n-api");return 1},
- async t=>{await note("api llama al servicio de IA: <b>POST /agente/turno</b> con la cookie opaca.",3,8);
-   if(!await travel("P3",{color:C.http},t))return 0;flash("n-ai");return 1},
- async t=>{await note("El modelo pide una herramienta: <b>mi_progreso</b>. Pero ai <b>no tiene base de datos</b> — tiene que pedirle a api.",4,8);
-   if(!await travel("P4",{color:C.http,label:"tool call"},t))return 0;flash("n-api");return 1},
- async t=>{await note("api ejecuta la tool y devuelve <b>solo los datos de ESTE usuario</b>. La prueba P1–P4 lo garantiza.",5,8);
-   if(!await travel("P4",{color:C.db,from:1,to:0},t))return 0;flash("n-ai");return 1},
- async t=>{await note("El modelo termina su respuesta y la devuelve a api.",6,8);
-   if(!await travel("P3",{color:C.http,from:1,to:0},t))return 0;flash("n-api");return 1},
- async t=>{await note("api → web.",7,8);
-   if(!await travel("P2",{color:C.http,from:1,to:0},t))return 0;flash("n-web");return 1},
- async t=>{await note("Se pinta la respuesta. <b>Todo el turno fue HTTP</b>: alguien esperaba en cada salto.",8,8);
-   if(!await travel("P1",{color:C.http,from:1,to:0},t))return 0;flash("n-browser");return 1},
-],end:"Regla de transporte: <b>HTTP en el camino del humano</b>. Meter un broker aquí sería latencia y maquinaria gratis."},
-
-{id:"pago",name:"2 · Webhook de pago",steps:[
- async t=>{await note("Mercado Pago notifica: <b>pago aprobado</b>.",1,6);
-   if(!await travel("P10",{color:C.async,label:"webhook"},t))return 0;flash("n-api");return 1},
- async t=>{await note("api <b>verifica la firma HMAC antes de tocar nada</b>. Sin firma válida, ni se encola.",2,6);
-   if(!await pulse("n-api",false,t))return 0;return 1},
- async t=>{await note("<b>Verificar → encolar → 200</b>. El job cae en la tabla jobs de Postgres (idempotente por key).",3,6);
-   if(!await travel("P5",{color:C.db,label:"enqueue"},t))return 0;flash("n-db");return 1},
- async t=>{await note("api responde <b>200 en milisegundos</b>. MP deja de reintentar. El trabajo pesado ya no depende de su retry policy.",4,6);
-   if(!await travel("P10",{color:C.async,from:1,to:0,label:"200 OK"},t))return 0;flash("n-mp");return 1},
- async t=>{await note("api-worker toma el job con <b>FOR UPDATE SKIP LOCKED</b> — solo los tipos que sabe correr.",5,6);
-   if(!await travel("P6",{color:C.async},t))return 0;flash("n-apiw");return 1},
- async t=>{await note("Escribe <b>paid = 1</b>. Backoff exponencial con techo; tras 6 intentos el job queda <b>muerto — visible, nunca borrado</b>.",6,6);
-   if(!await travel("P6",{color:C.db,from:1,to:0},t))return 0;flash("n-db");return 1},
-],end:"El webhook <b>nunca</b> hace el trabajo en la respuesta. Un pago perdido sin rastro es peor que uno visible en estado muerto."},
-
-{id:"broker",name:"3 · RabbitMQ entre servicios",steps:[
- async t=>{await note("api publica en el topic: <b>embeddings.reindex</b>. Nadie espera la respuesta.",1,5);
-   if(!await travel("P7",{color:C.async,label:"publish"},t))return 0;flash("n-broker");return 1},
- async t=>{await note("<b>ai-worker consume</b>. Es otro contenedor, en otro lenguaje, <b>sin credenciales de la DB</b> — por eso va por broker y no por tabla.",2,5);
-   if(!await travel("P8",{color:C.async},t))return 0;flash("n-aiw");return 1},
- async t=>{await note("Supón que el job <b>falla</b> y agota sus reintentos…",3,5);
-   if(!await travel("P8",{color:C.bad,to:.45,label:"error"},t))return 0;
-   boom("P8",.45,t);await sleep(500/S.speed);return 1},
- async t=>{await note("El mensaje no se pierde: va a la <b>DLQ</b> y queda visible para intervenir.",4,5);
-   if(!await travel("PDLQ",{color:C.bad},t))return 0;flash("n-broker");return 1},
- async t=>{await note("api-worker consume <b>sus propios tipos</b> de job. Un tipo que nadie conoce queda pendiente y se cuenta como <b>huérfano</b> — un job que nadie toma y nadie cuenta es un job perdido en silencio.",5,5);
-   if(!await travel("P9",{color:C.async},t))return 0;flash("n-apiw");return 1},
-],end:"<b>No hay contenedor orquestador</b>: RabbitMQ ES el orquestador (routing durable, DLQ, back-pressure). La política vive como librería en cada servicio."},
-
-{id:"paywall",name:"4 · Paywall (P4)",steps:[
- async t=>{await note("Sin haber comprado, el estudiante intenta abrir la <b>lección 2</b> — contenido <b>de_pago</b>.",1,5);
-   if(!await travel("P1",{color:C.http},t))return 0;flash("n-web");return 1},
- async t=>{await note("web pide el contenido a api.",2,5);
-   if(!await travel("P2",{color:C.http},t))return 0;flash("n-api");return 1},
- async t=>{await note("api verifica la compra: <b>verifica_compra</b>. Sin ella, ninguna herramienta puede devolver columnas de_pago — eso es <b>P4</b>.",3,5);
-   if(!await travel("P5",{color:C.db},t))return 0;flash("n-db");return 1},
- async t=>{await note("<b>402 Payment Required</b>. El paywall no es UI: está en la herramienta y en la ontología.",4,5);
-   if(!await travel("P2",{color:C.bad,from:1,to:0,label:"402"},t))return 0;flash("n-web",true);return 1},
- async t=>{await note("La web muestra el paywall. Dos ejes ortogonales: <b>clase</b> (¿de quién es el dato?) × <b>muro</b> (¿quién pagó?). Colapsarlos fue el bug real — el corpus de pago se salió con la prueba en verde.",5,5);
-   if(!await travel("P1",{color:C.http,from:1,to:0},t))return 0;flash("n-browser");return 1},
-],end:"<b>gratis|de_pago</b> es ortogonal a <b>publico|propio|agregado|jamas</b>. P4 existe porque ese bug ya pasó una vez."},
-
-{id:"atk",name:"5 · Ataques",atk:true,steps:[
- async t=>{await note("<b>Ataque 1</b> · El modelo intenta pasar <b>{user_id: 42}</b> en la tool call para espiar a otro usuario.",1,4);
-   if(!await travel("P4",{color:C.bad,to:.55,label:"{user_id:42}"},t))return 0;
-   boom("P4",.55,t);flash("n-api",true);await sleep(500/S.speed);
-   await note("<b>BLOQUEADO · P3</b> — el bridge descarta el argumento y lo anota en el log. Ninguna tool acepta la identidad de otra persona. (Antes se devolvía como _ignorado: confirmarle al modelo qué campo rechazaste es enseñarle a insistir.)",1,4);return 1},
- async t=>{await note("<b>Ataque 2</b> · Una tool intenta devolver <b>labs.solution</b> — columna de clase <b>jamas</b>.",2,4);
-   if(!await travel("P5",{color:C.bad,to:.5,label:"solution"},t))return 0;
-   boom("P5",.5,t);flash("n-db",true);await sleep(500/S.speed);
-   await note("<b>BLOQUEADO · P1</b> — forbiddenColumns bloquea toda columna jamas, y <b>falla cerrado</b>: una tabla sin declarar lanza error en vez de devolver [].",2,4);return 1},
- async t=>{await note("<b>Ataque 3</b> · Webhook con <b>firma falsa</b> (replay de un evento viejo).",3,4);
-   if(!await travel("P10",{color:C.bad,to:.4,label:"firma ✗"},t))return 0;
-   boom("P10",.4,t);flash("n-api",true);await sleep(500/S.speed);
-   await note("<b>BLOQUEADO · 401</b> — HMAC inválido. Ni siquiera se encola. Verificar la firma es lo primero que pasa.",3,4);return 1},
- async t=>{await note("<b>Ataque 4</b> · Una contraseña filtrada en un breach intenta entrar por login.",4,4);
-   if(!await pulse("n-db",true,t))return 0;
-   await note("<b>DEFENDIDO</b> — <b>pnpm audit:passwords</b> prueba cada contraseña que este repo publicó alguna vez contra cada cuenta viva, con el mismo scrypt del login, y sale 1 si hay match. Corre contra cualquier DB que despliegues.",4,4);return 1},
-],end:"Defensa en profundidad: la prueba P1–P4 corre en los tests, en <b>ai-verify</b> y <b>en el docker build</b>. Una imagen con una fuga declarada no se construye."},
+const canvas=$("canvas"),viewport=$("viewport"),packet=$("packet");
+const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const CANVAS={width:2250,height:1140};
+const TONES={case:"var(--accent)",threat:"var(--threat)",defense:"var(--defense)"};
+const state={scale:1,fit:1,x:0,y:0,drag:null,token:0,paused:false,speed:1,current:"account"};
+const commonEntry=[
+  {path:"r-browser-edge",nodes:["browser","edge"],note:"La petición sale del navegador y llega al borde de Cloudflare."},
+  {path:"r-tunnel-edge",reverse:true,nodes:["edge","tunnel"],note:"La petición vuelve por la conexión que cloudflared abrió hacia afuera. No existe un puerto entrante."},
+  {path:"r-tunnel-web",nodes:["tunnel","web"],note:"Astro recibe la solicitud, renderiza y mantiene el API bajo el mismo origen."}
 ];
-
-/* ---------- motor ---------- */
-async function play(i){
-  const tok=++S.token;
-  document.querySelectorAll(".pill").forEach((b,j)=>b.classList.toggle("on",j===i));
-  $("fx").innerHTML=""; hidePkt(); S.playing=true; $("btnPlay").textContent="⏸ pausa"; S.paused=false;
-  const sc=SCENARIOS[i];
-  for(let k=0;k<sc.steps.length;k++){
-    if(tok!==S.token)return;
-    if(!await sc.steps[k](t=>t===tok?1:0)&&tok===S.token){}
-    if(tok!==S.token)return;
-    await sleep(500/S.speed);
-  }
-  if(tok!==S.token)return;
-  $("counter").textContent="fin";
-  $("noteTxt").innerHTML=sc.end;
-  S.playing=false; $("btnPlay").textContent="▶ repetir";
-}
-
-/* ---------- UI ---------- */
-const bar=$("scenarios");
-SCENARIOS.forEach((sc,i)=>{
-  const b=document.createElement("button");
-  b.className="pill"+(sc.atk?" atk":""); b.textContent=sc.name;
-  b.onclick=()=>play(i); bar.appendChild(b);
-});
-const ctl=document.createElement("div"); ctl.className="ctl";
-ctl.innerHTML=`<button id="btnPlay">⏸ pausa</button><button id="btnRe">⟲ reiniciar</button><button id="btnSpd">1×</button>`;
-bar.appendChild(ctl);
-let cur=0;
-$("btnPlay").onclick=()=>{
-  if(S.playing){S.paused=!S.paused;$("btnPlay").textContent=S.paused?"▶ seguir":"⏸ pausa";}
-  else play(cur);
+const SCENARIOS={
+  discover:{kind:"case",title:"Descubrir el curso",summary:"Landing, contenido público, región, SEO y AEO terminan en Astro sin abrir el núcleo interno.",steps:[...commonEntry]},
+  account:{kind:"case",title:"Crear y recuperar una cuenta",summary:"Registro, login, recuperación y cierre de sesiones usan la cookie como única identidad.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API valida credenciales, roles y límites. La sesión se emite en una cookie httpOnly."},{path:"r-api-data",nodes:["api","data"],note:"Data recibe una operación nombrada. No recibe SQL libre."},{path:"r-data-db",nodes:["data","db"],note:"Postgres conserva cuenta, fingerprint de recuperación y versión de sesión."}]},
+  course:{kind:"case",title:"Abrir curso y lecciones",summary:"El índice es público; la lección 1 es gratuita y las lecciones 2-12 se resuelven con compra real.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API resuelve la sesión y el derecho de acceso antes de devolver contenido."},{path:"r-api-data",nodes:["api","data"],guards:["guard-isolation"],note:"La operación de datos está cerrada y el paywall viaja con el actor resuelto desde la cookie."},{path:"r-data-db",nodes:["data","db"],note:"Solo las columnas permitidas salen de Postgres."}]},
+  labs:{kind:"case",title:"Resolver un laboratorio",summary:"Cada intento se califica, queda persistido y actualiza progreso, logro y siguiente paso.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API recibe el intento y valida acceso al lab."},{path:"r-api-data",nodes:["api","data"],guards:["guard-isolation"],note:"Data ejecuta la forma de lectura y escritura permitida para grading."},{path:"r-data-db",nodes:["data","db"],note:"El intento queda persistido sin exponer labs.solution al modelo."}]},
+  chat:{kind:"case",title:"Conversar con el tutor IA",summary:"El turno humano es HTTP. IA puede usar 3 tools nativas y 39 tools bridge, siempre cercadas por catálogo.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API conserva la sesión opaca y envía el turno al servicio IA."},{path:"r-api-ia",nodes:["api","ia"],note:"IA ofrece 39 tools bridge y 3 nativas: entender_pregunta, ampliar_consulta y mapa_de_conceptos."},{path:"a-tool",tone:"defense",nodes:["ia","api"],guards:["guard-tool"],note:"Una tool bridge vuelve al API. Los argumentos no declarados se eliminan y no se reflejan al modelo."},{path:"r-api-data",nodes:["api","data"],guards:["guard-isolation"],note:"Si necesita datos, el API ejecuta la operación con el usuario de la cookie. Python nunca recibe userId."},{path:"r-data-db",nodes:["data","db"],note:"La respuesta contiene solo la forma permitida para ese actor."}]},
+  purchase:{kind:"case",title:"Comprar y procesar el pago",summary:"El navegador inicia el checkout; el webhook se verifica, se registra de forma idempotente y el trabajo continúa por cola.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API crea la preferencia de pago sin confiar en datos de cliente."},{path:"r-mp-api",nodes:["mercadopago","api"],note:"Mercado Pago confirma por webhook. La firma HMAC se verifica antes de tocar estado."},{path:"r-api-data",nodes:["api","data"],note:"La compra aprobada se persiste con una clave idempotente."},{path:"r-data-db",nodes:["data","db"],note:"El derecho de acceso queda en Postgres."},{path:"r-api-broker",nodes:["api","broker"],guards:["guard-dlq"],note:"Tareas posteriores como PDF o correo viajan por el broker."},{path:"r-broker-workers",nodes:["broker","workers"],note:"Un worker procesa con retry y DLQ. Nadie mantiene abierto el webhook."}]},
+  progress:{kind:"case",title:"Ver progreso, logros y rango",summary:"Progreso, racha, historial, pendientes y logros son tools propias aisladas por sesión.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El dashboard o el tutor invoca la familia propio, formada por 16 tools."},{path:"r-api-data",nodes:["api","data"],note:"La identidad se resuelve en servidor, nunca en args."},{path:"r-data-db",nodes:["data","db"],note:"Postgres devuelve intentos y agregados del actor actual."}]},
+  community:{kind:"case",title:"Participar en ranking y ligas",summary:"Solo entra quien hace opt-in con alias. La salida pública no contiene nombre ni correo.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API aplica opt-in, alias y política de roles."},{path:"r-api-data",nodes:["api","data"],note:"Data devuelve la forma agregada autorizada."},{path:"r-data-db",nodes:["data","db"],note:"El cierre semanal conserva standings durables."},{path:"r-api-broker",nodes:["api","broker"],note:"El cierre de ligas es trabajo asíncrono con back-pressure."},{path:"r-broker-workers",nodes:["broker","workers"],note:"El worker procesa el cierre fuera del camino humano."}]},
+  profile:{kind:"case",title:"Gestionar perfil y privacidad",summary:"Preferencias, idioma, tema, ranking opt-in, datos y borrado de cuenta pasan por la misma sesión.",steps:[...commonEntry,{path:"r-web-api",nodes:["web","api"],note:"El API valida la sesión, el rol y el cambio solicitado."},{path:"r-api-data",nodes:["api","data"],note:"Data restringe la operación a la cuenta actual."},{path:"r-data-db",nodes:["data","db"],note:"El borrado es soft delete, libera el correo y conserva intentos."}]},
+  admin:{kind:"case",title:"Operar como tutor o administrador",summary:"Tutor usa cohortes auditadas. Super-admin entra por un host separado detrás de Cloudflare Access.",steps:[{path:"r-browser-edge",nodes:["browser","edge"],note:"Cloudflare Access verifica la entrada administrativa."},{path:"r-edge-panel",nodes:["edge","panel"],note:"El panel separado no comparte la superficie pública."},{path:"r-data-panel",reverse:true,nodes:["panel","data"],note:"El panel consulta a través de Data y registra cambios de roles."},{path:"r-data-db",nodes:["data","db"],note:"Data sigue siendo el único proceso con credencial de Postgres."}]},
+  port:{kind:"threat",title:"Intento de exposición directa",summary:"Un puerto wildcard crearía una entrada fuera del túnel y expondría el Pi a la LAN.",agents:["morpheus"],tools:["tool-morpheus-read","tool-morpheus-parse","tool-morpheus-wild","tool-morpheus-netns"],steps:[{path:"a-bypass",tone:"threat",nodes:["browser","web"],note:"El intento busca saltarse Cloudflare y llegar directo a un listener."},{path:"d-finding-bus",tone:"defense",agents:["morpheus"],note:"Morpheus lee /proc/net/tcp en el namespace del host y publica el finding."}]},
+  credential:{kind:"threat",title:"Credential stuffing",summary:"Ocho fallos por cuenta dentro de la ventana activan una amenaza y una contención reversible.",agents:["oracle","neo"],tools:["tool-oracle-signal","tool-oracle-window","tool-oracle-threshold","tool-oracle-publish","tool-neo-throttle"],steps:[...commonEntry,{path:"r-web-api",tone:"threat",nodes:["web","api"],note:"El API emite auth.login_failed con el sujeto normalizado."},{path:"r-api-broker",tone:"defense",nodes:["api","broker"],note:"La señal entra a course.events."},{path:"d-broker-oracle",tone:"defense",agents:["oracle"],note:"Oracle cuenta ocho fallos en cinco minutos y publica una amenaza alta."},{path:"d-oracle-neo",tone:"defense",agents:["oracle","neo"],note:"Neo valida el objetivo y propone throttle_identity con TTL."},{path:"d-neo-api",tone:"defense",nodes:["api"],agents:["neo"],note:"En enforce, el API aplica el throttle. En propose, Neo escala la acción exacta."}]},
+  session:{kind:"threat",title:"Reuso sospechoso de sesión",summary:"Tres señales auth.session_reuse generan amenaza crítica y revocación de una sola sesión.",agents:["oracle","neo"],tools:["tool-oracle-signal","tool-oracle-window","tool-oracle-publish","tool-neo-revoke"],steps:[...commonEntry,{path:"r-web-api",tone:"threat",nodes:["web","api"],note:"El API detecta el patrón de reuso y publica la señal."},{path:"r-api-broker",tone:"defense",nodes:["api","broker"],note:"RabbitMQ desacopla la detección del turno humano."},{path:"d-broker-oracle",tone:"defense",agents:["oracle"],note:"Oracle cruza el umbral crítico dentro de la ventana."},{path:"d-oracle-neo",tone:"defense",agents:["oracle","neo"],note:"Neo decide revoke_session. La persona recupera acceso iniciando sesión otra vez."},{path:"d-neo-api",tone:"defense",nodes:["api"],agents:["neo"],note:"La revocación la ejecuta el API porque defense no tiene DATABASE_URL."}]},
+  identity:{kind:"threat",title:"Inyección de identidad en una tool",summary:"El modelo intenta introducir user_id, constructor o una clave no declarada para ampliar su alcance.",agents:["oracle","neo"],tools:["tool-oracle-signal","tool-oracle-window","tool-neo-throttle"],steps:[{path:"r-api-ia",tone:"threat",nodes:["api","ia"],note:"Texto no confiable induce una tool call con argumentos adicionales."},{path:"a-tool",tone:"threat",nodes:["ia","api"],guards:["guard-tool"],note:"El allowlist crea un objeto nuevo solo con claves declaradas. La identidad inyectada no llega a la tool."},{path:"r-api-broker",tone:"defense",nodes:["api","broker"],note:"El rechazo se registra y puede emitir tool.denied."},{path:"d-broker-oracle",tone:"defense",agents:["oracle"],note:"Doce rechazos por sujeto en cinco minutos cruzan el umbral de Oracle."},{path:"d-oracle-neo",tone:"defense",agents:["oracle","neo"],note:"Neo puede proponer throttle_identity, sujeto a TTL y límite global."}]},
+  paywall:{kind:"threat",title:"Extracción de contenido de pago",summary:"El intento busca lecciones cerradas o la columna labs.solution por una tool directa o nativa.",agents:["oracle"],tools:["tool-oracle-signal","tool-oracle-window","tool-oracle-publish"],steps:[{path:"r-api-ia",tone:"threat",nodes:["api","ia"],note:"El prompt intenta desviar una tool hacia contenido gated."},{path:"a-data",tone:"threat",nodes:["api","data"],guards:["guard-isolation"],note:"P1-P5, el catálogo de 10 operaciones y la fence de composición fallan cerrado."},{path:"r-api-broker",tone:"defense",nodes:["api","broker"],note:"El bloqueo puede emitir paywall.blocked sin entregar contenido."},{path:"d-broker-oracle",tone:"defense",agents:["oracle"],note:"Oracle observa volumen anómalo. La compra nunca la decide IA."}]},
+  webhook:{kind:"threat",title:"Webhook falsificado o repetido",summary:"Una firma inválida se rechaza antes de encolar. Una repetición válida no duplica la compra.",steps:[{path:"a-webhook",tone:"threat",nodes:["mercadopago","api"],note:"El evento llega con firma falsa, timestamp viejo o identificador repetido."},{path:"r-api-data",tone:"defense",nodes:["api","data"],note:"Solo una firma válida alcanza la operación idempotente. La inválida termina en 401."},{path:"r-data-db",tone:"defense",nodes:["data","db"],note:"La clave idempotente evita acreditar dos veces el mismo pago."}]},
+  queue:{kind:"threat",title:"Poison job o tormenta de reintentos",summary:"Un mensaje que siempre falla no puede bloquear toda la cola ni reintentarse para siempre.",steps:[{path:"r-api-broker",tone:"threat",nodes:["api","broker"],guards:["guard-dlq"],note:"El mensaje entra con envelope, claims e idempotency key."},{path:"a-queue",tone:"defense",nodes:["broker","workers"],guards:["guard-dlq"],note:"Cuatro tiers separan backoff de consumo. Al agotarse, el mensaje va a DLQ y deja de competir con trabajo sano."}]},
+  container:{kind:"threat",title:"Escalada dentro de un contenedor",summary:"El atacante busca capabilities, docker.sock, root, secretos, un shell o un rootfs escribible.",agents:["smith","neo"],tools:["tool-smith-caps","tool-smith-socket","tool-smith-root","tool-smith-env","tool-smith-shell","tool-smith-rootfs","tool-neo-quarantine"],steps:[{path:"d-smith-bus",tone:"threat",agents:["smith"],note:"Smith inspecciona el estado real del proceso sin red, credenciales ni capabilities."},{path:"d-finding-bus",tone:"defense",agents:["smith"],note:"El finding se publica y falla CI si supera el umbral configurado."},{path:"d-oracle-neo",tone:"defense",agents:["neo"],note:"Una amenaza validada puede proponer quarantine_container. Desconecta la red y deja el proceso vivo para conservar evidencia."}]},
+  audit:{kind:"threat",title:"Manipulación del registro de defensa",summary:"Editar, borrar o truncar por delante el audit log rompe la cadena y se detecta al verificar.",agents:["neo"],tools:["tool-neo-audit"],steps:[{path:"d-oracle-neo",tone:"threat",agents:["neo"],note:"Cada decisión se registra antes de ejecutar la acción."},{path:"d-neo-api",tone:"defense",agents:["neo"],note:"El registro guarda verdict, target, TTL, argv, undo, motivo y finding_id."},{path:"d-oracle-neo",tone:"defense",agents:["neo"],note:"audit.Verify detecta edición, eliminación y truncado frontal. No se dibuja un retorno de Neo a Oracle."}]}
 };
-$("btnRe").onclick=()=>play(cur);
-$("btnSpd").onclick=e=>{S.speed=S.speed===1?2:1;e.target.textContent=S.speed+"×";};
-document.querySelectorAll(".pill").forEach((b,i)=>b.addEventListener("click",()=>cur=i));
-addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();$("btnPlay").click();}});
 
-play(0);
+function setTheme(theme,persist=true){document.documentElement.dataset.theme=theme;if(persist)localStorage.setItem("architecture-theme",theme)}
+setTheme(localStorage.getItem("architecture-theme")||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"),false);
+$("themeBtn").addEventListener("click",()=>setTheme(document.documentElement.dataset.theme==="dark"?"light":"dark"));
+function applyTransform(){canvas.style.transform=`translate3d(${state.x}px,${state.y}px,0) scale(${state.scale})`;$("zoomLabel").textContent=`${Math.round(state.scale*100)}%`}
+function fitGraph(){const pad=18;const scale=Math.min((viewport.clientWidth-pad*2)/CANVAS.width,(viewport.clientHeight-pad*2)/CANVAS.height);state.fit=Math.max(.12,scale);state.scale=state.fit;state.x=(viewport.clientWidth-CANVAS.width*state.scale)/2;state.y=(viewport.clientHeight-CANVAS.height*state.scale)/2;applyTransform()}
+function zoomAt(next,cx=viewport.clientWidth/2,cy=viewport.clientHeight/2){const old=state.scale;const min=Math.max(.12,state.fit*.72);next=Math.min(2.4,Math.max(min,next));const gx=(cx-state.x)/old,gy=(cy-state.y)/old;state.scale=next;state.x=cx-gx*next;state.y=cy-gy*next;applyTransform()}
+$("zoomIn").addEventListener("click",()=>zoomAt(state.scale*1.2));$("zoomOut").addEventListener("click",()=>zoomAt(state.scale/1.2));$("zoomFit").addEventListener("click",fitGraph);viewport.addEventListener("dblclick",fitGraph);
+viewport.addEventListener("wheel",event=>{event.preventDefault();const rect=viewport.getBoundingClientRect();if(event.ctrlKey||event.metaKey)zoomAt(state.scale*Math.exp(-event.deltaY*.002),event.clientX-rect.left,event.clientY-rect.top);else{state.x-=event.deltaX;state.y-=event.deltaY;applyTransform()}},{passive:false});
+viewport.addEventListener("pointerdown",event=>{if(event.target.closest("button"))return;state.drag={id:event.pointerId,x:event.clientX,y:event.clientY,ox:state.x,oy:state.y};viewport.setPointerCapture(event.pointerId);viewport.classList.add("dragging")});
+viewport.addEventListener("pointermove",event=>{if(!state.drag||state.drag.id!==event.pointerId)return;state.x=state.drag.ox+event.clientX-state.drag.x;state.y=state.drag.oy+event.clientY-state.drag.y;applyTransform()});
+function endDrag(event){if(!state.drag||state.drag.id!==event.pointerId)return;state.drag=null;viewport.classList.remove("dragging")}
+viewport.addEventListener("pointerup",endDrag);viewport.addEventListener("pointercancel",endDrag);
+
+function clearFocus(){state.token++;state.paused=false;canvas.classList.remove("is-focused");packet.style.display="none";document.querySelectorAll(".is-active,.is-threat,.is-defense").forEach(element=>element.classList.remove("is-active","is-threat","is-defense"));$("playBtn").textContent="Recorrer selección"}
+function mark(ids,cls){for(const id of ids||[]){const element=$(id)||document.querySelector(`[data-node="${id}"],[data-agent="${id}"]`);if(element)element.classList.add(cls)}}
+function prepareScenario(id){clearFocus();state.current=id;const scenario=SCENARIOS[id];canvas.classList.add("is-focused");document.querySelector(`[data-scenario="${id}"]`)?.classList.add("is-active");mark(scenario.agents,"is-defense");mark(scenario.tools,"is-active");$("traceKind").textContent=scenario.kind==="threat"?"Ataque y defensa":"Caso de uso";$("traceKind").style.color=scenario.kind==="threat"?"var(--threat)":"var(--accent)";$("traceTitle").textContent=scenario.title;$("traceText").textContent=scenario.summary;$("traceStep").textContent=`0 / ${scenario.steps.length}`;$("playBtn").textContent="Repetir selección";return scenario}
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function hold(ms,token){let elapsed=0,last=performance.now();while(elapsed<ms){if(token!==state.token)return false;const now=performance.now();if(!state.paused)elapsed+=now-last;last=now;await wait(16)}return token===state.token}
+async function travel(pathId,reverse,tone,token){const path=$(pathId);if(!path)return false;const cls=tone==="threat"?"is-threat":tone==="defense"?"is-defense":"is-active";path.classList.add(cls);packet.style.display="block";packet.style.color=TONES[tone]||TONES.case;const length=path.getTotalLength(),duration=(reduceMotion?120:620)/state.speed;let elapsed=0,last=performance.now();while(elapsed<duration){if(token!==state.token)return false;const now=performance.now();if(!state.paused)elapsed+=now-last;last=now;const progress=Math.min(1,elapsed/duration),eased=1-Math.pow(1-progress,3),fraction=reverse?1-eased:eased,point=path.getPointAtLength(length*fraction);packet.setAttribute("transform",`translate(${point.x} ${point.y})`);await wait(16)}packet.style.display="none";return token===state.token}
+async function runScenario(id=state.current){const scenario=prepareScenario(id),token=state.token;for(let index=0;index<scenario.steps.length;index++){if(token!==state.token)return;const step=scenario.steps[index],tone=step.tone||(scenario.kind==="threat"?"threat":"case"),cls=tone==="threat"?"is-threat":tone==="defense"?"is-defense":"is-active";mark(step.nodes,cls);mark(step.agents,cls);mark(step.guards,cls);$("traceText").textContent=step.note;$("traceStep").textContent=`${index+1} / ${scenario.steps.length}`;if(!await travel(step.path,!!step.reverse,tone,token))return;if(!await hold((reduceMotion?40:300)/state.speed,token))return}if(token!==state.token)return;$("traceText").textContent=scenario.summary;$("traceStep").textContent="completo"}
+document.querySelectorAll("[data-scenario]").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();runScenario(button.dataset.scenario)}));
+$("playBtn").addEventListener("click",()=>{if(state.paused){state.paused=false;$("playBtn").textContent="Repetir selección"}else runScenario(state.current)});
+$("speedBtn").addEventListener("click",()=>{state.speed=state.speed===1?2:1;$("speedBtn").textContent=`${state.speed}x`});
+document.querySelectorAll(".tool-button[data-view]").forEach(button=>button.addEventListener("click",()=>{clearFocus();const view=button.dataset.view;canvas.dataset.view=view;document.querySelectorAll(".tool-button[data-view]").forEach(other=>other.setAttribute("aria-pressed",String(other===button)));$("traceKind").textContent=view==="all"?"Vista completa":view==="cases"?"Casos de uso":view==="attacks"?"Superficie de ataque":"Defensa agentic";$("traceKind").style.color=view==="attacks"?"var(--threat)":view==="defense"?"var(--defense)":"var(--accent)";$("traceTitle").textContent=view==="all"?"Todo el sistema está visible":button.textContent;$("traceText").textContent=view==="defense"?"Morpheus, Trinity y Smith publican findings. Oracle convierte señales en amenazas. Neo es el único actor y solo dispone de cinco acciones.":"Selecciona un elemento dentro del mapa para recorrer su ruta completa.";$("traceStep").textContent="0 / 0"}));
+$("fullscreenBtn").addEventListener("click",async()=>{if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();setTimeout(fitGraph,120)});
+addEventListener("keydown",event=>{if(event.code==="Space"){event.preventDefault();state.paused=!state.paused;$("playBtn").textContent=state.paused?"Continuar":"Repetir selección"}if(event.key==="0")fitGraph();if(event.key==="+")zoomAt(state.scale*1.2);if(event.key==="-")zoomAt(state.scale/1.2);if(event.key==="Escape")clearFocus()});
+let resizeTimer=0;const resizeObserver=new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(fitGraph,80)});resizeObserver.observe(viewport);requestAnimationFrame(fitGraph);
 </script>
 </body>
 </html>

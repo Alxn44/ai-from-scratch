@@ -27,7 +27,7 @@ func TestACallerCannotSupplyTheActor(t *testing.T) {
 	o := opWithActor()
 	// An argument named after the actor parameter is refused as undeclared,
 	// because Actor parameters are never taken from args.
-	_, err := bind(o, 42, map[string]any{"lab_id": "l1", "actor": float64(99)})
+	_, err := bind(o, 42, 0, map[string]any{"lab_id": "l1", "actor": float64(99)})
 	if err == nil {
 		t.Fatal("an `actor` argument was accepted. A caller that can name the actor can read " +
 			"anybody's rows while the operation still says `own`")
@@ -37,7 +37,7 @@ func TestACallerCannotSupplyTheActor(t *testing.T) {
 	}
 
 	// And the injected actor is what lands in $1.
-	params, err := bind(o, 42, map[string]any{"lab_id": "l1"})
+	params, err := bind(o, 42, 0, map[string]any{"lab_id": "l1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestACallerCannotSupplyTheActor(t *testing.T) {
 // because nobody investigates it.
 func TestAScopedOperationRefusesAnUnauthenticatedCall(t *testing.T) {
 	for _, actor := range []int64{0, -1} {
-		if _, err := bind(opWithActor(), actor, map[string]any{"lab_id": "l1"}); err == nil {
+		if _, err := bind(opWithActor(), actor, 0, map[string]any{"lab_id": "l1"}); err == nil {
 			t.Errorf("actor %d was accepted for a scoped operation", actor)
 		}
 	}
@@ -71,11 +71,11 @@ func TestArgumentsAreBoundedAndTyped(t *testing.T) {
 		"extra arg":  {"lab_id": "l1", "limit": float64(1000)},
 	}
 	for name, args := range cases {
-		if _, err := bind(o, 1, args); err == nil {
+		if _, err := bind(o, 1, 0, args); err == nil {
 			t.Errorf("%s: accepted %v", name, args)
 		}
 	}
-	if _, err := bind(o, 1, map[string]any{"lab_id": strings.Repeat("x", 64)}); err != nil {
+	if _, err := bind(o, 1, 0, map[string]any{"lab_id": strings.Repeat("x", 64)}); err != nil {
 		t.Errorf("a value exactly at the limit was refused: %v", err)
 	}
 }
@@ -92,11 +92,11 @@ func TestIntegerArgumentsRejectFractionsAndNegatives(t *testing.T) {
 		"too large": float64(1000),
 		"a string":  "1",
 	} {
-		if _, err := bind(o, 0, map[string]any{"n": v}); err == nil {
+		if _, err := bind(o, 0, 0, map[string]any{"n": v}); err == nil {
 			t.Errorf("%s: accepted %v", name, v)
 		}
 	}
-	if _, err := bind(o, 0, map[string]any{"n": float64(7)}); err != nil {
+	if _, err := bind(o, 0, 0, map[string]any{"n": float64(7)}); err != nil {
 		t.Errorf("a valid integer was refused: %v", err)
 	}
 }

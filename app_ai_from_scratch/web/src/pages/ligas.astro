@@ -70,7 +70,7 @@ const fecha = (iso?: string) =>
           <div class="h3">{G.pocos}</div>
           <p class="p" style="font-size:15px;max-width:620px">{G.pocosB.replace('{n}', String(d?.faltan ?? d?.minimo ?? 5))}</p>
         </div>
-      : <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+      : <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:start">
           {METALES.map((m) => (
             <div class="card" style="display:flex;flex-direction:column;gap:14px">
               <div style="display:flex;align-items:center;gap:12px">

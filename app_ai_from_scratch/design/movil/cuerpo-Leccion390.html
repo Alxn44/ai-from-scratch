@@ -1,0 +1,100 @@
+<!-- LECCION a 390 px. Es la pagina mas sana: .lec-top, .lec-cols y la rejilla
+     de ejemplos ya se apilan bien con las reglas que existen. Lo que se rompe
+     son dos filas con justify-content:space-between y texto largo. -->
+<div style="min-height:100%;background:var(--bg);display:flex;flex-direction:column">
+
+  <header class="head">
+    <div class="head-r1">
+      <button class="tap" aria-label="Abrir menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 6.6h16.8M3.6 12h16.8M3.6 17.4h16.8"/></svg>
+      </button>
+      <div class="lbl">CURSO / LECCION 01 DE 12</div>
+    </div>
+    <div class="head-r2">
+      <span class="lbl num">1 / 3 LABS DE ESTA LECCION</span>
+    </div>
+  </header>
+
+  <div style="flex:1;padding:18px 14px 32px;display:flex;flex-direction:column;gap:30px">
+
+    <div style="display:flex;flex-direction:column;gap:24px;border-bottom:1px solid var(--hair);padding-bottom:22px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <p class="eb">01 &middot; LA IA</p>
+        <!-- clamp(28px,6vw,40px) ya da 28px aqui. No hay nada que arreglar. -->
+        <h1 class="h1" style="font-size:28px">Aprende viendo ejemplos</h1>
+        <p class="p">Nadie le escribe reglas: encuentra el parecido entre miles de ejemplos, sola.</p>
+      </div>
+      <!-- .lec-math{width:auto!important} ya existe en el bloque de 900px. -->
+      <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:10px">
+        <p class="lbl">LA MATEMATICA</p>
+        <div class="num" style="font:700 26px/1.1 var(--f);letter-spacing:-.03em">100.000</div>
+        <p class="s" style="color:var(--l2)">fotos de gato para aprender que es un gato. A ti te bastan 3.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair)">
+        <p class="eb">COMO FUNCIONA</p>
+        <p class="p">Le das miles de fotos ya etiquetadas y ella ajusta numeros hasta que acierta. Nadie le explico que es una oreja: lo saco del parecido entre ejemplos.</p>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:12px;border-left:2px solid var(--ac)">
+        <p class="lbl">COMO SI FUERA</p>
+        <p class="p">Un nino que nunca oyo la palabra gato, pero vio mil. Al gato mil uno lo reconoce sin que nadie le de una regla.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <p class="lbl">EJEMPLOS</p>
+      <!-- minmax(min(340px,100%),1fr) ya colapsa a una columna. Correcto. -->
+      <div class="card" style="display:flex;flex-direction:column;gap:12px;border-color:var(--hair2)">
+        <div class="h3">Reconocer un gato</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span class="lbl" style="width:74px;flex:none;padding-top:3px">LE PIDES</span>
+            <p class="p" style="font-size:14px">Una foto de tu gato en el sofa.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span class="lbl" style="width:74px;flex:none;padding-top:3px;color:var(--ac)">Y PASA</span>
+            <p class="p" style="font-size:14px">Dice gato con 0,97 de confianza.</p>
+          </div>
+        </div>
+        <p class="s" style="border-top:1px solid var(--hair2);padding-top:10px">No sabe que es un gato. Sabe que se parece a los 100.000 que vio.</p>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:var(--hair);display:flex;flex-direction:column;gap:18px">
+      <!-- ROTO HOY: esta fila es justify-content:space-between con la pastilla
+           LAB + nivel + RESUELTO a la izquierda y los intentos a la derecha.
+           A 390 px no cabe. Propuesta: flex-wrap y los intentos a su propia
+           linea cuando no quepan. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="display:inline-flex;align-items:center;gap:9px;height:30px;padding:0 12px;border:1px solid var(--hair)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 3.2h5.6M10.6 3.2v5.5l-4.3 8.2A1.9 1.9 0 0 0 8 19.8h8a1.9 1.9 0 0 0 1.7-2.9l-4.3-8.2V3.2M7.9 14.2h8.2"/></svg>
+            <span class="num" style="font:600 11px/1 var(--m);letter-spacing:.1em">LAB 1A</span>
+          </span>
+          <span class="lbl" style="color:var(--ok)">FACIL</span>
+        </div>
+        <span class="lbl">2 INTENTOS</span>
+      </div>
+      <h2 class="h2">Separa las fotos que serviran para entrenar de las que no.</h2>
+      <div style="border:1px dashed var(--hair2);height:132px;display:grid;place-items:center">
+        <span class="lbl">ZONA DEL LAB</span>
+      </div>
+      <!-- Los dos botones caben: 2 x (44 alto, ~130 ancho) + gap 12 = 272. -->
+      <div style="display:flex;gap:12px;align-items:center">
+        <button class="btn">COMPROBAR</button>
+        <button class="btn ghost">DE NUEVO</button>
+      </div>
+    </div>
+
+    <!-- ROTO HOY: justify-content:space-between con dos .btn ghost cuyo texto
+         es «LECCION ANTERIOR / 01» y «SIGUIENTE LECCION / 02». Son ~190 px
+         cada uno: 380 + 20 de gap contra 362 de ancho util. Se apilan. -->
+    <div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--hair);padding-top:22px">
+      <a class="btn ghost" style="width:100%">SIGUIENTE LECCION &middot; 02</a>
+      <span class="s" style="text-align:center">Leccion 01 de 12</span>
+    </div>
+
+  </div>
+</div>

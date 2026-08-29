@@ -1,5 +1,7 @@
 // The agent's tool surface. This is EVERYTHING the model can do against the
-// database: there is no SQL, no free-form search, no user parameter.
+// database: there is no SQL and no user parameter. Two tools accept a finite
+// query PLAN; Go validates every table, column, operator and value before it
+// assembles the statement.
 //
 // The isolation lives here and not in the prompt: `ctx.userId` is set by the
 // server from the session cookie. No signature accepts a person identifier, so
@@ -8,9 +10,10 @@
 // them their own data again.
 //
 // ------------------------------------------------------------------------------
-// HOW IT IS ORGANISED (37 tools, four families, one file each)
+// HOW IT IS ORGANISED (41 tools, four families)
 //
-//   ./content.ts      · the course: lessons, texts, labs, glossary, search   (7)
+//   ./content.ts      · the course: lessons, texts, labs, quizzes, exams     (9)
+//   ./query.ts        · composable plans over the safe data surface          (2)
 //   ./progress.ts     · this person: progress, mistakes, streak, pace, league (16)
 //   ./product.ts      · what is in no table: price, routes, support, settings (7)
 //   ./coordination.ts · the stack and the queue (see ../agent-bus.ts)         (7)
@@ -67,12 +70,14 @@ import { CONTENT_TOOLS } from './content.ts';
 import { PROGRESS_TOOLS } from './progress.ts';
 import { PRODUCT_TOOLS } from './product.ts';
 import { COORDINATION_TOOLS } from './coordination.ts';
+import { QUERY_TOOLS } from './query.ts';
 
 export type { Ctx, Tool, ToolResult } from './access.ts';
 
 /** The one registry. Read-only after this line. */
 const TOOLS: Registry = {
   ...CONTENT_TOOLS,
+  ...QUERY_TOOLS,
   ...PROGRESS_TOOLS,
   ...PRODUCT_TOOLS,
   ...COORDINATION_TOOLS,

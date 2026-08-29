@@ -54,8 +54,8 @@ picture and the one every generic diagram gets wrong.
 ### Numbers worth putting on the page
 
 - 12 lessons · 36 labs · 12 ranks
-- 37 agent tools, 7 paywalled · 3 native Python tools
-- Ontology: 46 columns classed `jamas` · obligations P1–P4 over the 37 bridged
+- 39 agent tools, 7 paywalled · 3 native Python tools
+- Ontology: 46 columns classed `jamas` · obligations P1–P4 over the 39 bridged
   tools, P5 over the 3 native ones
 - Bus: one topic exchange `course.events` + `.dlx` + 4 fanout retry tiers
 - Defence: 5 actions, ≤10 per 10 min globally, every action expiring
@@ -95,7 +95,7 @@ picture and the one every generic diagram gets wrong.
 > arrows:** `web · Astro · :4321` → `api · Node 22 + TypeScript · :8787` →
 > `ia · Python + FastAPI · :8799`, and from `api` a second blue arrow down-right
 > to `data · Go + pgx · :8788`.
-> Label the `api → ia` arrow `POST /api/v3/interno/herramienta — 37 tools, 7 paywalled`.
+> Label the `api → ia` arrow `POST /api/v3/interno/herramienta — 39 tools, 7 paywalled`.
 > Label the `api → data` arrow `POST /v1/op — 10 named operations, no SQL`.
 > Beside `ia`, a small caption: `no DATABASE_URL — Python never touches the database`.
 > Beside `data`, a small caption: `the only holder of the credential`.
@@ -160,7 +160,7 @@ flowchart TB
   end
 
   cfd --> web --> api
-  api -- "POST /api/v3/interno/herramienta<br/>37 tools · 7 paywalled" --> ia
+  api -- "POST /api/v3/interno/herramienta<br/>39 tools · 7 paywalled" --> ia
   api -- "POST /v1/op<br/>10 named operations · no SQL" --> dat
 
   subgraph state["state"]

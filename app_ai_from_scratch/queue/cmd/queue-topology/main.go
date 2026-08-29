@@ -38,7 +38,7 @@ func main() {
 	cmd := os.Args[1]
 
 	// LoadForTool, not Load: this binary listens on nothing and authenticates
-	// nobody, so IA_SECRETO is not required. It still loads the rest of the
+	// nobody, so QUEUE_SECRETO is not required. It still loads the rest of the
 	// configuration -- printing a topology for the wrong exchange is worse than
 	// refusing to print one -- and it still rejects a placeholder secret that is
 	// present.

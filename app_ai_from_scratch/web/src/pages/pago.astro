@@ -1,18 +1,19 @@
 ---
 export const prerender = false;
-import { getUser } from '../lib/session';
+import { getUser, apiTry } from '../lib/session';
 import { publicPrefs } from '../lib/prefs';
 import { t, resolveLang } from '../lib/i18n';
 import { grafo, org, curso } from '../lib/seo';
 import { mercadoDe } from '../lib/region';
 import { narrativaDe } from '../lib/narrative';
 import { SITE, MARCA } from '../lib/site';
+import { ANCLA_TEXTO, MONEDA, PRECIO_TEXTO } from '../lib/price';
 import { TOKENS, PUBLIC_BASE } from '../lib/theme-css';
 import { icon } from '../lib/icons';
 import PrefToggles from '../components/PrefToggles.astro';
+import { jsonSafe } from '../lib/json-safe';
 
 const user = await getUser(Astro.request);
-const mpKey = import.meta.env.MP_PUBLIC_KEY ?? process.env.MP_PUBLIC_KEY ?? null;
 
 // Con sesión manda la preferencia de la cuenta; sin sesión, la cookie del dispositivo.
 const dev = publicPrefs(Astro.request);
@@ -21,18 +22,29 @@ const theme = user ? user.theme : dev.theme;
 const lang = user ? resolveLang(user.lang, Astro.request) : dev.lang;
 const L = t(lang);
 const P = L.pub.pay;
+// El precio y el ancla salen de price.ts, no de un literal por pantalla: esta
+// pagina los pintaba tres veces a mano y el cupon los formateaba una cuarta.
+const precio = `${PRECIO_TEXTO[lang] ?? PRECIO_TEXTO.es} ${MONEDA}`;
+const ancla = `${ANCLA_TEXTO[lang] ?? ANCLA_TEXTO.es} ${MONEDA}`;
 const canonical = new URL(Astro.url.pathname, SITE).href;
 // Narrativa según de dónde se conecta: en Colombia hay PSE y efectivo, en la UE
 // manda el retracto de 14 días, y prometer un medio que no existe es peor que callar.
 const { mercado, pais } = mercadoDe(Astro.request);
 const N = narrativaDe(mercado, lang);
 const jsonld = grafo(org(), curso(lang));
+// Si el servicio de cobros no contesta, no hay con que cobrar. Antes la pagina
+// pintaba los metodos, el cupon y «Suscribirme» igual, y el usuario solo se
+// enteraba tras rellenarlo todo y pulsar: un 503 convertido en «hubo un error».
+// Un boton que no puede cobrar no se dibuja.
+const cobros = await apiTry<{ disponible: boolean }>('/api/payments/estado', Astro.request);
+const hayCobro = cobros.data?.disponible === true;
 ---
 <!doctype html>
 <html lang={lang} data-theme={theme}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <title>{P.eb} · IA desde cero</title>
   <link rel="canonical" href={canonical}>
   <meta property="og:site_name" content={MARCA}>
@@ -44,23 +56,26 @@ const jsonld = grafo(org(), curso(lang));
     .h1{font-size:38px}
     .btn.pay{height:52px;width:100%}
     .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--hair2)}
+    .coupon{display:flex;gap:8px;margin-top:14px}.coupon input{flex:1;min-width:0;background:transparent;border:1px solid var(--hair);padding:12px;color:var(--l1);font:500 13px/1 var(--m)}
+    .coupon button{background:var(--l1);color:var(--bg);border:0;padding:0 14px;font:600 11px/1 var(--m);cursor:pointer}.coupon button:focus-visible,.coupon input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+    @media(max-width:900px){.coupon{flex-wrap:wrap}.coupon input{min-width:100%;min-height:44px;font-size:16px}.coupon button{min-height:44px;width:100%}}
   </style>
 </head>
 <body>
-  <header style="height:64px;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;padding:0 32px;gap:20px">
+  <header class="pay-head">
     <a href="/" style="display:flex;align-items:center;gap:11px;color:var(--l1)">
       <span class="mark">IA</span>
       <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
       <span class="lbl" style="margin-left:8px">{P.seguro}</span>
     </a>
     <div style="display:flex;align-items:center;gap:20px">
-      <div style="display:flex;align-items:center;gap:10px"><Fragment set:html={icon('lock', 16, 'var(--ok)')} /><span class="s">{P.noSales}</span></div>
+      <div class="pay-note" style="display:flex;align-items:center;gap:10px"><Fragment set:html={icon('lock', 16, 'var(--ok)')} /><span class="s">{P.noSales}</span></div>
       <PrefToggles lang={langPref} theme={theme} sync={!!user} labels={{ auto: L.pub.auto, dark: L.pub.oscuro, paper: L.pub.papel, langAria: L.pub.ariaIdioma, themeAria: L.pub.ariaTema }} />
     </div>
   </header>
 
-  <div style="display:grid;grid-template-columns:1fr 560px;min-height:calc(100vh - 64px)">
-    <section style="padding:44px 48px;display:flex;flex-direction:column;gap:26px;border-right:1px solid var(--hair2)">
+  <div class="pay-grid">
+    <section class="pay-copy" style="padding:44px 48px;display:flex;flex-direction:column;gap:26px;border-right:1px solid var(--hair2)">
       <div style="display:flex;flex-direction:column;gap:12px">
         <p class="eb">{P.eb}</p>
         <h1 class="h1">{P.h1}</h1>
@@ -76,10 +91,10 @@ const jsonld = grafo(org(), curso(lang));
         </div>
       </div>
       <div style="display:flex;flex-direction:column;border-top:1px solid var(--hair);padding-top:18px">
-        <div class="row"><span class="s" style="color:var(--l2)">{P.curso}</span><span class="num" style="font:500 15px/1 var(--m)">USD 9.99</span></div>
-        <div class="row"><span class="s" style="color:var(--l2)">{P.antes}</span><span class="num s" style="text-decoration:line-through">USD 49.00</span></div>
+        <div class="row"><span class="s" style="color:var(--l2)">{P.curso}</span><span class="num" style="font:500 15px/1 var(--m)">{precio}</span></div>
+        <div class="row"><span class="s" style="color:var(--l2)">{P.antes}</span><span class="num s" style="text-decoration:line-through">{ancla}</span></div>
         <div class="row"><span class="s" style="color:var(--l2)">{P.comision}</span><span class="s">{P.comisionV}</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 0"><span class="lbl">{P.totalHoy}</span><span class="num" style="font:700 30px/1 var(--f);letter-spacing:-.035em">USD 9.99</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 0"><span class="lbl">{P.totalHoy}</span><span class="num" style="font:700 30px/1 var(--f);letter-spacing:-.035em">{precio}</span></div>
       </div>
       <div class="card" style="display:flex;gap:12px;align-items:flex-start;border-left:2px solid var(--ok)">
         <Fragment set:html={icon('check', 18, 'var(--ok)')} />
@@ -97,20 +112,22 @@ const jsonld = grafo(org(), curso(lang));
       </div>
     </section>
 
-    <section style="padding:44px 40px;background:var(--panel);display:flex;flex-direction:column;gap:20px">
+    <section class="pay-box" style="padding:44px 40px;background:var(--panel);display:flex;flex-direction:column;gap:20px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <p class="lbl">{P.metodo}</p>
-        <span class="lbl" style="color:var(--ac)">MERCADO PAGO</span>
+        {hayCobro && <span class="lbl" style="color:var(--ac)">MERCADO PAGO</span>}
       </div>
 
-      {!user && (
-        <div class="card" style="border-color:var(--or);display:flex;gap:12px;align-items:flex-start">
+      {hayCobro && !user && (
+        <div class="card" data-tut="pago-1" style="border-color:var(--or);display:flex;gap:12px;align-items:flex-start">
           <Fragment set:html={icon('alert', 18, 'var(--or)')} />
           <div><div class="h3">{P.cuentaPrimero}</div><p class="s" style="color:var(--l2);margin-top:4px"><a href="/registro">{P.registrarme}</a> — {P.cuentaPrimeroB}</p></div>
         </div>
       )}
 
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+      {hayCobro ? (
+      <Fragment>
+      <div data-tut="pago-2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
         <button class="chip" data-m="card" data-on>{P.tarjeta}</button>
         {mercado !== 'us' && mercado !== 'eu' && <button class="chip" data-m="wallet">{P.wallet}</button>}
         {mercado === 'co' && <button class="chip" data-m="pse">{P.pse}</button>}
@@ -126,19 +143,48 @@ const jsonld = grafo(org(), curso(lang));
         <p class="s" style="color:var(--l2)">{P.pseNota}</p>
       </div>
 
-      <button class="btn pay" id="pay" style="margin-top:auto">{P.pagar}</button>
+      <div class="coupon">
+        <input id="coupon" type="text" maxlength="64" autocomplete="off" placeholder={P.cuponPh} aria-label={P.cuponLbl}>
+        <button id="apply-coupon" type="button">{P.aplicarCupon}</button>
+      </div>
+      <div id="coupon-status" class="s" role="status" aria-live="polite"></div>
+
+      <button class="btn pay" id="pay" data-tut="pago-3" style="margin-top:auto">{P.pagar}</button>
       <p class="s" style="text-align:center">{P.terminos}</p>
+      </Fragment>
+      ) : (
+      <div class="card" style="border-color:var(--or);border-left:2px solid var(--or);display:flex;gap:12px;align-items:flex-start;margin-top:auto">
+        <Fragment set:html={icon('alert', 18, 'var(--or)')} />
+        <div>
+          <div class="h3">{P.sinCheckout}</div>
+          <p class="s" style="color:var(--l2);margin-top:4px">{P.sinCheckoutB}</p>
+          {!user && <p class="s" style="margin-top:10px"><a href="/registro">{P.crearCuenta}</a></p>}
+        </div>
+      </div>
+      )}
     </section>
   </div>
   <div id="toasts"></div>
 
-  <script define:vars={{ P, mpKey, logged: !!user }}>
+  <script define:vars={{ P, logged: !!user, moneda: MONEDA, loc: lang === 'en' ? 'en-US' : 'es-CO' }}>
     const COLOR = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
     const box = document.getElementById('toasts');
     const toast = (k, tt, b) => {
       box.innerHTML = `<div class="toast" style="border-color:${COLOR[k]}"><div style="flex:1">
         <div class="h3" style="color:${COLOR[k]}">${tt}</div><p class="s" style="color:var(--l2);margin-top:4px">${b}</p></div></div>`;
     };
+    const coupon = document.getElementById('coupon');
+    const couponStatus = document.getElementById('coupon-status');
+    // Sin cobros el bloque de pago no se renderiza, asi que estos nodos no
+    // existen. Sin esta salida el primer addEventListener lanzaba sobre null y
+    // se llevaba por delante el resto del script, tutorial incluido.
+    if (coupon) {
+    const couponCode = () => coupon.value.trim();
+    document.getElementById('apply-coupon').addEventListener('click', () => {
+      const code = couponCode();
+      couponStatus.textContent = code ? P.cuponListo : P.cuponVacio;
+      couponStatus.style.color = code ? 'var(--ok)' : 'var(--or)';
+    });
     document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => {
       document.querySelectorAll('[data-m]').forEach((x) => x.removeAttribute('data-on'));
       b.setAttribute('data-on', '');
@@ -147,14 +193,39 @@ const jsonld = grafo(org(), curso(lang));
     }));
     document.getElementById('pay').addEventListener('click', async () => {
       if (!logged) { toast('warn', P.sinCuenta, P.sinCuentaB); return; }
-      const res = await fetch('/api/payments/mercadopago/preference', { method: 'POST' });
-      if (res.status === 501) { toast('warn', P.sinCred, P.sinCredB); return; }
+      const res = await fetch('/api/payments/mercadopago/preference', { method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ couponCode: couponCode() }) });
+      if (res.status === 422) { toast('bad', P.cuponInvalido, P.cuponInvalidoB); return; }
+      // 501 = el servicio de pagos existe pero sin credencial; 503 = el servicio
+      // no contesta. Distinta causa, misma consecuencia: hoy no se puede pagar.
+      if (res.status === 501 || res.status === 503) { toast('warn', P.sinCred, P.sinCredB); return; }
       if (!res.ok) { toast('bad', P.mpErr, P.mpErrB); return; }
-      const { preferenceId, publicKey } = await res.json();
-      if (!(publicKey ?? mpKey)) { toast('warn', P.sinKey, P.sinKeyB); return; }
+      const result = await res.json();
+      if (result.granted) { toast('ok', P.cuponOtorgado, P.cuponOtorgadoB); window.location.assign('/panel'); return; }
+      const { preferenceId, initPoint } = result;
+      if (!initPoint) { toast('bad', P.mpErr, P.mpErrB); return; }
+      // totalMinor viene en unidades MENORES y COP no tiene decimales. El `/100`
+      // que habia aqui pintaba «USD 350.00» sobre un cobro real de 35.000 pesos.
+      if (result.totalMinor !== undefined) {
+        const total = Number(result.totalMinor).toLocaleString(loc);
+        couponStatus.textContent = `${P.descuento}: ${result.discountPercent}% · ${P.total}: ${total} ${moneda}`;
+      }
       toast('info', P.prefOk, preferenceId);
-      // El SDK de Mercado Pago se carga aquí y monta el Payment Brick sobre #brick.
+      window.location.assign(initPoint);
     });
+    }
+  </script>
+  <script type="application/json" id="tutorial-txt" is:inline set:html={jsonSafe({
+    aria: L.tutorial.aria, skip: L.tutorial.skip, next: L.tutorial.next, done: L.tutorial.done,
+    ...L.tutorial.pago,
+  })}></script>
+  <script>
+    import { abrirTutorial, pasosDe, tutorialHecho } from '../lib/tutorial';
+    const TT = JSON.parse(document.getElementById('tutorial-txt')!.textContent!);
+    window.abrirTutorial = () => abrirTutorial('pago', pasosDe('pago', TT), TT);
+    const force = new URLSearchParams(location.search).get('tutorial') === '1';
+    if (force || !tutorialHecho('pago')) window.abrirTutorial();
   </script>
 </body>
 </html>

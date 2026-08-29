@@ -1,9 +1,10 @@
 """The provider router: the default chain, and the body that does not propagate.
 
 Two things are checked here. One, that the chain the product asked for is the one
-that comes out with nothing configured: deepseek -> kimi -> anthropic. And two,
-that a 4xx from a provider does not turn its body into something returnable:
-several of them echo the truncated key in the text of a 401.
+that comes out with nothing configured: Haiku (flash) first, then cheap
+fallbacks, then Sonnet and Grok for reasoning — never Opus. And two, that a 4xx
+from a provider does not turn its body into something returnable: several of
+them echo the truncated key in the text of a 401.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ import pytest
 from course_ai.agent.providers import (
     ProviderError,
     _upstream_error,
+    effort_budget,
+    pick_chain,
     providers,
     turn,
 )
@@ -23,38 +26,62 @@ from course_ai.agent.providers import (
 KEYS = (
     "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "DEEPSEEK_API_KEY", "KIMI_API_KEY",
     "MOONSHOT_API_KEY", "HF_TOKEN", "HUGGINGFACE_API_KEY", "TOGETHER_API_KEY",
-    "API_KEY_TOGETHER", "OPENCODE_API_KEY",
+    "API_KEY_TOGETHER", "OPENCODE_API_KEY", "XAI_API_KEY", "OMNIROUTE_API_KEY",
 )
-MODEL_VARS = ("ANTHROPIC_MODEL", "OPENROUTER_MODEL", "DEEPSEEK_MODEL", "KIMI_MODEL",
-              "HF_MODEL", "TOGETHER_MODEL", "OPENCODE_MODEL")
+MODEL_VARS = ("ANTHROPIC_MODEL", "ANTHROPIC_SONNET_MODEL", "OPENROUTER_MODEL",
+              "DEEPSEEK_MODEL", "KIMI_MODEL", "HF_MODEL", "TOGETHER_MODEL",
+              "OPENCODE_MODEL", "XAI_MODEL")
 
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    for k in (*KEYS, *MODEL_VARS, "PROVEEDOR_ORDEN", "OPENCODE_BASE_URL"):
+    for k in (*KEYS, *MODEL_VARS, "PROVEEDOR_ORDEN", "OPENCODE_BASE_URL",
+              "XAI_BASE_URL", "OMNIROUTE_BASE_URL"):
         monkeypatch.delenv(k, raising=False)
     return monkeypatch
 
 
-def test_the_default_chain_is_deepseek_kimi_anthropic(clean_env):
-    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY"):
+def test_the_default_chain_is_flash_then_reasoning(clean_env):
+    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY"):
         clean_env.setenv(k, "x")
-    assert [p.id for p in providers()] == ["deepseek", "kimi", "anthropic"]
+    ids = [p.id for p in providers()]
+    assert ids == ["anthropic", "deepseek", "kimi", "grok", "sonnet"]
+    lanes = {p.id: p.lane for p in providers()}
+    assert lanes["anthropic"] == "flash"
+    assert lanes["deepseek"] == "flash"
+    assert lanes["kimi"] == "flash"
+    assert lanes["grok"] == "razon"
+    assert lanes["sonnet"] == "razon"
 
 
 def test_the_spares_go_behind_the_chain(clean_env):
     for k in ("OPENROUTER_API_KEY", "HF_TOKEN", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY"):
         clean_env.setenv(k, "x")
     ids = [p.id for p in providers()]
-    assert ids.index("deepseek") < ids.index("anthropic") < ids.index("openrouter")
+    assert ids.index("anthropic") < ids.index("deepseek") < ids.index("openrouter")
 
 
 def test_the_default_models_of_the_chain(clean_env):
-    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY"):
+    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY"):
         clean_env.setenv(k, "x")
     models = {p.id: p.model for p in providers()}
-    assert models == {"deepseek": "deepseek-chat", "kimi": "kimi-k3",
-                      "anthropic": "claude-sonnet-5"}
+    assert models == {
+        "anthropic": "claude-haiku-4-5",
+        "deepseek": "deepseek-chat",
+        "kimi": "kimi-k3",
+        "grok": "grok-4.6",
+        "sonnet": "claude-sonnet-5",
+    }
+
+
+def test_opus_is_never_selected(clean_env):
+    clean_env.setenv("ANTHROPIC_API_KEY", "x")
+    clean_env.setenv("ANTHROPIC_MODEL", "claude-opus-5")
+    clean_env.setenv("ANTHROPIC_SONNET_MODEL", "claude-opus-4.8")
+    models = {p.id: p.model for p in providers()}
+    assert models["anthropic"] == "claude-haiku-4-5"
+    assert models["sonnet"] == "claude-sonnet-5"
+    assert all("opus" not in p.model.lower() for p in providers())
 
 
 def test_the_explicit_order_still_wins(clean_env):
@@ -62,7 +89,7 @@ def test_the_explicit_order_still_wins(clean_env):
     for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY"):
         clean_env.setenv(k, "x")
     clean_env.setenv("PROVEEDOR_ORDEN", "anthropic,kimi,deepseek")
-    assert [p.id for p in providers()] == ["anthropic", "kimi", "deepseek"]
+    assert [p.id for p in providers()] == ["anthropic", "kimi", "deepseek", "sonnet"]
 
 
 def test_every_model_can_be_overridden_from_the_environment(clean_env):
@@ -72,8 +99,9 @@ def test_every_model_can_be_overridden_from_the_environment(clean_env):
     clean_env.setenv("KIMI_MODEL", "otro-kimi")
     clean_env.setenv("ANTHROPIC_MODEL", "otro-anthropic")
     models = {p.id: p.model for p in providers()}
-    assert models == {"deepseek": "otro-deepseek", "kimi": "otro-kimi",
-                      "anthropic": "otro-anthropic"}
+    assert models["deepseek"] == "otro-deepseek"
+    assert models["kimi"] == "otro-kimi"
+    assert models["anthropic"] == "otro-anthropic"
 
 
 def test_with_no_keys_there_are_no_providers(clean_env):
@@ -81,6 +109,41 @@ def test_with_no_keys_there_are_no_providers(clean_env):
 
 
 BODY_401 = '{"error":{"message":"invalid api key sk-ant-api03-FUGA"}}'
+
+
+def test_pick_chain_puts_the_wanted_provider_first(clean_env):
+    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY", "TOGETHER_API_KEY"):
+        clean_env.setenv(k, "x")
+    chain = pick_chain("together")
+    assert chain[0].id == "together"
+    assert chain[0].model == "moonshotai/Kimi-K2.7-Code"
+    rest = [p.id for p in chain[1:]]
+    assert rest == [p.id for p in providers() if p.id != "together"]
+
+
+def test_anthropic_alias_selects_sonnet_not_haiku(clean_env):
+    clean_env.setenv("ANTHROPIC_API_KEY", "x")
+    chain = pick_chain("anthropic")
+    assert chain[0].id == "sonnet"
+    assert chain[0].model == "claude-sonnet-5"
+    assert pick_chain("sonnet")[0].id == "sonnet"
+
+
+def test_unknown_or_unlisted_pick_keeps_the_full_chain(clean_env):
+    clean_env.setenv("DEEPSEEK_API_KEY", "x")
+    clean_env.setenv("XAI_API_KEY", "x")
+    full = providers()
+    assert pick_chain("opus") == full
+    assert pick_chain("grok") == full
+    assert pick_chain(None) == full
+
+
+def test_effort_budget_maps_the_three_levels():
+    assert effort_budget("bajo") == (768, 30.0, "low")
+    assert effort_budget("medio") == (1536, 45.0, "medium")
+    assert effort_budget("alto") == (4096, 90.0, "high")
+    assert effort_budget(None) == (1536, 45.0, "medium")
+    assert effort_budget("nope") == (1536, 45.0, "medium")
 
 
 def test_the_upstream_error_does_not_carry_the_body(clean_env):

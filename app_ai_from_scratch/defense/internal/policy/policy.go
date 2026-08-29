@@ -44,14 +44,20 @@ import (
 type Kind string
 
 const (
-	// RevokeSession invalidates one session server-side. On this deployment it
-	// is the MOST effective action available and the least dangerous: the
-	// blast radius is one login, and the user recovers by logging in again.
+	// RevokeSession invalidates all cookies for one identity by increasing its
+	// token version. JWTs have no server-side session id on this deployment, so
+	// pretending to revoke one opaque cookie would be a no-op.
 	RevokeSession Kind = "revoke_session"
 
 	// ThrottleIdentity clamps one account's request rate. Reversible, expires,
 	// and it degrades an attacker's throughput without locking anyone out.
 	ThrottleIdentity Kind = "throttle_identity"
+
+	// ReviewSubscription freezes no money and changes no provider state. It is a
+	// mandatory human escalation carrying the affected user and evidence. A
+	// security detector must never cancel billing or revoke purchased access on
+	// its own: those are financial decisions and false positives are costly.
+	ReviewSubscription Kind = "review_subscription"
 
 	// BlockEdge asks Cloudflare to block a source AT THE EDGE.
 	//
@@ -160,12 +166,11 @@ var GlobalLimit = Rate{Max: 10, Window: 10 * time.Minute}
 // line parser as an OPTION rather than an operand, so a target of
 // `--privileged` or `-o ProxyCommand=…` is argument injection even though it
 // contains no shell metacharacter and passes every «no semicolons» check. Two of
-// these targets do not currently reach an argv at all -- a session is revoked by
+// these targets do not currently reach an argv at all -- an identity is revoked by
 // the api -- and the rule is applied to all of them anyway, because «this string
 // never becomes an argument» is a property that holds until somebody adds an
 // action, and it fails silently when it stops holding.
 var containerName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`)
-var sessionID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$`)
 var identity = regexp.MustCompile(`^[0-9]{1,19}$`)
 
 // Rules is the table. Ordered by how safe the action is, safest first, which is
@@ -178,7 +183,7 @@ func Rules() []Rule {
 			Reversible: true,
 			MaxTTL:     24 * time.Hour,
 			Limit:      Rate{Max: 20, Window: 10 * time.Minute},
-			Validate:   validateSession,
+			Validate:   validateIdentity,
 			// No Argv: Neo does not reach into the database. It publishes the
 			// request on the bus and the api applies it with its own
 			// credentials. Two reasons, both concrete: the defense containers
@@ -196,6 +201,17 @@ func Rules() []Rule {
 			Limit:      Rate{Max: 20, Window: 10 * time.Minute},
 			Validate:   validateIdentity,
 			Argv:       nil, // applied by the api, same reasoning as above
+			Undo:       nil,
+		},
+		{
+			Kind:       ReviewSubscription,
+			What:       "review suspicious subscription state without changing billing or access automatically",
+			Reversible: false,
+			MaxTTL:     24 * time.Hour,
+			NeedsHuman: true,
+			Limit:      Rate{Max: 20, Window: 10 * time.Minute},
+			Validate:   validateIdentity,
+			Argv:       nil,
 			Undo:       nil,
 		},
 		{
@@ -342,14 +358,6 @@ func validateContainer(target string) (string, error) {
 	}
 	if why, bad := neverTouchContainers[t]; bad {
 		return "", fmt.Errorf("%w: %s -- %s", ErrNeverTouch, t, why)
-	}
-	return t, nil
-}
-
-func validateSession(target string) (string, error) {
-	t := strings.TrimSpace(target)
-	if !sessionID.MatchString(t) {
-		return "", fmt.Errorf("policy: %q is not a session id", target)
 	}
 	return t, nil
 }

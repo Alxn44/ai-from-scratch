@@ -45,12 +45,12 @@ const rango = (lecciones: number) => (lecciones ? G.rangos[Math.min(lecciones, 1
     </div>
 
     <div style="display:flex;flex-direction:column;gap:0">
-      <div style="display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px;padding:0 6px 10px;border-bottom:1px solid var(--hair)">
+      <div class="tbl-rank tbl-rank-head" style="padding:0 6px 10px;border-bottom:1px solid var(--hair)">
         <div class="tblhead">{R.puesto}</div><div class="tblhead">{R.alias}</div>
         <div class="tblhead">{G.rangoActual}</div><div class="tblhead">{R.lecciones}</div><div class="tblhead">{R.labs}</div>
       </div>
       {tabla.map((f, i) => (
-        <div style={`display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px;align-items:center;height:50px;padding:0 6px;border-bottom:1px solid var(--hair2);${f.alias === yo.alias ? 'background:var(--fill)' : ''}`}>
+        <div class="tbl-rank" style={`align-items:center;height:50px;padding:0 6px;border-bottom:1px solid var(--hair2);${f.alias === yo.alias ? 'background:var(--fill)' : ''}`}>
           <span class="num" style={`font:700 15px/1 var(--m);color:${i < 3 ? 'var(--ac)' : 'var(--l3)'}`}>{i + 1}</span>
           <span style="display:flex;align-items:center;gap:9px;min-width:0">
             <span class="num" style="font:600 14px/1 var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{f.alias}</span>

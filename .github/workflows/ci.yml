@@ -46,10 +46,46 @@ jobs:
 
     env:
       DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso
+      # `prisma migrate diff --from-migrations` REPLAYS every migration into a
+      # throwaway database and compares the result against schema.prisma. It
+      # cannot do that in `curso`, which already holds the deployed schema and
+      # the seed, so it demands a second one and refuses to guess.
+      #
+      # A SEPARATE DATABASE, never an alias of DATABASE_URL. Prisma DROPS and
+      # recreates whatever it is pointed at here; aiming it at the real database
+      # is how a drift check deletes the data it was meant to protect.
+      SHADOW_DATABASE_URL: postgres://curso:curso@127.0.0.1:5432/curso_shadow
       # A 48-char ephemeral value. The guard in auth.ts rejects known placeholders
       # and anything under 32 chars, so this cannot be a friendly short string.
       JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
       IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+      # NO puede contener "secret". El guard de data/internal/httpapi/server.go
+      # rechaza changeme / secret / dev-only-change-me / cambia-esto y exige 32
+      # caracteres, y el valor anterior — ci-only-ephemeral-data-secret-value —
+      # los llevaba dentro: el servicio se negaba a arrancar y tenia razon. Su
+      # propio test ya habia tropezado con esto y lo dejo escrito.
+      DATA_SECRETO: ci-ephemeral-data-key-K7f9Qx2mNv4TzB8LrJ3s
+      # The api suite needs the demo accounts as FIXTURES: test/tools.mts:19 does
+      # `SELECT id FROM users WHERE email = 'ricardo@velez.co'` and then
+      # dereferences with `!`, which TypeScript erases, so a missing row is not a
+      # clear failure — it is an undefined that reaches pg and comes back as
+      # `insert or update on table "attempts" violates foreign key constraint`.
+      #
+      # The rows became opt-in for a good reason: they used to be created on every
+      # boot with a password committed to this repository, one of them an admin.
+      # Nothing about that is undone here. seed.ts still throws outright if this
+      # is set with NODE_ENV=production, this job is NODE_ENV=test, and the
+      # password below exists for the ninety seconds this container lives.
+      SEED_DEMO_USERS: '1'
+      SEED_DEMO_PASSWORD: ci-only-ephemeral-demo-password-not-a-credential
+      # test/bridge.mts logs in as one of those accounts to get a real session --
+      # without one it cannot check isolation, which is the entire point of that
+      # suite, and it fails loudly instead of skipping. Its password is
+      # `process.env.TEST_PASS ?? 'Curso2026*'`, and that hard-coded fallback is
+      # the very thing the opt-in seed exists to stop being load-bearing. Pinning
+      # TEST_PASS to the same value the seed just used makes the dependency
+      # explicit rather than a coincidence between two files.
+      TEST_PASS: ci-only-ephemeral-demo-password-not-a-credential
       NODE_ENV: test
 
     steps:
@@ -67,11 +103,23 @@ jobs:
             ${{ env.DIR }}/api/pnpm-lock.yaml
             ${{ env.DIR }}/web/pnpm-lock.yaml
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.DIR }}/data/go.mod
+          cache-dependency-path: ${{ env.DIR }}/data/go.sum
+
       - name: Install
         working-directory: ${{ env.DIR }}
         run: |
           pnpm --dir api install --frozen-lockfile
           pnpm --dir web install --frozen-lockfile
+
+      # The service container creates `curso` from POSTGRES_DB and nothing else.
+      # The shadow database has to exist before the drift check asks for it.
+      - name: Shadow database for the drift check
+        run: |
+          until pg_isready -h 127.0.0.1 -p 5432 -U curso -d curso; do sleep 1; done
+          PGPASSWORD=curso createdb -h 127.0.0.1 -p 5432 -U curso curso_shadow
 
       # The schema is applied by migrations, never by the server at boot. Twenty
       # DDL statements running on startup is how two instances race each other.
@@ -112,6 +160,35 @@ jobs:
       # "skipped" and exits 0 — a silent pass, which is the one outcome this
       # workflow refuses. The log is captured so a boot failure is diagnosable
       # instead of just absent.
+      # La api ya NO habla con Postgres directamente para esto: /api/health pide
+      # lab.count y eso va por el servicio `data`, que es quien tiene el guard de
+      # la ontologia. Sin el, la api arranca pero su health responde 500
+      # `DataUnreachable: data is unreachable (lab.count): fetch failed` cuarenta
+      # veces y el job muere sin decir que lo que falta es un servicio.
+      #
+      # `data` se niega a arrancar sin el artefacto de la ontologia, y hace bien:
+      # un servicio de datos sin lista de columnas prohibidas es un servicio sin
+      # guard. Se le pasa por DATA_ONTOLOGY el que genera Python y lee Node.
+      - name: Start data for the integration suite
+        working-directory: ${{ env.DIR }}/data
+        env:
+          DATA_ONTOLOGY: ${{ github.workspace }}/${{ env.DIR }}/api/src/ontologia.json
+        run: |
+          nohup go run ./cmd/data serve > /tmp/data.log 2>&1 &
+          disown || true
+          # /health, no /salud. Lo comprobe contra el servicio corriendo: /salud
+          # responde 404. Un readiness contra la ruta equivocada espera los 60
+          # segundos completos y culpa al servicio de no arrancar.
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8788/health >/dev/null 2>&1; then
+              echo "data up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "data never answered /health on 8788 in 60s. Its log:"
+          cat /tmp/data.log
+          exit 1
+
       - name: Start api for the integration suite
         working-directory: ${{ env.DIR }}
         run: |
@@ -126,6 +203,8 @@ jobs:
           done
           echo "api never answered /api/health in 40s. Its log:"
           cat /tmp/api.log
+          echo "--- and the data service log, because health goes through it ---"
+          cat /tmp/data.log || true
           exit 1
 
       - name: Tests (7 suites, none skipped)
@@ -161,6 +240,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      # Trece pruebas de este trabajo corren scripts/emit-tool-catalog.mjs como
+      # subproceso, y ese script IMPORTA el registro (regla 4: generar desde la
+      # fuente, nunca desde una copia). Importarlo arrastra api/src/db.ts, que
+      # importa 'pg'. Sin node_modules de api, node responde
+      # "Cannot find package 'pg'" y el catalogo sale vacio: la comparacion
+      # contra BRIDGED falla en trece sitios por una dependencia ausente, no por
+      # una discrepancia real.
+      - name: Install (api, para el catalogo de herramientas)
+        working-directory: ${{ env.DIR }}
+        run: pnpm --dir api install --frozen-lockfile
 
       - name: Install
         working-directory: ${{ env.DIR }}/ai
@@ -255,7 +345,6 @@ jobs:
         working-directory: ${{ env.DIR }}/queue
         env:
           AMQP_URL: amqp://app:ci-broker-password@127.0.0.1:5672/
-          IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
         run: go run ./cmd/queue-verify --require-broker
 
   defense:
@@ -335,4 +424,17 @@ jobs:
           RABBITMQ_PASSWORD: ci-build-only
           JWT_SECRET: ci-only-ephemeral-secret-not-used-anywhere-else
           IA_SECRETO: ci-only-ephemeral-service-secret-value-32plus
+          DATA_SECRETO: ci-ephemeral-data-key-K7f9Qx2mNv4TzB8LrJ3s
+          PAYMENTS_SECRET: ci-only-ephemeral-payments-secret-32plus
+          PAYMENTS_DB_PASSWORD: ci-payments-db-password
+          MP_ACCESS_TOKEN: ci-provider-token
+          MP_WEBHOOK_SECRET: ci-provider-webhook-secret
+          # messages/ llego con la extraccion y trae su propio Postgres.
+          # docker-compose interpola ANTES de construir nada, asi que sin estas
+          # dos el paso muere en el parseo del fichero, no en un Dockerfile:
+          #   required variable MESSAGES_DB_PASSWORD is missing a value
+          # Un servicio nuevo en compose es siempre una linea nueva aqui.
+          MESSAGES_SECRET: ci-only-ephemeral-messages-secret-32plus
+          MESSAGES_DB_PASSWORD: ci-messages-db-password
+          QUEUE_SECRETO: ci-only-ephemeral-queue-secret-value-32plus
         run: docker compose build

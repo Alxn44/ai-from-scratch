@@ -104,6 +104,10 @@ class TurnRequest(BaseModel):
     session: str = Field(min_length=1, max_length=4096, alias="sesion")
     messages: list[Message] = Field(min_length=1, max_length=40, alias="mensajes")
     lang: Literal["es", "en"] = "es"
+    # Allowlisted in pick_chain. Anything else is ignored and the default
+    # flash-first order stays.
+    provider: str | None = Field(default=None, alias="proveedor", max_length=32)
+    effort: Literal["bajo", "medio", "alto"] | None = Field(default=None, alias="esfuerzo")
 
     @model_validator(mode="after")
     def _check_history_shape(self) -> TurnRequest:
@@ -179,5 +183,6 @@ async def onto_proof(_: Guard) -> dict[str, Any]:
 async def agent_turn(p: TurnRequest, _: Guard) -> dict[str, Any]:
     assert _client is not None
     r = await run(session=p.session, lang=p.lang, client=_client,
-                  messages=[m.model_dump() for m in p.messages])
+                  messages=[m.model_dump() for m in p.messages],
+                  provider_id=p.provider, effort=p.effort)
     return r.as_dict()

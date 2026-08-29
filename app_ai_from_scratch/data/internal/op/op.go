@@ -36,10 +36,14 @@ const (
 	// than intended: there is no wire format in which a caller states who
 	// they are.
 	Actor Kind = "actor"
-	Int   Kind = "int"
-	Text  Kind = "text"
-	Enum  Kind = "enum"
-	Bool  Kind = "bool"
+	// Authority is a second verified identity injected by api for the narrow
+	// admin case where one actor changes another account. Like Actor, it never
+	// comes from the request body.
+	Authority Kind = "authority"
+	Int       Kind = "int"
+	Text      Kind = "text"
+	Enum      Kind = "enum"
+	Bool      Kind = "bool"
 )
 
 // Param is one bound parameter, in $1..$n order.
@@ -134,7 +138,8 @@ type Operation struct {
 	// allowed to mean "free".
 	Muro Muro
 
-	// Returns is the exact column list. Empty is allowed only for a Write.
+	// Returns is the exact column list. A write may leave it empty, or declare
+	// direct columns from a RETURNING clause for atomic claim-and-return flows.
 	Returns []string
 
 	// The assembled form, used when Raw is empty.
@@ -277,6 +282,16 @@ func (o Operation) ActorIndex() int {
 	return 0
 }
 
+// AuthorityIndex is the 1-based position of the trusted administrative actor.
+func (o Operation) AuthorityIndex() int {
+	for i, p := range o.Params {
+		if p.Kind == Authority {
+			return i + 1
+		}
+	}
+	return 0
+}
+
 // TouchesForbidden reports the jamas columns this operation returns.
 func (o Operation) TouchesForbidden(ont *guard.Ontology) []string {
 	var out []string
@@ -320,7 +335,9 @@ var identToken = regexp.MustCompile(`[a-z_][a-z0-9_]*`)
 // that the filter binds to the actor parameter and not to a caller-supplied id.
 func (o Operation) columnsRead() []string {
 	if o.Write {
-		return nil
+		// Returning writes are deliberately limited by validateReturning to bare
+		// column names, so Returns is also the exact list read back.
+		return o.Returns
 	}
 	if o.Raw == "" {
 		return o.Returns
@@ -467,6 +484,9 @@ func (o Operation) Validate(ont *guard.Ontology) []error {
 	if o.Raw != "" && !o.Write {
 		errs = append(errs, o.validateRaw()...)
 	}
+	if o.Write {
+		errs = append(errs, o.validateReturning()...)
+	}
 
 	errs = append(errs, o.validateParams(sql)...)
 	errs = append(errs, o.validateScope()...)
@@ -551,6 +571,35 @@ func (o Operation) Validate(ont *guard.Ontology) []error {
 	return errs
 }
 
+// validateReturning permits the one write shape that must be atomic and return
+// rows (for example UPDATE ... SKIP LOCKED ... RETURNING). Only bare columns are
+// accepted: expressions and aliases would reopen the alias-laundering hole that
+// raw SELECT validation closes above.
+func (o Operation) validateReturning() []error {
+	lower := strings.ToLower(o.Raw)
+	i := strings.LastIndex(lower, " returning ")
+	if i < 0 {
+		if len(o.Returns) > 0 {
+			return []error{fmt.Errorf("op %s: declares returned columns on a write with no RETURNING clause", o.Name)}
+		}
+		return nil
+	}
+	if len(o.Returns) == 0 {
+		return []error{fmt.Errorf("op %s: has RETURNING but declares no returned columns", o.Name)}
+	}
+	items := splitTopLevel(strings.TrimSpace(o.Raw[i+len(" returning "):]))
+	if len(items) != len(o.Returns) {
+		return []error{fmt.Errorf("op %s: RETURNING has %d columns and Returns declares %d", o.Name, len(items), len(o.Returns))}
+	}
+	for j, item := range items {
+		name := strings.TrimSpace(item)
+		if !ident.MatchString(name) || name != o.Returns[j] {
+			return []error{fmt.Errorf("op %s: RETURNING item %q must be the bare declared column %q", o.Name, item, o.Returns[j])}
+		}
+	}
+	return nil
+}
+
 // validateRaw checks that a hand-written select list names exactly the declared
 // columns.
 func (o Operation) validateRaw() []error {
@@ -593,7 +642,7 @@ func (o Operation) validateParams(sql string) []error {
 			add("op %s: parameter %d has the name %q", o.Name, n, p.Name)
 		}
 		switch p.Kind {
-		case Actor:
+		case Actor, Authority:
 			// bounded by definition: not caller-supplied
 		case Enum:
 			if len(p.Allowed) == 0 {
@@ -611,7 +660,7 @@ func (o Operation) validateParams(sql string) []error {
 			add("op %s: parameter %s has kind %q, which is not actor|int|text|enum|bool",
 				o.Name, p.Name, p.Kind)
 		}
-		if p.Kind != Actor && namesAPerson(p.Name) {
+		if p.Kind != Actor && p.Kind != Authority && namesAPerson(p.Name) {
 			add("op %s: parameter %s is caller-supplied and names a person. That is P3: no argument "+
 				"may express another person, so an identity can only ever be the injected actor",
 				o.Name, p.Name)
@@ -633,14 +682,19 @@ func (o Operation) validateScope() []error {
 	add := func(f string, a ...any) { errs = append(errs, fmt.Errorf(f, a...)) }
 
 	sql := strings.ToLower(o.SQL())
+	whereSQL := ""
+	if i := strings.Index(sql, " where "); i >= 0 {
+		whereSQL = sql[i:]
+	}
 	actor := o.ActorIndex()
+	authority := o.AuthorityIndex()
 
 	for _, col := range identityColumns {
 		re := regexp.MustCompile(col + ` *= *\$([0-9]+)`)
-		for _, m := range re.FindAllStringSubmatch(sql, -1) {
+		for _, m := range re.FindAllStringSubmatch(whereSQL, -1) {
 			var n int
 			fmt.Sscanf(m[1], "%d", &n)
-			if n != actor {
+			if n != actor && n != authority {
 				add("op %s: filters %s = $%d, and $%d is not the actor parameter. A predicate on an "+
 					"identity column bound to a caller-supplied value reads anybody's rows while "+
 					"the declaration says %q", o.Name, col, n, n, o.Scope)
@@ -662,7 +716,7 @@ func (o Operation) validateScope() []error {
 			add("op %s: scope is own and the read has no WHERE clause", o.Name)
 		}
 	case Public:
-		if actor != 0 {
+		if actor != 0 || authority != 0 {
 			add("op %s: scope is public but it takes an actor. Either it reads one person's rows and "+
 				"the scope is wrong, or the parameter is unused and misleading", o.Name)
 		}

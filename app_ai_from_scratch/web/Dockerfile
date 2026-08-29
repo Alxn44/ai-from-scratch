@@ -1,5 +1,8 @@
 FROM node:22-alpine AS build
 
+ARG PUBLIC_SITE=http://localhost:4321
+ENV PUBLIC_SITE=${PUBLIC_SITE}
+
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 

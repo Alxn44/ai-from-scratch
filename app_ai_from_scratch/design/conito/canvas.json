@@ -6,7 +6,7 @@
   ],
   "annotations": [
     { "id": "brief", "x": 0, "y": -150, "w": 420,
-      "text": "Cornelius — gato tuxedo, ojos amarillos.\nTokens tomados de web/src/lib/theme-css.ts, sin redondear.\nPanel: clicable, y muestra QUÉ herramienta usa.\nMovimiento: pulsa «Verlo ya» para no esperar 34 s." }
+      "text": "Conito — gato tuxedo, ojos amarillos.\nTokens tomados de web/src/lib/theme-css.ts, sin redondear.\nPanel: clicable, y muestra QUÉ herramienta usa.\nMovimiento: pulsa «Verlo ya» para no esperar 34 s." }
   ],
   "launch": { "view": "canvas" }
 }

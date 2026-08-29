@@ -36,7 +36,7 @@ var Weak = map[string]bool{
 }
 
 // MinSecretLen matches the floor api/src/auth.ts puts on JWT_SECRET. Comfortably
-// under what scripts/keys.sh generates for IA_SECRETO (`openssl rand -base64 32`
+// under what scripts/keys.sh generates for QUEUE_SECRETO (`openssl rand -base64 32`
 // is 44 characters), so a correctly generated environment always passes.
 const MinSecretLen = 32
 
@@ -63,9 +63,8 @@ type Config struct {
 
 	WorkerID string
 
-	// Secret is the shared service secret. The name on the wire stays Spanish
-	// (IA_SECRETO, header x-ia-secreto) because api and ai already send it and
-	// renaming it breaks both.
+	// Secret is queue's service identity (QUEUE_SECRETO, x-queue-secreto). It is
+	// deliberately not IA_SECRETO: those are separate trust boundaries.
 	Secret string
 	// SecretIsEphemeral is true when the secret was minted for this process
 	// because none was set in development. Reported by /health so that "nobody
@@ -91,7 +90,7 @@ func Load(look func(string) (string, bool)) (Config, error) {
 
 // LoadForTool resolves the configuration for a command-line tool.
 //
-// The difference from Load is one thing only: IA_SECRETO is not required. A tool
+// The difference from Load is one thing only: QUEUE_SECRETO is not required. A tool
 // opens no listening socket and authenticates nobody -- it proves who it is to
 // the broker with the credentials inside AMQP_URL -- so demanding the service
 // secret would be ceremony, and ceremony gets worked around with a fake value.
@@ -238,22 +237,22 @@ func Redact(raw string) string {
 // guessable exists anywhere in the tree; the price is that a caller has to be
 // told the new value after every restart, and that price is named out loud.
 func resolveSecret(look func(string) (string, bool), dev bool) (string, bool, error) {
-	given, _ := look("IA_SECRETO")
+	given, _ := look("QUEUE_SECRETO")
 	given = strings.TrimSpace(given)
 	if given != "" {
 		if Weak[strings.ToLower(given)] {
 			return "", false, fmt.Errorf(
-				"IA_SECRETO is a known placeholder (%q). Any reader of this repository could call this service with it. Run scripts/keys.sh", given)
+				"QUEUE_SECRETO is a known placeholder (%q). Any reader of this repository could call this service with it. Run scripts/keys.sh", given)
 		}
 		if len(given) < MinSecretLen {
 			return "", false, fmt.Errorf(
-				"IA_SECRETO is %d characters; %d or more required. Run scripts/keys.sh", len(given), MinSecretLen)
+				"QUEUE_SECRETO is %d characters; %d or more required. Run scripts/keys.sh", len(given), MinSecretLen)
 		}
 		return given, false, nil
 	}
 	if !dev {
 		return "", false, errors.New(
-			"IA_SECRETO is required: without it no caller can be told apart from an attacker. " +
+			"QUEUE_SECRETO is required: without it no caller can be told apart from an attacker. " +
 				"Set APP_ENV=development for an ephemeral secret, or run scripts/keys.sh")
 	}
 	buf := make([]byte, 32)

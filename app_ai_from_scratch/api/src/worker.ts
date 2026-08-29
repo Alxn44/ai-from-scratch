@@ -1,6 +1,6 @@
 // api-worker: the consumer entrypoint of the `api` image.
 //
-//   docker compose: image ./api, command `node dist/src/worker.js`
+//   docker compose: image ./api, command `node dist/api/src/worker.js`
 //
 // SAME IMAGE, DIFFERENT COMMAND, and that is the point (docs/ARCHITECTURE.md, the
 // container table): a worker built from different code than the API has an idea
@@ -14,12 +14,8 @@
 //   · It is not an orchestrator. It starts nothing on anybody's behalf; it
 //     consumes the routing keys its queue is bound to and runs the handler.
 //     Policy lives in bus.ts, which is a library, compiled into both services.
-//   · It is not the Postgres queue worker. server.ts already runs `worker()`
-//     from jobs.ts for work `api` both enqueues and runs (the Mercado Pago
-//     webhook). Running a second one here would mean two processes racing for
-//     the same rows — which SKIP LOCKED survives, but there is no reason to buy
-//     it. The two mechanisms and their boundary are written down at the top of
-//     bus.ts.
+//   · It is not the Postgres queue worker. Payment webhooks belong to the
+//     independent payments service; this worker handles cross-service messages.
 //   · It is not on any path a human waits on. The chat turn stays on HTTP.
 //
 // WITHOUT A BROKER. If AMQP_URL is unset the process says so loudly and then
@@ -28,8 +24,9 @@
 // as a missing environment variable. Nothing is consumed and nothing is lost —
 // there is no broker to lose it from.
 import { announce, busConfig, closeBus, on, startWorker } from './bus.ts';
-import { close, migrate } from './db.ts';
+import { many, one, write, writeAuthorized } from './data.ts';
 import { closeWeek } from './leagues.ts';
+import { createAuth } from '../../auth/src/index.ts';
 
 const log = {
   info: (m: string): void => console.log(`[api-worker] ${m}`),
@@ -44,7 +41,7 @@ const log = {
 // patterns are the contract with every publisher: widen them only together with
 // a handler, because a delivery this process cannot handle goes to the DLQ.
 const QUEUE = process.env.BUS_QUEUE || 'api.work';
-const PATTERNS = ['league.#', 'bus.echo'];
+const PATTERNS = ['league.#', 'defense.action.#', 'bus.echo'];
 
 // ---------------------------------------------------------------------------
 // HANDLERS. Only work that actually exists is registered. A handler that
@@ -63,7 +60,7 @@ on('league.week.close', async (payload) => {
     return;
   }
   const raw = 'semana' in r ? r.semana : null;
-  const week = raw instanceof Date ? raw.toISOString().slice(0, 10) : String(raw).slice(0, 10);
+  const week = String(raw).slice(0, 10);
   const reason = (payload as { reason?: string } | undefined)?.reason;
   log.info(`league week ${week}: ${r.cerradas} new rows, ${r.saltadas} already closed (of ${r.total})`
          + `${reason ? ` — asked by ${reason}` : ''}`);
@@ -76,6 +73,20 @@ on('bus.echo', async (payload, { envelope }) => {
   log.info(`echo id=${envelope.id} attempt=${envelope.attempt} payload=${JSON.stringify(payload)}`);
 });
 
+// Neo owns the decision; /auth owns the identity state it affects. The defense
+// containers never receive DATABASE_URL or JWT_SECRET. Only a closed pair of
+// actions is accepted here, and auth clamps the TTL again at this boundary.
+const auth = createAuth({ one, many, write, writeAuthorized,
+  origin: 'http://localhost', production: true, log });
+on('defense.action', async (payload) => {
+  const result = await auth.applyDefenseAction({
+    kind: String(payload.kind ?? ''), target: String(payload.target ?? ''),
+    ttlSeconds: Number(payload.ttl_s ?? 0), why: String(payload.why ?? ''),
+  });
+  if (!result.applied) throw new Error(`unsupported or invalid defense action: ${String(payload.kind)}`);
+  log.warn(`applied defense action ${String(payload.kind)} to identity ${String(payload.target)}`);
+});
+
 // Types that belong to this queue but have no implementation yet are NOT
 // registered and NOT bound: `email.send`, `export.progress.requested`,
 // `content.reindex.requested`. Bind them the day the handler ships, in the same
@@ -85,17 +96,6 @@ on('bus.echo', async (payload, { envelope }) => {
 // BOOT
 const cfg = busConfig();
 announce(log);
-
-// The idempotency claims live in Postgres (see bus.ts). A worker whose claim
-// table is absent cannot promise "at most once", so a missing schema is a refusal
-// to start rather than a warning nobody reads.
-try {
-  await migrate();
-} catch (e) {
-  log.error(`schema check failed: ${e instanceof Error ? e.message : String(e)}`);
-  await close();
-  process.exit(1);
-}
 
 const worker = startWorker({ queue: QUEUE, patterns: PATTERNS, log });
 if (worker.enabled) log.info(`bound ${QUEUE} to [${PATTERNS.join(', ')}] on ${cfg.exchange}`);
@@ -125,7 +125,6 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
       log.error(`shutdown: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (idle) clearInterval(idle);
-    await close();
     process.exit(0);
   });
 }

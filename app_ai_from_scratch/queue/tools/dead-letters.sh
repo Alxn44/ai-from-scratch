@@ -23,11 +23,11 @@ cd "$(dirname "$0")/../.."
 
 fail() { echo "FAILED: $*" >&2; exit 1; }
 
-secret="${IA_SECRETO:-}"
+secret="${QUEUE_SECRETO:-}"
 if [ -z "${secret}" ]; then
-  secret="$(grep -E '^IA_SECRETO=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)"
+  secret="$(grep -E '^QUEUE_SECRETO=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)"
 fi
-[ -n "${secret}" ] || fail "IA_SECRETO is not set and is not in .env. Run scripts/keys.sh"
+[ -n "${secret}" ] || fail "QUEUE_SECRETO is not set and is not in .env. Run scripts/keys.sh"
 
 case "${1:-}" in
   show)
@@ -49,7 +49,7 @@ case "${1:-}" in
 const [url, secret, limit] = process.argv.slice(1);
 const res = await fetch(url, {
   method: "POST",
-  headers: { "content-type": "application/json", "x-ia-secreto": secret },
+  headers: { "content-type": "application/json", "x-queue-secreto": secret },
   body: JSON.stringify({ limit: Number(limit) }),
 });
 const body = await res.json();

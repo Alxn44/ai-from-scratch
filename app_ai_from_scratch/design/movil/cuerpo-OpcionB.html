@@ -1,0 +1,42 @@
+<!-- OPCION B: segunda fila de cabecera. El slot topbar se queda arriba, a
+     ancho completo. Nada choca con el compositor. -->
+<div style="height:100%;background:var(--bg);display:flex;flex-direction:column">
+
+  <header class="head">
+    <div class="head-r1">
+      <button class="tap" aria-label="Abrir menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 6.6h16.8M3.6 12h16.8M3.6 17.4h16.8"/></svg>
+      </button>
+      <div class="lbl">CHAT / TU AGENTE</div>
+    </div>
+    <div class="head-r2">
+      <div class="seg" style="width:100%">
+        <button class="segb touch" aria-pressed="true" style="flex:1">NORMAL</button>
+        <button class="segb touch" aria-pressed="false" style="flex:1">MODO IA</button>
+      </div>
+    </div>
+  </header>
+
+  <div style="flex:1;padding:18px 14px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:hidden">
+    <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:8px">
+      <p class="eb">TU AGENTE</p>
+      <div class="h2">Hola, Alejandro</div>
+      <p class="p" style="font-size:14px">Pregunta lo que quieras del curso.</p>
+    </div>
+    <div style="flex:1;border:1px dashed var(--hair2);display:grid;place-items:center;min-height:60px">
+      <span class="lbl">EL HILO</span>
+    </div>
+  </div>
+
+  <div style="flex:none;border-top:1px solid var(--hair2)">
+    <div style="padding:12px 14px;display:flex;gap:10px;background:var(--bg)">
+      <input class="input" placeholder="Escribe tu pregunta" style="flex:1;min-width:0">
+      <button class="btn" style="width:44px;padding:0;flex:none" aria-label="Enviar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12h13.4M13.6 6.6 19 12l-5.4 5.4"/></svg>
+      </button>
+    </div>
+    <div style="height:34px;background:var(--bg);display:grid;place-items:center">
+      <span class="lbl" style="font-size:9px;color:rgba(235,235,245,.28)">SAFE AREA 34 PX</span>
+    </div>
+  </div>
+</div>

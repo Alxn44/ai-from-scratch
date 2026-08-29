@@ -115,6 +115,17 @@ func (c *Client) Health() Health {
 	return h
 }
 
+// EnsureConnected establishes the publisher connection when it is absent.
+//
+// Publishing is normally lazy, but a broker restart can otherwise leave an
+// otherwise-working consumer reporting unhealthy until the next request happens
+// to publish a message. Health probes use this bounded reconnect so an operator
+// sees the actual ability to accept work, rather than the age of the last write.
+func (c *Client) EnsureConnected(ctx context.Context) error {
+	_, err := c.channel(ctx)
+	return err
+}
+
 func (c *Client) noteError(err error) {
 	now := time.Now().UTC()
 	c.mu.Lock()

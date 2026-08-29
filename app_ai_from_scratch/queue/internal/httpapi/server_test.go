@@ -42,6 +42,8 @@ func (f *fakeBroker) Health() broker.Health {
 	return broker.Health{Configured: f.configured, Connected: f.connected, Broker: "amqp://***@broker:5672/"}
 }
 
+func (f *fakeBroker) EnsureConnected(_ context.Context) error { return nil }
+
 func (f *fakeBroker) Publish(_ context.Context, _, _ string, env bus.Envelope) error {
 	if f.publishErr != nil {
 		return f.publishErr
@@ -69,7 +71,7 @@ func (f *fakeBroker) ReplayDeadLetters(context.Context, int) (broker.Replayed, e
 func build(t *testing.T, b *fakeBroker) (*fiber.App, *fakeBroker) {
 	t.Helper()
 	cfg, err := config.Load(func(k string) (string, bool) {
-		m := map[string]string{"IA_SECRETO": secret}
+		m := map[string]string{"QUEUE_SECRETO": secret}
 		if b.configured {
 			m["AMQP_URL"] = "amqp://app:pw@broker:5672/"
 		}
@@ -101,7 +103,7 @@ func do(t *testing.T, app *fiber.App, method, path, body, sec string) (int, map[
 		r.Header.Set("content-type", "application/json")
 	}
 	if sec != "" {
-		r.Header.Set("x-ia-secreto", sec)
+		r.Header.Set("x-queue-secreto", sec)
 	}
 	res, err := app.Test(r)
 	if err != nil {

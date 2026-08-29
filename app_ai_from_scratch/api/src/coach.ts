@@ -21,7 +21,7 @@
 // is not offered at all. Choosing which fact becomes a sentence happens in the
 // browser (web/src/lib/coach.ts) out of these fields and nothing else, so the
 // proactive assistant costs exactly one SELECT-shaped request and zero tokens.
-import { get } from './db.ts';
+import { one } from './data.ts';
 import { ZONE } from './leagues.ts';
 import {
   TOTAL_LABS, TOTAL_LESSONS, activeDays, completed, computeStreak, me, nextStep, perLesson,
@@ -76,16 +76,9 @@ export interface CoachState {
   siguiente: CoachNext;
 }
 
-// Both dates are converted with the SAME zone the streak uses, in the database,
-// so "today" cannot mean one thing here and another in activeDays(). `at` is
-// timestamptz, so `AT TIME ZONE` reads it as a local wall clock — the same
-// direction as the streak query in src/tools/access.ts.
-const SQL_GAP = `
-  SELECT ((now() AT TIME ZONE ?)::date - (MAX(at) AT TIME ZONE ?)::date)::int AS dias
-  FROM attempts WHERE user_id = ?`;
-
 /** Everything the proactive assistant may know about the asking person. */
 export async function coachState(userId: number, lang: string): Promise<CoachState | null> {
+  if (!Number.isSafeInteger(userId) || userId <= 0) return null;
   const ctx: Ctx = { userId, lang };
   const u = await me(ctx);
   if (!u) return null;
@@ -93,7 +86,7 @@ export async function coachState(userId: number, lang: string): Promise<CoachSta
   const [rows, days, gap] = await Promise.all([
     perLesson(ctx),
     activeDays(ctx),
-    get<{ dias: number | null }>(SQL_GAP, [ZONE, ZONE, userId]),
+    one<{ dias: number | null }>('progress.inactivity_gap', { zone: ZONE }, userId),
   ]);
   const streak = computeStreak(days.map((r) => r.dia));
   const step = await nextStep(ctx, u);

@@ -60,6 +60,7 @@ import asyncio
 import json
 import os
 import socket
+import time
 import uuid
 from collections.abc import Awaitable, Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field
@@ -438,6 +439,9 @@ def message_spec(env: Envelope) -> dict[str, Any]:
         "content_type": "application/json",
         "delivery_mode": PERSISTENT,
         "message_id": f"{env.id}:{env.attempt}",
+        # AMQP timestamps are Unix seconds. Observability and DLQ tooling use
+        # this broker property without decoding the application envelope.
+        "timestamp": int(time.time()),
         "type": env.type,
         "headers": {"x-bus-attempt": env.attempt,
                     "x-bus-idempotency-key": env.idempotency_key},
@@ -503,12 +507,9 @@ async def publish_on(exchange: Any, env: Envelope, *, key: str | None = None,
 # A failed handler RELEASES its claim so the scheduled retry is not mistaken for
 # a duplicate.
 #
-# STATE OF THE WIRING, stated plainly: the route ApiClaims posts to
-# (BUS_CLAIM_URL, e.g. http://api:8787/api/v3/interno/bus/claim) does not exist
-# yet. It is three lines in api/src/server.js over the `pgClaims()` already
-# exported by api/src/bus.ts, and it was out of scope for the files this change
-# was allowed to create. Until it exists, an ai-worker started without
-# BUS_CLAIM_URL uses MemoryClaims and says so at boot, loudly.
+# The API route exists at /api/v3/interno/bus/claim and maps these actions to
+# closed /data operations. An ai-worker without BUS_CLAIM_URL still uses
+# MemoryClaims and says so at boot, loudly.
 @runtime_checkable
 class Claims(Protocol):
     async def claim(self, key: str) -> bool: ...

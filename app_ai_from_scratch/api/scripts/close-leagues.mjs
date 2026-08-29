@@ -27,10 +27,9 @@ const r = await closeWeek();
 if ('motivo' in r && r.motivo === 'cohorte_insuficiente') {
   console.log(`sin cerrar: ${r.total} personas apuntadas, hacen falta ${r.minimo}`);
 } else {
-  // The DATE column arrives as a JS Date and prints with zone and all: in a cron
-  // log that confuses which week was closed. It is trimmed to the date.
+  // The data boundary serialises DATE as RFC3339; keep only the calendar date.
   const raw = 'semana' in r ? r.semana : null;
-  const day = raw instanceof Date ? raw.toISOString().slice(0, 10) : String(raw).slice(0, 10);
+  const day = String(raw).slice(0, 10);
   console.log(`semana ${day}: ${r.cerradas} filas nuevas, ${r.saltadas} ya estaban (de ${r.total})`);
 }
 await pool.end();

@@ -160,7 +160,8 @@ TABLES: Mapping[str, Table] = {
         purpose="Una fila por persona registrada. Identidad, rol, preferencias y si compro el curso.",
         per_user="El agente solo ve la fila de la sesion. Las demas filas no son alcanzables por ninguna herramienta.",
         soft_delete="deleted_at set = the row is kept so the attempts still add up, but the person no longer exists as far as the system is concerned.",
-        joins_with=("attempts", "payments", "ranking_optin", "role_audit"),
+        joins_with=("attempts", "question_attempts", "payments", "ranking_optin", "role_audit",
+                    "entitlement_events", "auth_throttles"),
         columns={
             "id": _c("jamas", "Identificador interno. El modelo no lo necesita y darlo invita a pedir el de otro."),
             "email": _c("jamas", "Dato personal sin valor para ensenar. La interfaz ya lo muestra a su dueno."),
@@ -185,7 +186,7 @@ TABLES: Mapping[str, Table] = {
     "lessons": Table(
         purpose="Las 12 lecciones del Vol. 1. Es el corpus con el que el agente ensena.",
         per_user="Identico para todos: no hay nada personal aqui.",
-        joins_with=("labs",),
+        joins_with=("labs", "questions"),
         columns={
             "n": _c("publico", "1..12, el orden del curso."),
             "eyebrow": _c("publico", "Etiqueta corta del tema."),
@@ -225,6 +226,25 @@ TABLES: Mapping[str, Table] = {
             "draft": _c("publico", "1 = sin escribir. Evita que el agente invente contenido."),
         },
     ),
+    "questions": Table(
+        purpose="Los quizzes rapidos (3 por leccion) y los tres examenes de bloque. Corregidos en el servidor.",
+        per_user="El enunciado es igual para todos. La explicacion solo se entrega si esa persona ya intento esa pregunta.",
+        joins_with=("lessons", "question_attempts"),
+        depends_on=("lessons",),
+        columns={
+            "id": _c("publico", "«q01.2» o «e1.3»."),
+            "kind": _c("publico", "quiz | exam."),
+            "pack": _c("publico", "«q01»..«q12» o «e1»..«e3»."),
+            "idx": _c("publico", "Orden dentro del pack."),
+            "lesson_n": _c("publico", "La leccion de la que sale la pregunta."),
+            "prompt_es": _paid("publico", "El enunciado en espanol."),
+            "prompt_en": _paid("publico", "El enunciado en ingles."),
+            "payload": _paid("publico", "Opciones. El id correcto no se deduce del orden: van barajadas."),
+            "solution": _c("jamas", "La respuesta. Si el agente la lee, el quiz deja de ensenar."),
+            "explanation_es": _paid("publico", "Condicionada: solo si esa persona ya intento."),
+            "explanation_en": _paid("publico", "Condicionada: solo si esa persona ya intento."),
+        },
+    ),
     "attempts": Table(
         purpose="Cada intento de cada persona en cada lab. Es de donde sale el progreso.",
         per_user="Solo las filas propias. «Cuantos intentos lleva Paula» es exactamente la fuga que hay que evitar.",
@@ -237,6 +257,20 @@ TABLES: Mapping[str, Table] = {
             "answer": _c("propio", "Lo que respondio. Aqui esta el valor real del agente: ve el patron del error."),
             "correct": _c("propio", "1 acerto, 0 fallo."),
             "at": _c("propio", "Cuando. Sirve para «llevas dos semanas sin abrirlo»."),
+        },
+    ),
+    "question_attempts": Table(
+        purpose="Cada intento de cada persona en cada pregunta de quiz o examen.",
+        per_user="Solo las filas propias.",
+        joins_with=("users", "questions"),
+        depends_on=("users", "questions"),
+        columns={
+            "id": _c("jamas", "Identificador interno."),
+            "user_id": _c("jamas", "Sale de la sesion. El agente no lo ve."),
+            "question_id": _c("propio", "Que pregunta se intento."),
+            "answer": _c("propio", "Lo que respondio."),
+            "correct": _c("propio", "1 acerto, 0 fallo."),
+            "at": _c("propio", "Cuando."),
         },
     ),
     "payments": Table(
@@ -254,6 +288,33 @@ TABLES: Mapping[str, Table] = {
             "currency": _c("jamas", "Dato financiero."),
             "raw": _c("jamas", "Respuesta completa de Mercado Pago: trae datos del pagador y metadatos de la tarjeta."),
             "at": _c("jamas", "Dato financiero."),
+        },
+    ),
+    "entitlement_events": Table(
+        purpose="Eventos idempotentes con los que payments concede o revoca acceso.",
+        per_user="Nunca llega al agente. Auth deriva users.paid de la ultima transicion por fuente.",
+        joins_with=("users",),
+        depends_on=("users",),
+        columns={
+            "id": _c("jamas"), "event_key": _c("jamas"),
+            "user_id": _c("jamas"), "active": _c("jamas"),
+            "source": _c("jamas"), "external_id": _c("jamas"),
+            "occurred_at": _c("jamas"), "received_at": _c("jamas"),
+            # Fin del periodo pagado. Es lo que convierte una concesion en una
+            # SUSCRIPCION: sin esta fecha un evento active=true no caduca nunca
+            # y un cobro mensual daba acceso permanente. 'jamas' como el resto
+            # de la tabla: el agente no razona sobre facturacion.
+            "period_end": _c("jamas"),
+        },
+    ),
+    "auth_throttles": Table(
+        purpose="Controles temporales que auth aplica tras una decision acotada de defense.",
+        per_user="Telemetria y contencion de seguridad; ninguna herramienta la expone.",
+        joins_with=("users",),
+        depends_on=("users",),
+        columns={
+            "user_id": _c("jamas"), "expires_at": _c("jamas"),
+            "reason": _c("jamas"), "updated_at": _c("jamas"),
         },
     ),
     "role_audit": Table(
@@ -387,7 +448,7 @@ TABLES: Mapping[str, Table] = {
     ),
 }
 
-# THE 37 TOOLS, with what they TOUCH and what they RETURN. Copied one by one from
+# THE 39 TOOLS, with what they TOUCH and what they RETURN. Copied one by one from
 # api/src/tools/index.ts; test_node_contract.py checks that the names still match
 # the registry Node exposes, and export.py refuses to write when they drift.
 #
@@ -443,6 +504,24 @@ TOOLS: Mapping[str, Tool] = {
                   "labs.id", "labs.lesson_n", "labs.idx", "labs.level", "labs.kind",
                   "labs.prompt", "labs.payload", "labs.draft"),
         # Checks the right of access before returning (P4).
+        checks_entitlement=True,
+    ),
+    "quiz_leccion": Tool(
+        description="El quiz rapido de una leccion: tres preguntas de opcion, sin las respuestas. Dice si esta persona ya las acerto.",
+        args={"n": "entero 1..12"},
+        scope="sesion", reads=("questions", "question_attempts", "users"),
+        returns=("questions.id", "questions.kind", "questions.pack", "questions.idx",
+                  "questions.lesson_n", "questions.prompt_es", "questions.prompt_en",
+                  "questions.payload", "question_attempts.correct"),
+        checks_entitlement=True,
+    ),
+    "examen": Tool(
+        description="Un examen de bloque (1: lecciones 1-4, 2: 5-8, 3: 9-12): preguntas sin respuestas, nota de corte y si esta persona ya lo aprobo.",
+        args={"n": "entero 1..3"},
+        scope="sesion", reads=("questions", "question_attempts", "users"),
+        returns=("questions.id", "questions.kind", "questions.pack", "questions.idx",
+                  "questions.lesson_n", "questions.prompt_es", "questions.prompt_en",
+                  "questions.payload", "question_attempts.correct"),
         checks_entitlement=True,
     ),
     "leccion_texto": Tool(
@@ -506,6 +585,38 @@ TOOLS: Mapping[str, Tool] = {
         returns=("lessons.n", "lessons.eyebrow", "lessons.title", "lessons.summary",
                   "labs.lesson_n", "attempts.correct"),
     ),
+    "consulta_campos": Tool(
+        description="La superficie del planificador seguro: tablas, columnas legibles, operadores y limites.",
+        args={}, scope="publico", reads=(), returns=(),
+    ),
+    "consulta": Tool(
+        description="Compone una lectura segura con tabla, columnas, filtros, agregados, orden y limite; nunca recibe SQL ni un identificador de persona.",
+        args={
+            "table": "tabla declarada por consulta_campos",
+            "select": "columnas legibles",
+            "where": "filtros AND sobre columnas legibles",
+            "group": "columnas seleccionadas para agrupar",
+            "aggregate": "count, sum, avg, min o max",
+            "order": "columnas devueltas y direccion",
+            "limit": "entero 1..500",
+        },
+        scope="sesion",
+        reads=("users", "lessons", "labs", "attempts", "achievements",
+               "ranking_optin", "league_week", "lesson_text"),
+        returns=(
+            "users.name", "users.role", "users.lang", "users.theme", "users.paid",
+            "users.cohort", "users.created_at",
+            "lessons.n", "lessons.eyebrow", "lessons.title", "lessons.summary",
+            "lessons.math", "lessons.math_cap",
+            "labs.id", "labs.lesson_n", "labs.idx", "labs.level", "labs.kind", "labs.draft",
+            "attempts.lab_id", "attempts.answer", "attempts.correct", "attempts.at",
+            "achievements.code", "achievements.kind", "achievements.lesson_n",
+            "achievements.earned_at", "ranking_optin.alias", "ranking_optin.joined_at",
+            "league_week.week", "league_week.metal", "league_week.caudal",
+            "league_week.puesto", "league_week.estado",
+            "lesson_text.lesson_n", "lesson_text.lang",
+        ),
+    ),
 
     # -------------------------------------------------------------- progress
     "mi_panorama": Tool(
@@ -522,9 +633,10 @@ TOOLS: Mapping[str, Tool] = {
                   "lessons.title", "ranking_optin.alias"),
     ),
     "mi_progreso": Tool(
-        description="Cuantas lecciones y labs lleva resueltos la persona de esta sesion, leccion por leccion.",
-        args={}, scope="sesion", reads=("labs", "attempts"),
-        returns=("labs.lesson_n", "attempts.correct"),
+        description="Cuantas lecciones, labs, quizzes y examenes lleva resueltos la persona de esta sesion, leccion por leccion.",
+        args={}, scope="sesion", reads=("labs", "attempts", "questions", "question_attempts"),
+        returns=("labs.lesson_n", "attempts.correct",
+                  "questions.pack", "questions.kind", "question_attempts.correct"),
     ),
     "mis_intentos": Tool(
         description="Los intentos de la persona de esta sesion en un lab, con lo que respondio.",

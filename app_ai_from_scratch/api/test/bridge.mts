@@ -95,6 +95,8 @@ interface ProfileResult { nombre?: string; email?: string; id?: number }
 interface AttemptsResult { _ignorado?: unknown; intentos?: { user_id?: number }[] }
 interface LessonResult { labs?: { solution?: unknown }[] }
 interface ErrorResult { error?: string }
+interface LockedLessonResult { error?: string; lesson?: Record<string, unknown>; labs?: unknown[] }
+interface ClaimResult { claimed?: boolean; state?: string; ok?: boolean }
 
 let ok = 0, fallos = 0;
 const prueba = (nombre: string, fn: () => void): void => { try { fn(); console.log(`  ok   · ${nombre}`); ok++; }
@@ -188,6 +190,67 @@ prueba('ningun lab trae solution', () => {
 const inventada = await (await pide(cab, { nombre: 'leer_solucion' })).json() as ErrorResult;
 prueba('una herramienta que no existe se rechaza por nombre', () =>
   A.equal(inventada.error, 'herramienta_desconocida'));
+
+// --- the HTTP paywall itself, with a fresh unpaid account ---
+console.log('\nmuro HTTP');
+const freeEmail = `paywall-${randomBytes(10).toString('hex')}@example.test`;
+const freePassword = `Safe-${randomBytes(12).toString('base64url')}`;
+const registered = await fetch(`${API}/api/v3/auth/register`, {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ email: freeEmail, name: 'Paywall Test', password: freePassword }),
+});
+const freeSid = (registered.headers.getSetCookie?.() ?? [])
+  .map((c) => /(?:^|;\s*)sid=([^;]+)/.exec(c)?.[1]).find(Boolean) ?? '';
+prueba('una cuenta nueva queda autenticada y sin compra', () => {
+  A.equal(registered.status, 201);
+  A.ok(freeSid.length > 20);
+});
+const lockedResponse = await fetch(`${API}/api/v3/lessons/12`, {
+  headers: { cookie: `sid=${freeSid}` },
+});
+const locked = await lockedResponse.json() as LockedLessonResult;
+prueba('una lección premium responde 402', () => A.equal(lockedResponse.status, 402));
+prueba('el 402 trae solo la tarjeta pública, sin prosa de pago', () => {
+  A.equal(locked.error, 'requiere_compra');
+  A.equal('technical' in (locked.lesson ?? {}), false);
+  A.equal('analogy' in (locked.lesson ?? {}), false);
+  A.equal(JSON.stringify(locked).includes('solution'), false);
+});
+const indexResponse = await fetch(`${API}/api/v3/lessons`, { headers: { cookie: `sid=${freeSid}` } });
+const indexBody = await indexResponse.text();
+prueba('el índice de una cuenta gratis tampoco contiene technical ni analogy', () => {
+  A.equal(indexResponse.status, 200);
+  A.equal(/"technical"|"analogy"/.test(indexBody), false);
+});
+await fetch(`${API}/api/v3/account/delete`, {
+  method: 'POST', headers: { 'content-type': 'application/json', cookie: `sid=${freeSid}` },
+  body: JSON.stringify({ password: freePassword }),
+});
+
+// --- durable bus claim route (the worker has no database of its own) ---
+const claimKey = `bridge:${randomBytes(10).toString('hex')}`;
+const claimHeaders = { 'content-type': 'application/json', 'x-ia-secreto': SECRETO };
+const firstClaim = await fetch(`${API}/api/v3/interno/bus/claim`, {
+  method: 'POST', headers: claimHeaders,
+  body: JSON.stringify({ action: 'claim', key: claimKey, owner: 'bridge-test', lease_s: 60 }),
+});
+const firstClaimBody = await firstClaim.json() as ClaimResult;
+prueba('el primer claim durable adquiere la clave', () => {
+  A.equal(firstClaim.status, 200); A.equal(firstClaimBody.claimed, true); A.equal(firstClaimBody.state, 'running');
+});
+const duplicateClaim = await fetch(`${API}/api/v3/interno/bus/claim`, {
+  method: 'POST', headers: claimHeaders,
+  body: JSON.stringify({ action: 'claim', key: claimKey, owner: 'other-worker', lease_s: 60 }),
+});
+const duplicateBody = await duplicateClaim.json() as ClaimResult;
+prueba('un segundo worker no puede duplicar un claim vigente', () => {
+  A.equal(duplicateClaim.status, 200); A.equal(duplicateBody.claimed, false); A.equal(duplicateBody.state, 'duplicate');
+});
+const completeClaim = await fetch(`${API}/api/v3/interno/bus/claim`, {
+  method: 'POST', headers: claimHeaders,
+  body: JSON.stringify({ action: 'complete', key: claimKey, owner: 'bridge-test' }),
+});
+prueba('el claim durable se puede marcar como hecho', () => A.equal(completeClaim.status, 200));
 
 // --- versionado: v1 y v2 deprecadas, v3 actual ---
 console.log('\nversionado');

@@ -1,13 +1,13 @@
 // Family `coordinar` — the stack and the queue (see src/agent-bus.ts). 7 tools.
 //
-// These are the ones that make 37 tools fit inside the 4-turn cap: one tool
+// These are the ones that make 39 tools fit inside the 4-turn cap: one tool
 // produces work, another consumes it already resolved. All of them are
 // `cachea: false`, because they MUTATE the queue or the stack — a memoised
 // `cola_siguiente` would hand out the same head twice.
 //
 // The `descripcion` and `nota` strings stay Spanish: they are read by the model
 // (docs/NAMING.md).
-import { all, get } from '../db.ts';
+import { many, one } from '../data.ts';
 import type { AttemptRow, LessonRow } from '../db.ts';
 import { assertNoForbidden } from '../ontology.ts';
 import { glossaryFor } from '../product.ts';
@@ -15,7 +15,7 @@ import {
   KINDS, bus, dequeue, diagnostics, enqueue, pop, push, top, viewQueue, viewStack,
 } from '../agent-bus.ts';
 import {
-  COLS_LAB, LAB_ID, language, lessonText, lockedByPaywall, me, mechanicIn, pending,
+  LAB_ID, language, lessonText, lockedByPaywall, me, mechanicIn, pending,
   readableLessons, toolCount, truncate,
 } from './access.ts';
 import type { Ctx, Registry, SafeLab, ToolResult } from './access.ts';
@@ -59,17 +59,20 @@ export const COORDINATION_TOOLS: Registry = {
       const lang = language(ctx, null);
       const readable = await readableLessons(ctx);
       if (item.tipo === 'lab') {
-        const lab = await get<SafeLab>(`SELECT ${COLS_LAB} FROM labs WHERE id = ?`, [item.ref]);
+        const card = await one<Pick<SafeLab, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>>(
+          'lab.card_by_id', { id: item.ref });
+        if (!card) return { item, error: 'no_existe' };
+        if (!readable.has(Number(card.lesson_n))) return { item, ...lockedByPaywall(Number(card.lesson_n)) };
+        const lab = await one<SafeLab>('lab.get', { id: item.ref });
         if (!lab) return { item, error: 'no_existe' };
-        if (!readable.has(Number(lab.lesson_n))) return { item, ...lockedByPaywall(Number(lab.lesson_n)) };
         assertNoForbidden('labs', lab);
-        const attempts = await all<Pick<AttemptRow, 'answer' | 'correct' | 'at'>>(
-          'SELECT answer, correct, at FROM attempts WHERE user_id = ? AND lab_id = ? ORDER BY at', [ctx.userId, item.ref]);
+        const attempts = (await many<Pick<AttemptRow, 'answer' | 'correct' | 'at'>>(
+          'attempt.mine_for_lab', { lab_id: item.ref }, ctx.userId)).reverse();
         // The second read has to pass the same guard as the first. It used to
         // bypass it, so a reclassified column would have kept leaking here while
         // the isolation proof still reported green.
         const explanation = attempts.length
-          ? assertNoForbidden('labs', await get<{ explanation: string }>('SELECT explanation FROM labs WHERE id = ?', [item.ref]))?.explanation ?? null
+          ? assertNoForbidden('labs', await one<{ explanation: string }>('lab.explanation', { id: item.ref }))?.explanation ?? null
           : null;
         const { texto, escritoEn } = await lessonText(lab.lesson_n, lang);
         return {
@@ -85,7 +88,7 @@ export const COORDINATION_TOOLS: Registry = {
       if (item.tipo === 'leccion') {
         const n = Number(item.ref);
         if (!readable.has(n)) return { item, ...lockedByPaywall(n) };
-        const head = await get<LessonRow>('SELECT n, eyebrow, title, summary, math, math_cap FROM lessons WHERE n = ?', [n]);
+        const head = await one<LessonRow>('lesson.card', { n });
         const { texto, escritoEn } = await lessonText(n, lang);
         return { item, leccion: head, idioma: escritoEn, tecnica: texto?.technical ?? null, analogia: texto?.analogy ?? null,
                  ejemplos: texto?.examples ?? null, ruta: `/leccion/${n}`, quedanEnCola: viewQueue(b).length };

@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Tokens copiados literalmente de web/src/lib/theme-css.ts. Sin redondear,
+       sin aproximar: el artboard tiene que ser indistinguible de la app. */
+    :root{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --btn-bg:#fff;--btn-fg:#000;--on-ac:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:var(--f);color:var(--l1);-webkit-font-smoothing:antialiased}
+    a{color:var(--ac);text-decoration:none}
+    a:hover{color:#409CFF}
+    /* Rampa tipografica de web/src/layouts/App.astro, mismas declaraciones. */
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .h1{font:700 34px/1.06 var(--f);letter-spacing:-.035em;margin:0}
+    .h2{font:700 21px/1.16 var(--f);letter-spacing:-.028em;margin:0}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0}
+    .p{font:400 16px/1.5 var(--f);color:var(--l2);margin:0}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .num{font-variant-numeric:tabular-nums}
+    .card{border:1px solid var(--hair2);padding:22px}
+    .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;font-family:var(--m)}
+    .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--l1)}
+    .chip{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--hair);background:transparent;color:var(--l1);font:500 14px/1.2 var(--m)}
+    .chip[data-on]{border-color:var(--ac);background:rgba(10,132,255,.18)}
+    .input{height:44px;width:100%;padding:0 14px;background:var(--fill);border:1px solid var(--hair2);color:var(--l1);font:400 15px/1 var(--f)}
+    .bar{height:4px;background:rgba(120,120,128,.20)}
+    .barfill{height:4px;background:var(--l1)}
+    .nav{height:44px;display:flex;align-items:center;gap:11px;padding:0 16px;color:var(--l3);font:500 11px/1 var(--m);letter-spacing:.14em;text-transform:uppercase;border-left:2px solid transparent}
+    .nav[aria-current]{color:var(--l1);background:var(--fill);border-left-color:var(--ac)}
+    .seg{display:flex;border:1px solid var(--hair2)}
+    .segb{height:30px;padding:0 10px;background:transparent;border:0;border-right:1px solid var(--hair2);color:var(--l3);font:600 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    .segb:last-child{border-right:0}
+    .segb[aria-pressed="true"]{background:var(--ac-solid);color:var(--on-ac)}
+    .tblhead{font:500 10px/1 var(--m);letter-spacing:.16em;text-transform:uppercase;color:var(--l3)}
+    /* PROPUESTA. Lo de aqui abajo no existe todavia en la app: es lo que hay que
+       aprobar. Cada regla lleva por que. */
+    /* .segb mide 30px de alto en la app. En un dedo eso incumple el suelo de
+       44px que .btn, .chip y .input ya respetan. En movil sube a 44. */
+    .segb.touch{height:44px;padding:0 16px;font-size:11px}
+    /* Cabecera de dos filas: fila 1 hamburguesa + miga, fila 2 el slot topbar.
+       Hoy la fila 2 se borra con display:none y con ella el conmutador de /chat
+       y el marcador de /examen. */
+    .head{border-bottom:1px solid var(--hair2);background:var(--bg)}
+    .head-r1{height:56px;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px}
+    .head-r2{min-height:52px;display:flex;align-items:center;gap:10px;padding:0 14px 10px;border-top:1px solid var(--hair2);padding-top:10px}
+    .tap{width:44px;height:44px;flex:none;display:grid;place-items:center;color:var(--l3);background:none;border:0}
+    .pad{padding:18px 14px 32px;display:flex;flex-direction:column;gap:22px}
+    /* La lista de lecciones en movil: dos filas por leccion en vez de cinco
+       columnas. #, texto y estado en la primera; labs y contador debajo. */
+    .row-m{display:grid;grid-template-columns:32px 1fr auto;gap:8px 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--hair2)}
+    .est{display:inline-flex;align-items:center;height:26px;padding:0 10px;font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    /* Carril de atajos de /chat: tira horizontal sobre el compositor, que es
+       donde sirven, en vez de ocho botones apilados debajo del hilo. */
+    .rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    .rail::-webkit-scrollbar{display:none}
+    .rail .btn{flex:none;height:38px;padding:0 14px;font-size:10px}
+  </style>
+</helmet>
+<!-- CHAT a 1024 px (iPad horizontal). Hoy 1024 esta por encima de 900, asi que
+     recibe el trato de ESCRITORIO completo: carril de 248 px. Quedan 776 para
+     la rejilla 1fr/300 = 476 de hilo. Propuesta para la banda 901-1180: el
+     carril arranca contraido (64 px de columna de iconos) y el hilo sube a 604. -->
+<div style="min-height:100%;background:var(--bg);display:flex">
+
+  <!-- Carril contraido: la geometria que ya existe en
+       .shell[data-sidebar-collapsed="1"], aplicada por media query en la banda
+       de tablet en vez de solo por la cookie. -->
+  <aside style="width:64px;flex:none;border-right:1px solid var(--hair2);display:flex;flex-direction:column;background:var(--bg)">
+    <div style="display:flex;flex-direction:column;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair2)">
+      <div style="height:48px;display:grid;place-items:center">
+        <span style="width:26px;height:26px;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)">IA</span>
+      </div>
+      <button class="tap" style="width:100%;height:40px" aria-label="Expandir menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12h13.4M13.6 6.6 19 12l-5.4 5.4"/></svg>
+      </button>
+    </div>
+    <nav style="display:flex;flex-direction:column;padding:12px 0;gap:2px">
+      <span class="nav" style="padding:0;justify-content:center;gap:0" title="Panel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.6 12 4l8 6.6V19a1 1 0 0 1-1 1h-4.6v-5.8H9.6V20H5a1 1 0 0 1-1-1z"/></svg></span>
+      <span class="nav" style="padding:0;justify-content:center;gap:0" title="Curso"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.6C10.4 5.2 8.5 4.5 6 4.5H4.2v12.8H6c2.5 0 4.4.7 6 2.1 1.6-1.4 3.5-2.1 6-2.1h1.8V4.5H18c-2.5 0-4.4.7-6 2.1zM12 6.6v12.8"/></svg></span>
+      <span class="nav" aria-current="page" style="padding:0;justify-content:center;gap:0" title="Chat"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0A84FF" stroke="none"><path d="M12 3.2l1.7 5.6 5.6 1.7-5.6 1.7L12 17.8l-1.7-5.6L4.7 10.5l5.6-1.7z"/></svg></span>
+      <span class="nav" style="padding:0;justify-content:center;gap:0" title="Logros"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M8 16.4V11M12 16.4V5.6M16 16.4v-3.8"/></svg></span>
+      <span class="nav" style="padding:0;justify-content:center;gap:0" title="Perfil"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12.4a3.9 3.9 0 1 0 0-7.8 3.9 3.9 0 0 0 0 7.8zM4.8 19.8c.6-3.2 3.6-5 7.2-5s6.6 1.8 7.2 5"/></svg></span>
+      <span class="nav" style="padding:0;justify-content:center;gap:0" title="Ajustes"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2.9v2.3M12 18.8v2.3M2.9 12h2.3M18.8 12h2.3M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg></span>
+    </nav>
+    <div style="margin-top:auto;border-top:1px solid var(--hair2);padding:12px 0;display:flex;justify-content:center">
+      <div style="width:34px;height:34px;border:1px solid var(--hair);display:grid;place-items:center;font:600 12px/1 var(--m)">AP</div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header style="height:64px;flex:none;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 20px">
+      <div class="lbl">CHAT / TU AGENTE</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="seg">
+          <button class="segb touch" aria-pressed="true">AUTO</button>
+          <button class="segb touch" aria-pressed="false">ES</button>
+          <button class="segb touch" aria-pressed="false">EN</button>
+        </div>
+        <!-- El slot topbar vive aqui, en su sitio, porque 1024 esta sobre el
+             umbral. Es la misma barra que en telefono baja a la fila 2. -->
+        <div class="seg">
+          <button class="segb touch" aria-pressed="true">NORMAL</button>
+          <button class="segb touch" aria-pressed="false">MODO IA</button>
+        </div>
+      </div>
+    </header>
+
+    <div style="flex:1;padding:24px 20px;display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:16px;min-height:560px">
+        <div style="display:flex;flex-direction:column;gap:14px;flex:1">
+          <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:8px">
+            <p class="eb">TU AGENTE</p>
+            <div class="h2">Hola, Alejandro</div>
+            <p class="p" style="font-size:14px">Pregunta lo que quieras del curso. Del tuyo: veo tu progreso, tus labs y tu puesto, y no puedo ver el de nadie mas.</p>
+          </div>
+        </div>
+        <div style="padding-top:22px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:10px">
+            <input class="input" placeholder="Escribe tu pregunta" style="flex:1;min-width:0">
+            <button class="btn">ENVIAR</button>
+          </div>
+          <p class="s">Lo que escribas aqui no sale de tu cuenta.</p>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card" style="display:flex;flex-direction:column;gap:9px">
+          <p class="lbl">ATAJOS</p>
+          <button class="btn ghost" style="justify-content:flex-start;height:38px;font-size:10px">POR DONDE EMPIEZO</button>
+          <button class="btn ghost" style="justify-content:flex-start;height:38px;font-size:10px">MI PROGRESO</button>
+          <button class="btn ghost" style="justify-content:flex-start;height:38px;font-size:10px">QUE SIGUE</button>
+          <button class="btn ghost" style="justify-content:flex-start;height:38px;font-size:10px">MIS LOGROS</button>
+          <button class="btn ghost" style="justify-content:flex-start;height:38px;font-size:10px">AYUDA</button>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;gap:10px;border-color:var(--hair2)">
+          <p class="lbl">SOLO LO TUYO</p>
+          <p class="s" style="color:var(--l2)">El agente lee tu progreso con herramientas acotadas a tu cuenta.</p>
+          <p class="lbl" style="margin-top:2px">37 HERRAMIENTAS</p>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="num" style="font:600 12px/1 var(--m);width:22px;flex:none">12</span><span class="s" style="color:var(--l2)">Contenido del curso</span></div>
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="num" style="font:600 12px/1 var(--m);width:22px;flex:none">11</span><span class="s" style="color:var(--l2)">Tu propio avance</span></div>
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="num" style="font:600 12px/1 var(--m);width:22px;flex:none">8</span><span class="s" style="color:var(--l2)">Producto y pagos</span></div>
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="num" style="font:600 12px/1 var(--m);width:22px;flex:none">6</span><span class="s" style="color:var(--l2)">Coordinacion entre ellas</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+</body>
+</html>

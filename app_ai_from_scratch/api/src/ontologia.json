@@ -13,6 +13,19 @@
     "attempts.id": "jamas",
     "attempts.lab_id": "propio",
     "attempts.user_id": "jamas",
+    "auth_throttles.expires_at": "jamas",
+    "auth_throttles.reason": "jamas",
+    "auth_throttles.updated_at": "jamas",
+    "auth_throttles.user_id": "jamas",
+    "entitlement_events.active": "jamas",
+    "entitlement_events.event_key": "jamas",
+    "entitlement_events.external_id": "jamas",
+    "entitlement_events.id": "jamas",
+    "entitlement_events.occurred_at": "jamas",
+    "entitlement_events.period_end": "jamas",
+    "entitlement_events.received_at": "jamas",
+    "entitlement_events.source": "jamas",
+    "entitlement_events.user_id": "jamas",
     "jobs.acabado_en": "jamas",
     "jobs.clave": "jamas",
     "jobs.corre_en": "jamas",
@@ -63,6 +76,23 @@
     "payments.raw": "jamas",
     "payments.status": "jamas",
     "payments.user_id": "jamas",
+    "question_attempts.answer": "propio",
+    "question_attempts.at": "propio",
+    "question_attempts.correct": "propio",
+    "question_attempts.id": "jamas",
+    "question_attempts.question_id": "propio",
+    "question_attempts.user_id": "jamas",
+    "questions.explanation_en": "publico",
+    "questions.explanation_es": "publico",
+    "questions.id": "publico",
+    "questions.idx": "publico",
+    "questions.kind": "publico",
+    "questions.lesson_n": "publico",
+    "questions.pack": "publico",
+    "questions.payload": "publico",
+    "questions.prompt_en": "publico",
+    "questions.prompt_es": "publico",
+    "questions.solution": "jamas",
     "ranking_optin.alias": "agregado",
     "ranking_optin.joined_at": "agregado",
     "ranking_optin.user_id": "jamas",
@@ -96,6 +126,8 @@
   "de_pago": {
     "achievements": [],
     "attempts": [],
+    "auth_throttles": [],
+    "entitlement_events": [],
     "jobs": [],
     "labs": [
       "prompt",
@@ -113,6 +145,14 @@
       "analogy"
     ],
     "payments": [],
+    "question_attempts": [],
+    "questions": [
+      "prompt_es",
+      "prompt_en",
+      "payload",
+      "explanation_es",
+      "explanation_en"
+    ],
     "ranking_optin": [],
     "reset_tokens": [],
     "role_audit": [],
@@ -246,6 +286,76 @@
       "ejecutor": "node",
       "usa": []
     },
+    "consulta": {
+      "alcance": "sesion",
+      "args": [
+        "table",
+        "select",
+        "where",
+        "group",
+        "aggregate",
+        "order",
+        "limit"
+      ],
+      "compone": [],
+      "devuelve": [
+        "users.name",
+        "users.role",
+        "users.lang",
+        "users.theme",
+        "users.paid",
+        "users.cohort",
+        "users.created_at",
+        "lessons.n",
+        "lessons.eyebrow",
+        "lessons.title",
+        "lessons.summary",
+        "lessons.math",
+        "lessons.math_cap",
+        "labs.id",
+        "labs.lesson_n",
+        "labs.idx",
+        "labs.level",
+        "labs.kind",
+        "labs.draft",
+        "attempts.lab_id",
+        "attempts.answer",
+        "attempts.correct",
+        "attempts.at",
+        "achievements.code",
+        "achievements.kind",
+        "achievements.lesson_n",
+        "achievements.earned_at",
+        "ranking_optin.alias",
+        "ranking_optin.joined_at",
+        "league_week.week",
+        "league_week.metal",
+        "league_week.caudal",
+        "league_week.puesto",
+        "league_week.estado",
+        "lesson_text.lesson_n",
+        "lesson_text.lang"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "users",
+        "lessons",
+        "labs",
+        "attempts",
+        "achievements",
+        "ranking_optin",
+        "league_week",
+        "lesson_text"
+      ]
+    },
+    "consulta_campos": {
+      "alcance": "publico",
+      "args": [],
+      "compone": [],
+      "devuelve": [],
+      "ejecutor": "node",
+      "usa": []
+    },
     "curso_indice": {
       "alcance": "publico",
       "args": [],
@@ -297,6 +407,30 @@
       "devuelve": [],
       "ejecutor": "python",
       "usa": []
+    },
+    "examen": {
+      "alcance": "sesion",
+      "args": [
+        "n"
+      ],
+      "compone": [],
+      "devuelve": [
+        "questions.id",
+        "questions.kind",
+        "questions.pack",
+        "questions.idx",
+        "questions.lesson_n",
+        "questions.prompt_es",
+        "questions.prompt_en",
+        "questions.payload",
+        "question_attempts.correct"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "questions",
+        "question_attempts",
+        "users"
+      ]
     },
     "foco_apilar": {
       "alcance": "publico",
@@ -549,12 +683,17 @@
       "compone": [],
       "devuelve": [
         "labs.lesson_n",
-        "attempts.correct"
+        "attempts.correct",
+        "questions.pack",
+        "questions.kind",
+        "question_attempts.correct"
       ],
       "ejecutor": "node",
       "usa": [
         "labs",
-        "attempts"
+        "attempts",
+        "questions",
+        "question_attempts"
       ]
     },
     "mi_racha": {
@@ -744,6 +883,30 @@
         "users"
       ]
     },
+    "quiz_leccion": {
+      "alcance": "sesion",
+      "args": [
+        "n"
+      ],
+      "compone": [],
+      "devuelve": [
+        "questions.id",
+        "questions.kind",
+        "questions.pack",
+        "questions.idx",
+        "questions.lesson_n",
+        "questions.prompt_es",
+        "questions.prompt_en",
+        "questions.payload",
+        "question_attempts.correct"
+      ],
+      "ejecutor": "node",
+      "usa": [
+        "questions",
+        "question_attempts",
+        "users"
+      ]
+    },
     "ranking_publico": {
       "alcance": "agregado",
       "args": [],
@@ -805,6 +968,19 @@
     "attempts.id": "gratis",
     "attempts.lab_id": "gratis",
     "attempts.user_id": "gratis",
+    "auth_throttles.expires_at": "gratis",
+    "auth_throttles.reason": "gratis",
+    "auth_throttles.updated_at": "gratis",
+    "auth_throttles.user_id": "gratis",
+    "entitlement_events.active": "gratis",
+    "entitlement_events.event_key": "gratis",
+    "entitlement_events.external_id": "gratis",
+    "entitlement_events.id": "gratis",
+    "entitlement_events.occurred_at": "gratis",
+    "entitlement_events.period_end": "gratis",
+    "entitlement_events.received_at": "gratis",
+    "entitlement_events.source": "gratis",
+    "entitlement_events.user_id": "gratis",
     "jobs.acabado_en": "gratis",
     "jobs.clave": "gratis",
     "jobs.corre_en": "gratis",
@@ -855,6 +1031,23 @@
     "payments.raw": "gratis",
     "payments.status": "gratis",
     "payments.user_id": "gratis",
+    "question_attempts.answer": "gratis",
+    "question_attempts.at": "gratis",
+    "question_attempts.correct": "gratis",
+    "question_attempts.id": "gratis",
+    "question_attempts.question_id": "gratis",
+    "question_attempts.user_id": "gratis",
+    "questions.explanation_en": "de_pago",
+    "questions.explanation_es": "de_pago",
+    "questions.id": "gratis",
+    "questions.idx": "gratis",
+    "questions.kind": "gratis",
+    "questions.lesson_n": "gratis",
+    "questions.pack": "gratis",
+    "questions.payload": "de_pago",
+    "questions.prompt_en": "de_pago",
+    "questions.prompt_es": "de_pago",
+    "questions.solution": "gratis",
     "ranking_optin.alias": "gratis",
     "ranking_optin.joined_at": "gratis",
     "ranking_optin.user_id": "gratis",
@@ -889,11 +1082,15 @@
     "role_audit",
     "reset_tokens",
     "ranking_optin",
+    "question_attempts",
     "payments",
     "league_week",
+    "entitlement_events",
+    "auth_throttles",
     "attempts",
     "achievements",
     "users",
+    "questions",
     "lesson_text",
     "labs",
     "lessons",
@@ -906,6 +1103,23 @@
     "attempts": [
       "id",
       "user_id"
+    ],
+    "auth_throttles": [
+      "user_id",
+      "expires_at",
+      "reason",
+      "updated_at"
+    ],
+    "entitlement_events": [
+      "id",
+      "event_key",
+      "user_id",
+      "active",
+      "source",
+      "external_id",
+      "occurred_at",
+      "received_at",
+      "period_end"
     ],
     "jobs": [
       "id",
@@ -940,6 +1154,13 @@
       "raw",
       "at"
     ],
+    "question_attempts": [
+      "id",
+      "user_id"
+    ],
+    "questions": [
+      "solution"
+    ],
     "ranking_optin": [
       "user_id"
     ],
@@ -970,10 +1191,10 @@
     ]
   },
   "prompt_sha": {
-    "en": "b62cadbc684b",
-    "es": "0e9645292cfd"
+    "en": "dac3ff0bbd1b",
+    "es": "d4f241d2d59f"
   },
-  "sha": "b0d12f462ec36297",
+  "sha": "cb24dc2122d90e74",
   "version": 3,
   "violaciones": []
 }

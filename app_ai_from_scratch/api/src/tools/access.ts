@@ -10,7 +10,7 @@
 // results and are asserted by api/test/tools.mts and by
 // ai/src/course_ai/, so they are unchanged. `descripcion` texts and `nota` texts
 // stay Spanish for the same reason (docs/NAMING.md, "Model-facing strings").
-import { all, get } from '../db.ts';
+import { many, one } from '../data.ts';
 import type { LabRow, LessonRow, LessonTextRow, UserRow } from '../db.ts';
 import { assertNoForbidden } from '../ontology.ts';
 import { METALS, MIN_LEAGUE, ZONE, assignMetals, currentWeek, flow } from '../leagues.ts';
@@ -93,9 +93,9 @@ export type Me = Pick<UserRow, 'name' | 'role' | 'lang' | 'theme' | 'paid' | 'co
 // list to stay correct: thirteen tools funnel through this one helper, so one
 // careless column added here would ship `email` or `pass_hash` into the model's
 // context. Guarding the helper covers all thirteen; guarding the call sites was
-// what left 26 of 37 tools unchecked.
+// what left 26 of the original 37 tools unchecked.
 export const me = async (ctx: Ctx): Promise<Me | null> => assertNoForbidden('users',
-  await get<Me>('SELECT name, role, lang, theme, paid, cohort, created_at FROM users WHERE id = ? AND deleted_at IS NULL', [ctx.userId]));
+  await one<Me>('user.me', {}, ctx.userId));
 
 /** The same rule as the server's paywall, not an approximate copy. */
 export const hasAccess = (u: Me | null | undefined, n: unknown): boolean =>
@@ -146,16 +146,10 @@ export const lockedByPaywall = (n: number): ToolResult => ({
 /** One lesson's lab counts for this person. */
 export interface PerLessonRow { n: number; total: number; resueltos: number }
 
-const SQL_PER_LESSON = `
-  SELECT l.lesson_n AS n, COUNT(*)::int AS total,
-         SUM(CASE WHEN a.solved = 1 THEN 1 ELSE 0 END)::int AS resueltos
-  FROM labs l
-  LEFT JOIN (SELECT lab_id, MAX(correct) AS solved FROM attempts WHERE user_id = ? GROUP BY lab_id) a
-    ON a.lab_id = l.id
-  GROUP BY l.lesson_n ORDER BY l.lesson_n`;
-
-export const perLesson = (ctx: Ctx): Promise<PerLessonRow[]> =>
-  all<PerLessonRow>(SQL_PER_LESSON, [ctx.userId]);
+export const perLesson = async (ctx: Ctx): Promise<PerLessonRow[]> =>
+  (await many<{ n: number; total: number; solved: number }>(
+    'achievement.progress_by_lesson', {}, ctx.userId))
+    .map((r) => ({ n: r.n, total: r.total, resueltos: r.solved }));
 
 export const completed = (rows: readonly PerLessonRow[]): number =>
   rows.filter((r) => r.total > 0 && r.resueltos === r.total).length;
@@ -174,14 +168,8 @@ export interface PendingLab {
 
 /** Unsolved labs, in course order. Carries the padlock already computed. */
 export async function pending(ctx: Ctx, u: Me | null): Promise<PendingLab[]> {
-  const rows = await all<Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'> & { title: string }>(`
-    SELECT l.id, l.lesson_n, l.idx, l.level, l.kind, l.draft, s.title
-    FROM labs l
-    JOIN lessons s ON s.n = l.lesson_n
-    LEFT JOIN (SELECT lab_id, MAX(correct) AS solved FROM attempts WHERE user_id = ? GROUP BY lab_id) a
-      ON a.lab_id = l.id
-    WHERE COALESCE(a.solved, 0) = 0
-    ORDER BY l.lesson_n, l.idx`, [ctx.userId]);
+  const rows = await many<Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'> & { title: string }>(
+    'progress.pending_labs', {}, ctx.userId);
   return rows.map((l) => ({
     lab_id: l.id, leccion: l.lesson_n, titulo: l.title, idx: l.idx, level: l.level,
     kind: l.kind, borrador: !!l.draft, cerrado: !hasAccess(u, l.lesson_n),
@@ -189,9 +177,8 @@ export async function pending(ctx: Ctx, u: Me | null): Promise<PendingLab[]> {
 }
 
 /** Dates (product zone) with activity, most recent first. */
-export const activeDays = (ctx: Ctx): Promise<{ dia: string }[]> => all<{ dia: string }>(
-  `SELECT DISTINCT ((at AT TIME ZONE ?)::date)::text AS dia
-   FROM attempts WHERE user_id = ? ORDER BY dia DESC`, [ZONE, ctx.userId]);
+export const activeDays = (ctx: Ctx): Promise<{ dia: string }[]> =>
+  many<{ dia: string }>('progress.active_days', { zone: ZONE }, ctx.userId);
 
 export interface Streak {
   racha: number;
@@ -259,7 +246,7 @@ export interface LeagueFor {
 
 export async function leagueFor(ctx: Ctx, u: Me): Promise<LeagueFor> {
   const [rows, week] = await Promise.all([flow(), currentWeek()]);
-  const optin = await get<{ alias: string }>('SELECT alias FROM ranking_optin WHERE user_id = ?', [ctx.userId]);
+  const optin = await one<{ alias: string }>('ranking.mine', {}, ctx.userId);
   const base = { zona: ZONE, semana: week, minimo: MIN_LEAGUE, metales: METALS, participantes: rows.length };
   if (!u.paid) return { ...base, activa: false, yo: null, motivo: 'requiere_compra' };
   if (!optin) return { ...base, activa: false, yo: null, motivo: 'sin_alias', ruta: '/ranking' };
@@ -277,11 +264,13 @@ export async function leagueFor(ctx: Ctx, u: Me): Promise<LeagueFor> {
 /** Teaching text for a lesson, falling back to Spanish. */
 export async function lessonText(n: number, lang: string):
     Promise<{ texto: Pick<LessonTextRow, 'technical' | 'analogy' | 'examples'> | null; escritoEn: string | null }> {
-  const Q = 'SELECT technical, analogy, examples FROM lesson_text WHERE lesson_n = ? AND lang = ?';
   type Row = Pick<LessonTextRow, 'technical' | 'analogy' | 'examples'>;
-  let row = await get<Row>(Q, [n, lang]);
+  let row = await one<Row>('lesson_text.get', { lesson_n: n, lang });
   let writtenIn = row ? lang : null;
-  if (!row && lang !== 'es') { row = await get<Row>(Q, [n, 'es']); writtenIn = row ? 'es' : null; }
+  if (!row && lang !== 'es') {
+    row = await one<Row>('lesson_text.get', { lesson_n: n, lang: 'es' });
+    writtenIn = row ? 'es' : null;
+  }
   if (row) assertNoForbidden('lesson_text', row);
   return { texto: row, escritoEn: writtenIn };
 }

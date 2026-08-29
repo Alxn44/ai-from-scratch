@@ -24,9 +24,9 @@ func TestOutsideDevelopmentAMissingSecretRefusesToBoot(t *testing.T) {
 	// caller, and whoever reads the repository could present it.
 	_, err := Load(lookup(map[string]string{}))
 	if err == nil {
-		t.Fatal("a configuration with no IA_SECRETO was accepted")
+		t.Fatal("a configuration with no QUEUE_SECRETO was accepted")
 	}
-	if !strings.Contains(err.Error(), "IA_SECRETO") {
+	if !strings.Contains(err.Error(), "QUEUE_SECRETO") {
 		t.Fatalf("the error does not name the variable: %v", err)
 	}
 	// It must also say what to DO, not only what is wrong.
@@ -72,7 +72,7 @@ func TestInDevelopmentAnEphemeralSecretIsMintedAndSaidOutLoud(t *testing.T) {
 func TestKnownPlaceholderSecretsAreRefused(t *testing.T) {
 	// Kept in step with the WEAK set in api/src/auth.ts.
 	for _, weak := range []string{"changeme", "secret", "dev-only-change-me", "dev-solo-para-local", "CHANGEME", "Secret"} {
-		_, err := Load(lookup(map[string]string{"IA_SECRETO": weak}))
+		_, err := Load(lookup(map[string]string{"QUEUE_SECRETO": weak}))
 		if err == nil {
 			t.Fatalf("the placeholder %q was accepted", weak)
 		}
@@ -83,7 +83,7 @@ func TestKnownPlaceholderSecretsAreRefused(t *testing.T) {
 }
 
 func TestAShortSecretIsRefusedWithItsLength(t *testing.T) {
-	_, err := Load(lookup(map[string]string{"IA_SECRETO": "abcdefghijklmnop"})) // 16
+	_, err := Load(lookup(map[string]string{"QUEUE_SECRETO": "abcdefghijklmnop"})) // 16
 	if err == nil {
 		t.Fatal("a 16-character secret was accepted")
 	}
@@ -93,7 +93,7 @@ func TestAShortSecretIsRefusedWithItsLength(t *testing.T) {
 	// And a placeholder that is ALSO long enough must still be refused: length
 	// is not the only thing wrong with a published string.
 	long := "dev-only-change-me"
-	if _, err := Load(lookup(map[string]string{"IA_SECRETO": long + strings.Repeat("x", 40)})); err != nil {
+	if _, err := Load(lookup(map[string]string{"QUEUE_SECRETO": long + strings.Repeat("x", 40)})); err != nil {
 		// This one is genuinely unguessable, so it is allowed. Asserted so the
 		// blocklist is understood to be exact-match and not a substring scan --
 		// a substring scan would reject legitimate random secrets.
@@ -102,7 +102,7 @@ func TestAShortSecretIsRefusedWithItsLength(t *testing.T) {
 }
 
 func TestThereIsNoDefaultBrokerURLAndNoBrokerIsASupportedState(t *testing.T) {
-	c, err := Load(lookup(map[string]string{"IA_SECRETO": goodSecret}))
+	c, err := Load(lookup(map[string]string{"QUEUE_SECRETO": goodSecret}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,12 +126,12 @@ func TestAMalformedBrokerURLIsRefusedAtBootNotAtTheFirstPublish(t *testing.T) {
 		"amqp://",             // no host
 		"amqp://%zz@broker/",  // unparseable
 	} {
-		if _, err := Load(lookup(map[string]string{"IA_SECRETO": goodSecret, "AMQP_URL": bad})); err == nil {
+		if _, err := Load(lookup(map[string]string{"QUEUE_SECRETO": goodSecret, "AMQP_URL": bad})); err == nil {
 			t.Fatalf("AMQP_URL=%q was accepted; the failure would surface later as an unexplained reconnect loop", bad)
 		}
 	}
 	good := "amqp://app:pw@broker:5672/"
-	c, err := Load(lookup(map[string]string{"IA_SECRETO": goodSecret, "AMQP_URL": good}))
+	c, err := Load(lookup(map[string]string{"QUEUE_SECRETO": goodSecret, "AMQP_URL": good}))
 	if err != nil {
 		t.Fatalf("a valid AMQP_URL was refused: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestAMalformedBrokerURLIsRefusedAtBootNotAtTheFirstPublish(t *testing.T) {
 
 func TestAMalformedClaimURLIsRefused(t *testing.T) {
 	for _, bad := range []string{"amqp://api/claim", "not a url", "api:8787/claim"} {
-		if _, err := Load(lookup(map[string]string{"IA_SECRETO": goodSecret, "BUS_CLAIM_URL": bad})); err == nil {
+		if _, err := Load(lookup(map[string]string{"QUEUE_SECRETO": goodSecret, "BUS_CLAIM_URL": bad})); err == nil {
 			t.Fatalf("BUS_CLAIM_URL=%q was accepted", bad)
 		}
 	}
@@ -153,19 +153,19 @@ func TestTheNumericKnobsRefuseNonsenseInsteadOfSilentlyDefaulting(t *testing.T) 
 	// BUS_PREFETCH=0 to "pause" the worker gets prefetch 8 and no warning.
 	for _, k := range []string{"BUS_PREFETCH", "PORT", "BUS_HANDLER_TIMEOUT_MS", "BUS_DRAIN_MS", "BUS_PUBLISH_TIMEOUT_MS", "BUS_CLAIM_LEASE_S"} {
 		for _, v := range []string{"0", "-1", "eight"} {
-			m := map[string]string{"IA_SECRETO": goodSecret, k: v}
+			m := map[string]string{"QUEUE_SECRETO": goodSecret, k: v}
 			if _, err := Load(lookup(m)); err == nil {
 				t.Fatalf("%s=%q was accepted", k, v)
 			}
 		}
 	}
-	if _, err := Load(lookup(map[string]string{"IA_SECRETO": goodSecret, "PORT": "70000"})); err == nil {
+	if _, err := Load(lookup(map[string]string{"QUEUE_SECRETO": goodSecret, "PORT": "70000"})); err == nil {
 		t.Fatal("PORT=70000 was accepted")
 	}
 }
 
 func TestTheDefaultsAreTheOnesTheOtherRuntimesUse(t *testing.T) {
-	c, err := Load(lookup(map[string]string{"IA_SECRETO": goodSecret}))
+	c, err := Load(lookup(map[string]string{"QUEUE_SECRETO": goodSecret}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,8 +191,8 @@ func TestTheDefaultsAreTheOnesTheOtherRuntimesUse(t *testing.T) {
 
 func TestDescribeNeverPrintsACredential(t *testing.T) {
 	c, err := Load(lookup(map[string]string{
-		"IA_SECRETO": goodSecret,
-		"AMQP_URL":   "amqp://app:sup3rs3cret@broker:5672/",
+		"QUEUE_SECRETO": goodSecret,
+		"AMQP_URL":      "amqp://app:sup3rs3cret@broker:5672/",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +224,7 @@ func TestRedactKeepsTheHostAndDropsTheCredentials(t *testing.T) {
 }
 
 func TestLoadForToolDoesNotDemandASecretItNeverUses(t *testing.T) {
-	// A tool listens on nothing and authenticates nobody. Demanding IA_SECRETO
+	// A tool listens on nothing and authenticates nobody. Demanding QUEUE_SECRETO
 	// would be ceremony, and ceremony gets worked around with a fake value --
 	// which is how a placeholder ends up in a real environment.
 	c, err := LoadForTool(lookup(map[string]string{"AMQP_URL": "amqp://app:pw@broker:5672/"}))
@@ -244,10 +244,10 @@ func TestLoadForToolStillRejectsAPlaceholderThatIsPresent(t *testing.T) {
 	// The relaxation is "not required", never "not checked": a placeholder in the
 	// environment must be caught by every entry point, not only by the one that
 	// happens to look.
-	if _, err := LoadForTool(lookup(map[string]string{"IA_SECRETO": "changeme"})); err == nil {
+	if _, err := LoadForTool(lookup(map[string]string{"QUEUE_SECRETO": "changeme"})); err == nil {
 		t.Fatal("the tool path accepted a known placeholder")
 	}
-	if _, err := LoadForTool(lookup(map[string]string{"IA_SECRETO": "short"})); err == nil {
+	if _, err := LoadForTool(lookup(map[string]string{"QUEUE_SECRETO": "short"})); err == nil {
 		t.Fatal("the tool path accepted a too-short secret")
 	}
 }

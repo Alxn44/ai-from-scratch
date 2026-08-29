@@ -5,6 +5,8 @@ import { gate, apiFetch } from '../lib/session';
 import { icon } from '../lib/icons';
 import { t, resolveLang } from '../lib/i18n';
 import { jsonSafe } from '../lib/json-safe';
+import { tourHecho } from '../lib/onboard';
+import { tutorialHecho } from '../lib/tutorial';
 
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
@@ -30,6 +32,8 @@ const playable = (l: Lesson) => l.labs.some((x) => !x.draft && !x.solved);
 const next = lessons.find(playable) ?? lessons.find((l) => l.labs.some((x) => !x.draft)) ?? lessons[0];
 const pct = prog ? Math.round((prog.lessonsDone / prog.totalLessons) * 100) : 0;
 const labPct = prog ? Math.round((prog.solvedLabs / prog.totalLabs) * 100) : 0;
+const showTour = !tourHecho(Astro.request) && (prog?.solvedLabs ?? 0) === 0;
+const showTut = !tutorialHecho('panel', Astro.request);
 const STATE = (l: Lesson) => {
   const escritos = l.labs.filter((x) => !x.draft);
   if (!escritos.length) return [L.ui.estBorrador, 'var(--or)', 'rgba(255,159,10,.12)'];
@@ -39,12 +43,17 @@ const STATE = (l: Lesson) => {
 };
 ---
 <App user={user!} title={L.nav.panel} crumb={`${L.nav.panel.toUpperCase()} / ${rolTxt.toUpperCase()}`} active={L.nav.panel}>
-  <a slot="topbar" class="btn" style="height:36px;font-size:10px;text-decoration:none" href={`/leccion/${next?.n ?? 1}`}>{L.continuar}</a>
+  <!-- Opcion A: la accion principal va a la barra inferior en movil, y sigue en
+       la cabecera en escritorio. El boton identico de la tarjeta NO se esconde: le
+       cuelga data-tut="panel-1" y tutorial.ts:129 filtra por existencia, no por
+       visibilidad, asi que ocultarlo dejaba el foco del tutorial en 0,0. Ademas en
+       movil el de la tarjeta se va con el scroll y el de la barra se queda. -->
+  <a slot="action" class="btn" style="text-decoration:none" href={`/leccion/${next?.n ?? 1}`}>{L.continuar}</a>
 
-  <div style="padding:30px 28px 40px;display:flex;flex-direction:column;gap:26px">
+  <div class="app-pad" style="display:flex;flex-direction:column;gap:26px">
 
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px">
-      <div class="card" style="grid-column:span 2;display:flex;flex-direction:column;gap:18px;border-color:var(--hair)">
+    <div class="stack-3">
+      <div class="card span-2" style="display:flex;flex-direction:column;gap:18px;border-color:var(--hair)">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px">
           <p class="eb">{String(next?.n).padStart(2, '0')} · {next?.eyebrow} · {L.ui.sigueAqui}</p>
           <p class="lbl num">{next?.solved} / {next?.total} {L.ui.labsTag}</p>
@@ -59,12 +68,12 @@ const STATE = (l: Lesson) => {
           ))}
         </div>
         <div style="display:flex;gap:12px;margin-top:4px">
-          <a class="btn" style="text-decoration:none" href={`/leccion/${next?.n}`}><Fragment set:html={icon('play', 16, '#000')} /><span>{L.continuarLeccion}</span></a>
+          <a class="btn" data-tut="panel-1" style="text-decoration:none" href={`/leccion/${next?.n}`}><Fragment set:html={icon('play', 16, '#000')} /><span>{L.continuarLeccion}</span></a>
         </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:22px">
-        <div class="card" style="display:flex;flex-direction:column;gap:14px">
+        <div class="card" data-tut="panel-2" style="display:flex;flex-direction:column;gap:14px">
           <p class="lbl">{L.progreso}</p>
           <div style="display:flex;align-items:baseline;gap:8px">
             <span class="num" style="font:700 40px/1 var(--f);letter-spacing:-.04em">{prog?.lessonsDone}</span>
@@ -84,21 +93,21 @@ const STATE = (l: Lesson) => {
       </div>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div style="display:grid;grid-template-columns:46px 1fr 190px 92px 104px;gap:18px;padding:0 4px 10px;border-bottom:1px solid var(--hair)">
+    <div data-tut="panel-3" style="display:flex;flex-direction:column;gap:14px">
+      <div class="lec-list-head" style="padding:0 4px 10px;border-bottom:1px solid var(--hair)">
         <div class="tblhead">#</div><div class="tblhead">{L.ui.leccionCol}</div><div class="tblhead">{L.nav.labs}</div><div class="tblhead">{L.ui.hechosCol}</div><div class="tblhead">{L.ui.estadoCol}</div>
       </div>
       {lessons.map((l) => {
         const [txt, col, bg] = STATE(l);
         return (
-          <a href={`/leccion/${l.n}`} style="display:grid;grid-template-columns:46px 1fr 190px 92px 104px;gap:18px;align-items:center;height:52px;padding:0 4px;border-bottom:1px solid var(--hair2);color:var(--l1)">
+          <a href={`/leccion/${l.n}`} class="lec-list-row" style="align-items:center;height:52px;padding:0 4px;border-bottom:1px solid var(--hair2);color:var(--l1)">
             <span class="num" style="font:600 13px/1 var(--m);color:var(--l3)">{String(l.n).padStart(2, '0')}</span>
             <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
               <span class="lbl" style="color:var(--ac);letter-spacing:.16em">{l.eyebrow}</span>
               <span style="font:600 14px/1.2 var(--f);letter-spacing:-.01em">{l.title}</span>
             </span>
-            <span class="s" style="color:var(--l2)">{l.labs.map((x) => `Lab ${x.id}`).join(' · ')}</span>
-            <span class="num" style="font:500 13px/1 var(--m);color:var(--l2)">{l.solved} / {l.total}</span>
+            <span class="s lec-labs" style="color:var(--l2)">{l.labs.map((x) => `Lab ${x.id}`).join(' · ')}</span>
+            <span class="num lec-count" style="font:500 13px/1 var(--m);color:var(--l2)">{l.solved} / {l.total}</span>
             <span style={`justify-self:start;display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid ${col};background:${bg};font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;color:${col}`}>{txt}</span>
           </a>
         );
@@ -107,6 +116,16 @@ const STATE = (l: Lesson) => {
   </div>
 
   <script type="application/json" id="ui-txt" is:inline set:html={jsonSafe({ ...L.ui, lang })}></script>
+  <script type="application/json" id="trazo-txt" is:inline set:html={jsonSafe({
+    auto: showTour,
+    nombre: user!.name.split(' ')[0] ?? '',
+    ...L.trazo,
+  })}></script>
+  <script type="application/json" id="tutorial-txt" is:inline set:html={jsonSafe({
+    auto: showTut,
+    aria: L.tutorial.aria, skip: L.tutorial.skip, next: L.tutorial.next, done: L.tutorial.done,
+    ...L.tutorial.panel,
+  })}></script>
   {subida && (
     <script type="application/json" id="subida-txt" is:inline set:html={jsonSafe({
       de: subida.de, a: subida.a, semana: liga?.semana?.lunes ?? subida.semana,
@@ -119,7 +138,28 @@ const STATE = (l: Lesson) => {
   <script>
     import { desbloquear } from '../lib/unlock';
     import { sonar, prepararSonido } from '../lib/sound';
+    import { abrirTour } from '../lib/onboard';
+    import { abrirTutorial, pasosDe } from '../lib/tutorial';
     const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);
+    const TZ = JSON.parse(document.getElementById('trazo-txt')!.textContent!);
+    const TT = JSON.parse(document.getElementById('tutorial-txt')!.textContent!);
+    const q = new URLSearchParams(location.search);
+    const forceTour = q.get('tour') === '1';
+    const forceTut = q.get('tutorial') === '1';
+    window.abrirTutorial = () => abrirTutorial('panel', pasosDe('panel', TT), TT);
+    if (forceTour) {
+      abrirTour({
+        aria: TZ.aria, skip: TZ.skip, next: TZ.next,
+        hola: TZ.hola, holaB: TZ.holaB, listo: TZ.listo, ir: TZ.ir,
+        pasos: [
+          { k: TZ.paso1k, t: TZ.paso1t, b: TZ.paso1b, href: '/leccion/1' },
+          { k: TZ.paso2k, t: TZ.paso2t, b: TZ.paso2b, href: '/leccion/1' },
+          { k: TZ.paso3k, t: TZ.paso3t, b: TZ.paso3b, href: '/chat' },
+        ],
+      }, TZ.nombre);
+    } else if (TT.auto || forceTut) {
+      window.abrirTutorial();
+    }
 
     // Una vez por semana y por navegador. La MISMA clave que usa /ligas, para
     // que subir se anuncie una sola vez y no una por pagina.

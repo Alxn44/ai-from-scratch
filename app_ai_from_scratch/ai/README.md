@@ -17,7 +17,7 @@ uv run ai-doc                     # writes ../ONTOLOGY.md
 
 ```
 ontology/
-  data.py     the ontology as DATA: 12 tables, 90 columns, 37 tools. Every tool
+  data.py     the ontology as DATA: 12 tables, 90 columns, 39 tools. Every tool
               declares which tables it touches (`reads`), which columns it
               returns (`returns`) and with what scope (sesion/publico/agregado).
   graph.py    the graph and the PROOF. BFS O(V+E), Kahn for the deletion order,
@@ -53,7 +53,7 @@ Two more commands, from the repo root, are the acceptance tests for the ontology
 
 ```bash
 node scripts/check-ontology-drift.mjs                          # ontology vs schema.prisma
-node --experimental-strip-types scripts/emit-tool-catalog.mjs   # 37 tools, 7 paywalled
+node --experimental-strip-types scripts/emit-tool-catalog.mjs   # 39 tools, 7 paywalled
 ```
 
 The `--experimental-strip-types` flag is required: Node 22.13 reports
@@ -88,7 +88,7 @@ things are deliberately NOT: the route paths (`/salud`, `/ontologia/*`,
 | `NODE_URL` | where the API is, for the tool bridge |
 | `PORT` | 8799 |
 | `ANTHROPIC_API_KEY` and friends | one is enough. With none, `/agente/turno` answers `sin_proveedor` instead of pretending. |
-| `PROVEEDOR_ORDEN` | priority, e.g. `anthropic,deepseek` |
+| `PROVEEDOR_ORDEN` | priority, e.g. `anthropic,deepseek,grok,sonnet`. Default: Haiku (flash), then cheap fallbacks, then Grok and Sonnet for reasoning. Opus is refused. |
 
 `scripts/keys.sh` generates them (the model keys have to be pasted by hand:
 each provider issues them and they belong to your account).

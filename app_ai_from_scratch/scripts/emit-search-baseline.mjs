@@ -66,6 +66,12 @@ const die = (msg) => { console.error(`emit-search-baseline: ${msg}`); process.ex
 // Narrower than NODE_ENV=development, which would also mint a real session key.
 process.env.DATABASE_URL ??= 'postgres://search-baseline-emitter-never-connects/none';
 process.env.JWT_SECRET ??= 'search-baseline-emitter-never-signs-a-session-token';
+// content.ts now crosses the same closed data client as production. The emitter
+// still has no database: intercept only its three read operations and answer
+// them from the seeded in-memory corpus below. This keeps the measured scorer
+// real without smuggling a Postgres fallback into runtime API code.
+process.env.DATA_URL ??= 'http://127.0.0.1:8788';
+process.env.DATA_SECRETO ??= 'search-baseline-emitter-data-secret';
 // api/src/seed.ts creates demo accounts only when this is '1'. It must not be.
 if (process.env.SEED_DEMO_USERS === '1') {
   die('SEED_DEMO_USERS=1 is set. This script imports the seed to READ the corpus; '
@@ -140,6 +146,27 @@ if (!lessons.length || !texts.length || !labs.length) {
       + `${texts.length} lesson text(s), ${labs.length} lab(s). A baseline scored against `
       + `an empty corpus is a table of zeroes that looks like a measurement.`);
 }
+
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (input, init = {}) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if (!url.startsWith(`${process.env.DATA_URL}/v1/op`)) return realFetch(input, init);
+  let body;
+  try { body = JSON.parse(String(init.body ?? '{}')); } catch { return new Response(JSON.stringify({ error: 'bad_request' }), { status: 400 }); }
+  const args = body.args ?? {};
+  const project = (rows, names) => rows.map((row) => Object.fromEntries(names.map((name) => [name, row[name] ?? null])));
+  let rows;
+  if (body.op === 'lesson.search_corpus') {
+    rows = project(lessons, ['n', 'eyebrow', 'title', 'summary', 'math_cap', 'technical', 'analogy']);
+  } else if (body.op === 'lesson_text.by_lang') {
+    rows = project(texts.filter((row) => String(row.lang) === String(args.lang)), ['lesson_n', 'technical', 'analogy']);
+  } else if (body.op === 'lab.prompts') {
+    rows = project(labs.sort((a, b) => Number(a.lesson_n) - Number(b.lesson_n) || Number(a.idx) - Number(b.idx)), ['id', 'lesson_n', 'prompt']);
+  } else {
+    return new Response(JSON.stringify({ error: 'unknown_operation' }), { status: 404, headers: { 'content-type': 'application/json' } });
+  }
+  return new Response(JSON.stringify({ operation: body.op, rows, affected: rows.length }), { status: 200, headers: { 'content-type': 'application/json' } });
+};
 
 const access = await load(ACCESS);
 const total = access.TOTAL_LESSONS;

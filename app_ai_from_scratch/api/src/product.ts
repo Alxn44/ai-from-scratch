@@ -4,7 +4,7 @@
 //
 // WHY DECLARED AND NOT IN THE PROMPT. Almost half of what gets asked over chat is
 // of this kind, and it is exactly where a model improvises: it invents a price, a
-// route or a 7-day guarantee. Here it is written once, the server serves it as a
+// route or a 14-day guarantee. Here it is written once, the server serves it as a
 // tool result, and the answer is anchored to a fact somebody can correct. The
 // price is also read by the checkout: if it changes, it changes on both sides at
 // once.
@@ -60,18 +60,23 @@ export interface SupportEntry {
 }
 
 export const PRICE: Price = {
-  monto: 9.99,
-  moneda: 'USD',
+  // 35.000 COP al mes. `monto` esta en unidades MAYORES de `moneda`, y COP no
+  // tiene decimales, asi que el numero es el precio tal cual. Debe coincidir
+  // con PRICE_MINOR/CURRENCY en payments/src/price.ts: lo comprueba
+  // scripts/check-price.mjs, porque este es el importe que el agente le CITA
+  // al estudiante y el otro es el que se le COBRA.
+  monto: 35000,
+  moneda: 'COP',
   tipo: 'pago_unico',
   garantiaDias: 14,      // 7 was below the EU minimum
   pasarela: 'mercadopago',
   leccionesLibres: 1,
   incluye: {
     es: ['Las 12 lecciones con su explicación técnica, su analogía y dos ejemplos resueltos',
-         'Los 36 labs con corrección en el servidor', 'Logros, rangos, ranking y ligas semanales',
+         'Los 36 labs con corrección en el servidor, los 12 quizzes y los 3 exámenes de bloque', 'Logros, rangos, ranking y ligas semanales',
          'El PDF del curso', 'Actualizaciones futuras sin pagar otra vez'],
     en: ['All 12 lessons with their technical explanation, analogy and two worked examples',
-         'All 36 labs, graded on the server', 'Achievements, ranks, ranking and weekly leagues',
+         'All 36 labs, graded on the server, plus 12 quizzes and 3 block exams', 'Achievements, ranks, ranking and weekly leagues',
          'The course PDF', 'Future updates at no extra cost'],
   },
 };
@@ -84,8 +89,10 @@ export const ROUTES: RouteEntry[] = [
     que: { es: 'Las 12 lecciones con su avance y sus candados.', en: 'The 12 lessons with your progress and their locks.' } },
   { ruta: '/leccion/{n}', busca: ['leccion', 'lección', 'lesson', 'lab', 'ejercicio', 'exercise'],
     que: { es: 'Una lección: técnica, analogía, dos ejemplos y sus tres labs.', en: 'One lesson: technical text, analogy, two examples and its three labs.' } },
-  { ruta: '/chat', busca: ['chat', 'asistente', 'assistant', 'ayuda ia', 'ai help'],
-    que: { es: 'Esta conversación. Modo normal sin costo y modo IA con traza.', en: 'This conversation. Free normal mode and AI mode with a visible trace.' } },
+  { ruta: '/chat', busca: ['chat', 'asistente', 'assistant', 'ayuda ia', 'ai help', 'tutorial'],
+    que: { es: 'Esta conversación. Modo normal sin costo y modo IA con traza. Desde aquí también se hace el curso.', en: 'This conversation. Free normal mode and AI mode with a visible trace. You can also do the course from here.' } },
+  { ruta: '/panel?tutorial=1', busca: ['tutorial', 'tour', 'como se usa', 'how to use', 'recorrido'],
+    que: { es: 'El tutorial: Trazo señala cada control y enseña el gesto (clic, escribir, interruptor).', en: 'The tutorial: Trazo points at each control and shows the gesture (click, type, toggle).' } },
   { ruta: '/logros', busca: ['logros', 'rango', 'insignias', 'achievements', 'rank', 'badges'],
     que: { es: 'Los 48 logros y los 12 rangos, con el camino animado.', en: 'The 48 achievements and 12 ranks, with the animated path.' } },
   { ruta: '/ranking', busca: ['ranking', 'tabla', 'puesto', 'alias', 'leaderboard', 'position'],
@@ -216,7 +223,8 @@ export const FAQ: FaqEntry[] = [
 export const HOW_IT_WORKS: Bilingual<string[]> = {
   es: [
     '12 lecciones. Cada una trae el mecanismo explicado, una analogía cotidiana y dos ejemplos resueltos.',
-    'Después de leer, tres labs por lección: fácil, medio y difícil. La corrección ocurre en el servidor, así que la respuesta no está en el navegador.',
+    'Después de leer, un quiz rápido de tres preguntas y tres labs: fácil, medio y difícil. La corrección ocurre en el servidor, así que la respuesta no está en el navegador.',
+    'Cada cuatro lecciones hay un examen de bloque (6 preguntas; necesitas 5 de 6 para aprobar). Se puede repetir y conserva tu mejor resultado.',
     'Resolver labs abre logros: tres grados por lección (48 en total) y un rango por cada lección cerrada (12).',
     'El ranking es opcional y con alias: nadie ve tu nombre ni tu correo.',
     'La liga semanal mide el caudal de la semana —labs resueltos por primera vez, lunes a domingo— y no el total acumulado, para que quien entra hoy también pueda ganar.',
@@ -224,7 +232,8 @@ export const HOW_IT_WORKS: Bilingual<string[]> = {
   ],
   en: [
     '12 lessons. Each one has the mechanism explained, an everyday analogy and two worked examples.',
-    'After reading, three labs per lesson: easy, medium and hard. Grading happens on the server, so the answer is never in the browser.',
+    'After reading, a three-question quick quiz and three labs: easy, medium and hard. Grading happens on the server, so the answer is never in the browser.',
+    'Every four lessons there is a block exam (6 questions; you need 5 of 6 to pass). You can retake it, and your best result is kept.',
     'Solving labs unlocks achievements: three grades per lesson (48 in all) and one rank per closed lesson (12).',
     'The ranking is optional and alias-only: nobody sees your name or your email.',
     'The weekly league measures that week’s flow — labs solved for the first time, Monday to Sunday — not your running total, so someone starting today can still win.',

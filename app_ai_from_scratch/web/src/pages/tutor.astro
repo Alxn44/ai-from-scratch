@@ -34,17 +34,19 @@ const avg = students.length ? Math.round(students.reduce((a, s) => a + s.solved,
       <div class="card" style="display:flex;flex-direction:column;gap:10px"><p class="lbl">Terminaron el Vol. 1</p><div class="num" style="font:700 34px/1 var(--f);letter-spacing:-.04em;color:var(--ok)">{students.filter((s) => s.solved >= 36).length}</div><p class="s">de {students.length}</p></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start">
+    <div class="tutor-split">
       <div style="display:flex;flex-direction:column;gap:14px">
         <p class="lbl">Estudiantes · ordenados por inactividad</p>
-        <div style="display:grid;grid-template-columns:1.4fr 1.4fr 90px 110px 110px;gap:16px;padding-bottom:10px;border-bottom:1px solid var(--hair)">
+        <!-- Igual que /admin: tabla densa de verdad, scroll horizontal propio. -->
+        <div class="tblwrap"><div style="display:flex;flex-direction:column;gap:14px">
+        <div class="tbl-tutor" style="padding-bottom:10px;border-bottom:1px solid var(--hair)">
           <div class="tblhead">Nombre</div><div class="tblhead">Correo</div><div class="tblhead">Labs</div><div class="tblhead">Visto</div><div class="tblhead">Estado</div>
         </div>
         {students.map((s) => {
           const [txt, col, bg] = state(s);
           const d = days(s.last_seen);
           return (
-            <div style="display:grid;grid-template-columns:1.4fr 1.4fr 90px 110px 110px;gap:16px;align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
+            <div class="tbl-tutor" style="align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
               <span style="font:600 14px/1.2 var(--f)">{s.name}</span>
               <span class="s" style="color:var(--l2)">{s.email}</span>
               <span class="num" style="font:500 13px/1 var(--m);color:var(--l2)">{s.solved} / 36</span>
@@ -54,6 +56,7 @@ const avg = students.length ? Math.round(students.reduce((a, s) => a + s.solved,
           );
         })}
         {!students.length && <p class="s">Sin estudiantes en esta cohorte todavía.</p>}
+        </div></div><!-- /.tblwrap -->
       </div>
 
       <div class="card" style="display:flex;flex-direction:column;gap:14px">
@@ -61,7 +64,7 @@ const avg = students.length ? Math.round(students.reduce((a, s) => a + s.solved,
         {stuck.map((x) => (
           <div style="display:flex;flex-direction:column;gap:6px">
             <div style="display:flex;justify-content:space-between">
-              <a href={`/leccion/${x.lab_id.split('.')[0]}`} style="font:600 13px/1 var(--f)">Lab {x.lab_id}</a>
+              <a class="fila-lab" href={`/leccion/${x.lab_id.split('.')[0]}`} style="font:600 13px/1 var(--f)">Lab {x.lab_id}</a>
               <span class="num s" style="color:var(--or)">{x.tries} intentos · {x.wins} aciertos</span>
             </div>
             <div class="bar"><div class="barfill" style={`width:${Math.min(100, x.tries * 12)}%;background:var(--or)`}></div></div>

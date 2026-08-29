@@ -134,7 +134,7 @@ func TestEnforceActsAndTheGlobalCapStopsAStorm(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		kind, target := BanHostIP, "192.168.1.50"
 		if i%2 == 1 {
-			kind, target = RevokeSession, "abcdefgh12345678"
+			kind, target = RevokeSession, "42"
 		}
 		d := e.Decide(kind, target, time.Minute, "f", "why")
 		if d.Verdict == Act {
@@ -174,7 +174,7 @@ func TestEscalationsDoNotSpendTheActionBudget(t *testing.T) {
 		}
 		e.Committed(d) // must be a no-op for a non-Act
 	}
-	d := e.Decide(RevokeSession, "abcdefgh12345678", time.Minute, "f", "why")
+	d := e.Decide(RevokeSession, "42", time.Minute, "f", "why")
 	if d.Verdict != Act {
 		t.Fatalf("50 refusals consumed the budget; verdict is now %q", d.Verdict)
 	}

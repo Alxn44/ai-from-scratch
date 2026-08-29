@@ -8,10 +8,10 @@ import { jsonSafe } from '../lib/json-safe';
 const { user, redirect } = await gate(Astro.request);
 if (redirect) return Astro.redirect(redirect);
 const L = t(resolveLang(user!.lang, Astro.request));
-const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as const;
+const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin', root: 'Root' } as const;
 ---
 <App user={user!} title="Ajustes" crumb="AJUSTES / CUENTA" active="Ajustes">
-  <div style="padding:30px 28px 48px;display:grid;grid-template-columns:200px 1fr;gap:34px;align-items:start;max-width:1180px">
+  <div class="app-pad ajustes-split" style="max-width:1180px">
     <nav style="display:flex;flex-direction:column;gap:2px;position:sticky;top:84px">
       <span class="nav" aria-current="page" style="border-left-width:2px">{L.ajustes.cuenta}</span>
       <span class="nav">{L.ajustes.curso}</span>
@@ -24,7 +24,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
         <h1 class="h1">{L.ajustes.cuenta}</h1>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px">
+      <div class="ajustes-fields">
         <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="nm">{L.ajustes.nombre}</label><input class="input" id="nm" value={user!.name}></div>
         <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="em">{L.ajustes.correo}</label><input class="input" id="em" value={user!.email}></div>
         <div style="display:flex;flex-direction:column;gap:7px"><label class="lbl" for="pw">{L.ajustes.clave}</label><input class="input" id="pw" type="password" value="············"></div>
@@ -35,7 +35,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
       <div style="display:flex;flex-direction:column;gap:18px;border-top:1px solid var(--hair);padding-top:26px">
         <h2 class="h2">{L.ajustes.curso}</h2>
 
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
+        <div class="fila-ajuste" style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
           <div style="max-width:520px">
             <div class="h3">{L.ajustes.idiomaTit}</div>
             <p class="s" style="color:var(--l2);margin-top:4px">
@@ -52,7 +52,7 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+        <div class="fila-ajuste" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
           <div style="max-width:520px"><div class="h3">{L.ajustes.sonidoTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.sonidoNota}</p></div>
           <div style="display:flex;gap:8px;flex:none">
             <button class="chip" data-son="on" style="min-width:80px">{L.ajustes.sonidoOn}</button>
@@ -60,7 +60,15 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+        <div class="fila-ajuste" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
+          <div style="max-width:520px">
+            <div class="h3">{L.tutorial.replay}</div>
+            <p class="s" style="color:var(--l2);margin-top:4px">{L.tutorial.replayB}</p>
+          </div>
+          <a class="btn ghost" href="/panel?tutorial=1" style="flex:none;text-decoration:none">{L.tutorial.replay}</a>
+        </div>
+
+        <div class="fila-ajuste" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:6px;border-top:1px solid var(--hair2)">
           <div><div class="h3">{L.ajustes.temaTit}</div><p class="s" style="color:var(--l2);margin-top:4px">{L.ajustes.temaNota}</p></div>
           <div style="display:flex;gap:8px;flex:none">
             <button class="chip" data-theme="auto" data-on={user!.theme === 'auto' ? '' : undefined} style="min-width:80px">{L.automatico}</button>
@@ -78,11 +86,11 @@ const ROLE_ES = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin' } as con
         </div>
 
         <div style="display:flex;flex-direction:column;gap:14px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
+          <div class="fila-ajuste" style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px">
             <div style="max-width:520px">
               <div class="h3">{L.ajustes.eliminar}</div>
-              <p class="s" style="color:var(--l2);margin-top:4px">Se desactiva el acceso y tu nombre se anonimiza. Tus intentos quedan en las estadísticas de la cohorte, sin tus datos. Tu correo se libera: puedes volver a registrarte con él.</p>
-              <p class="s" style="margin-top:6px">La compra no se reembolsa por este medio — para eso está la garantía de 14 días.</p>
+              <p class="s" style="color:var(--l2);margin-top:4px">Se desactiva el acceso y tu nombre se anonimiza. Tus intentos permanecen en las estadísticas de la cohorte, sin datos personales. Tu correo queda libre para que puedas registrarte de nuevo.</p>
+              <p class="s" style="margin-top:6px">Eliminar la cuenta no tramita un reembolso. Para eso está la garantía de 14 días.</p>
             </div>
             <button class="btn danger" id="del-open" style="flex:none">{L.ajustes.eliminarBtn}</button>
           </div>

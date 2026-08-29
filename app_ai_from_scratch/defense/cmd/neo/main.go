@@ -11,7 +11,7 @@
 // The answer, by construction:
 //
 //   - at most 10 actions in 10 minutes, across all kinds (policy.GlobalLimit);
-//   - each one drawn from a five-entry allowlist, never a command;
+//   - each one drawn from a closed allowlist, never a command;
 //   - each one against a target that passed that rule's validator;
 //   - each one expiring on its own, with the timeout held by the KERNEL and not
 //     by a timer in this process;

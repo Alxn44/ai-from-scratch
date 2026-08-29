@@ -37,24 +37,24 @@ if command -v lsof >/dev/null 2>&1; then
 fi
 
 # APP_ENV=development is what allows an ephemeral secret. Without it the service
-# refuses to boot with no IA_SECRETO, which is the correct production behaviour.
+# refuses to boot with no QUEUE_SECRETO, which is the correct production behaviour.
 export APP_ENV=development
 export PORT="${PORT}"
 
 # If a real secret exists locally, use it, so a request from `api` works. The
 # file is read rather than sourced: sourcing an .env runs whatever is in it.
 for env_file in ../api/.env ../.env; do
-  if [ -f "${env_file}" ] && [ -z "${IA_SECRETO:-}" ]; then
-    value="$(grep -E '^IA_SECRETO=' "${env_file}" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+  if [ -f "${env_file}" ] && [ -z "${QUEUE_SECRETO:-}" ]; then
+    value="$(grep -E '^QUEUE_SECRETO=' "${env_file}" 2>/dev/null | head -1 | cut -d= -f2- || true)"
     if [ -n "${value}" ]; then
-      export IA_SECRETO="${value}"
-      echo "Using IA_SECRETO from ${env_file} (so api can call this service)."
+      export QUEUE_SECRETO="${value}"
+      echo "Using QUEUE_SECRETO from ${env_file} (so api can call this service)."
       break
     fi
   fi
 done
-if [ -z "${IA_SECRETO:-}" ]; then
-  echo "No IA_SECRETO found: an ephemeral one will be minted and printed at boot."
+if [ -z "${QUEUE_SECRETO:-}" ]; then
+  echo "No QUEUE_SECRETO found: an ephemeral one will be minted and printed at boot."
   echo "Nothing else can call this service with it. Run ../scripts/keys.sh for a real one."
 fi
 

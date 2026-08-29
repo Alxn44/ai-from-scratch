@@ -3,17 +3,9 @@
 //
 // This file exists so that api can stop holding a database credential.
 //
-// Today it still holds one: src/db.ts opens a pool and ~99 call sites in this
-// service send it SQL. While that is true the isolation is DECORATIVE -- a
-// closed catalogue of named operations sitting beside a live pool buys nothing,
-// because an RCE in Node reads all twelve tables through the pool and never
-// touches the catalogue. The property is binary, not partial: either api can
-// reach Postgres or it cannot.
-//
-// So the migration ends with `pool` deleted, DATABASE_URL absent from api's
-// environment, and a gate that fails if a SQL string reappears in src/. Until
-// then this module and db.ts coexist, and the count of remaining db.ts callers
-// is the progress bar.
+// Runtime API and api-worker now hold no database credential. Every read and
+// write crosses this client, and scripts/check-api-data-boundary.mjs refuses a
+// runtime db.ts import, pg import, DATABASE_URL reference or SQL literal.
 //
 // WHAT DOES NOT MOVE, and why that is not a leak. src/seed.ts and db.ts's
 // migrate()/CHECK-constraint verification run in the `init` service, which
@@ -167,6 +159,16 @@ export async function op<T = Record<string, unknown>>(
     ...(out.scrubbed?.length ? { scrubbed: out.scrubbed } : {}) };
 }
 
+/** A named operation carrying a second trusted administrative identity. */
+export async function opAuthorized<T = Record<string, unknown>>(
+  name: string, args: Record<string, unknown>, actor: number, authority: number,
+  timeoutMs = TIMEOUT_MS): Promise<DataResult<T>> {
+  const out = await post<DataResult<T>>(
+    '/v1/op', { op: name, args }, actor, timeoutMs, name, authority);
+  return { operation: out.operation ?? name, rows: out.rows ?? [], affected: out.affected ?? 0,
+    ...(out.scrubbed?.length ? { scrubbed: out.scrubbed } : {}) };
+}
+
 /**
  * One POST, shared by every endpoint.
  *
@@ -177,8 +179,8 @@ export async function op<T = Record<string, unknown>>(
  */
 async function post<T>(
   path: string, body: unknown, actor: number | undefined,
-  timeoutMs: number, label: string): Promise<T> {
-  const headers = authHeaders(label, actor);
+  timeoutMs: number, label: string, authority?: number): Promise<T> {
+  const headers = authHeaders(label, actor, authority);
   const payload = JSON.stringify(body);
 
   let lastErr: unknown;
@@ -214,7 +216,7 @@ async function post<T>(
 }
 
 /** The two headers, and the actor rule, in one place. */
-function authHeaders(label: string, actor?: number): Record<string, string> {
+function authHeaders(label: string, actor?: number, authority?: number): Record<string, string> {
   if (!DATA_SECRET) {
     throw new Error(
       `data: DATA_SECRETO is not set, so "${label}" cannot be called. `
@@ -233,6 +235,12 @@ function authHeaders(label: string, actor?: number): Record<string, string> {
       throw new Error(`data: actor for "${label}" must be a positive integer, got ${String(actor)}`);
     }
     headers['x-data-actor'] = String(actor);
+  }
+  if (authority !== undefined) {
+    if (!Number.isInteger(authority) || authority <= 0) {
+      throw new Error(`data: authority for "${label}" must be a positive integer, got ${String(authority)}`);
+    }
+    headers['x-data-authority'] = String(authority);
   }
   return headers;
 }
@@ -274,6 +282,18 @@ export async function many<T = Record<string, unknown>>(
 export async function write(
   name: string, args: Record<string, unknown> = {}, actor?: number): Promise<number> {
   return (await op(name, args, actor)).affected;
+}
+
+/** An atomic write with a declared RETURNING list. */
+export async function writeMany<T = Record<string, unknown>>(
+  name: string, args: Record<string, unknown> = {}, actor?: number): Promise<T[]> {
+  return (await op<T>(name, args, actor)).rows;
+}
+
+/** A write scoped to a target actor and authorized by a separate admin actor. */
+export async function writeAuthorized(
+  name: string, args: Record<string, unknown>, actor: number, authority: number): Promise<number> {
+  return (await opAuthorized(name, args, actor, authority)).affected;
 }
 
 // ---------------------------------------------------------------------------

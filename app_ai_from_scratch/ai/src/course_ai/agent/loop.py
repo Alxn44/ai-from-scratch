@@ -33,7 +33,7 @@ from ..ontology.render import fingerprint, system_prompt
 from ..retrieval.tools import NATIVE_HANDLERS, Handler, dispatch
 from ..retrieval.tools import Ctx as NativeCtx
 from .bridge import Bridge
-from .providers import Provider, ProviderError, Turn, providers, turn
+from .providers import Provider, ProviderError, Turn, pick_chain, turn
 
 MAX_TURNS = 4
 
@@ -108,8 +108,9 @@ def _as_assistant_turn(fmt: str, r: Turn) -> dict[str, Any]:
 async def run(*, session: str, messages: Sequence[Mapping[str, Any]], lang: str = "es",
               bridge: Bridge | None = None, active: Sequence[Provider] | None = None,
               client: httpx.AsyncClient | None = None,
-              native: Mapping[str, Handler] | None = None) -> Result:
-    chain = tuple(active) if active is not None else providers()
+              native: Mapping[str, Handler] | None = None,
+              provider_id: str | None = None, effort: str | None = None) -> Result:
+    chain = pick_chain(provider_id, active)
     if not chain:
         return Result(error="sin_proveedor",
                       trace=[{"paso": "proveedor", "detalle": "ninguna llave configurada"}])
@@ -141,7 +142,8 @@ async def run(*, session: str, messages: Sequence[Mapping[str, Any]], lang: str 
             try:
                 for turn_n in range(1, MAX_TURNS + 1):
                     t0 = time.perf_counter()
-                    r = await turn(cl, prov, system=system, messages=thread, catalog=cat)
+                    r = await turn(cl, prov, system=system, messages=thread, catalog=cat,
+                                   effort=effort)
                     trace.append({"paso": "modelo", "proveedor": prov.id, "modelo": prov.model,
                                   "vuelta": turn_n,
                                   "ms": round((time.perf_counter() - t0) * 1000),

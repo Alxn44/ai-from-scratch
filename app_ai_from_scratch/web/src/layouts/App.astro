@@ -1,10 +1,11 @@
 ---
 import { icon } from '../lib/icons';
-import { initials, type User } from '../lib/session';
+import { initials, satisface, type User } from '../lib/session';
 import { t, resolveLang, IDIOMAS, NOMBRE_IDIOMA, type Lang } from '../lib/i18n';
 import { TOKENS, LANG_FX } from '../lib/theme-css';
 import { jsonSafe } from '../lib/json-safe';
 import { aiFlags } from '../lib/ai-mode';
+import { sidebarCollapsed, sidebarRail } from '../lib/sidebar';
 import AiPanel from '../components/AiPanel.astro';
 interface Props { user: User; title: string; crumb: string; active: string; }
 const { user, title, crumb, active } = Astro.props;
@@ -31,7 +32,9 @@ const NAV = [
   { href: '/admin',     ic: 'shield', key: 'admin',   label: L.nav.admin,   roles: ['admin'] },
   { href: '/perfil',    ic: 'user',   key: 'perfil',  label: L.nav.perfil,  roles: ['student', 'tutor', 'admin'] },
   { href: '/ajustes',   ic: 'gear',   key: 'ajustes', label: L.nav.ajustes, roles: ['student', 'tutor', 'admin'] },
-].filter((n) => n.roles.includes(user.role));
+// satisface, no includes: el enlace de Admin exige ['admin'] y root tiene que
+// verlo sin que esta lista lo nombre. Ver CONTIENE en lib/session.ts.
+].filter((n) => satisface(user.role, n.roles));
 
 const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolTutor, admin: L.ui.rolAdmin };
 
@@ -46,12 +49,26 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
 // would 404 every bookmark, and the full page is still the right place for a long
 // answer with its tool trace.
 const ia = aiFlags(Astro.request);
+const railCollapsed = sidebarCollapsed(Astro.request);
+// Las capas fijas de abajo (#toasts, #ia-capa, el gato) no saben unas de otras.
+// Si la pagina pone barra de accion hay que levantarlas, y eso se decide aqui
+// porque CSS no puede detectar un slot vacio a traves de la frontera del DOM.
+const hasAction = Astro.slots.has('action');
+const rail = sidebarRail(Astro.request);
+// El slot de accion se pinta DOS veces: en la cabecera (escritorio) y en la barra
+// inferior (movil). Solo una es visible en cada anchura y la otra va con
+// display:none, asi que no se duplica en el arbol de accesibilidad.
+// Se renderiza a texto UNA vez porque <slot name="x"/> repetido no es contrato
+// estable, y porque el contenido es un enlace suelto sin id: duplicarlo es
+// inocuo. NO metas aqui nada con id ni con data-tut.
+const actionHtml = hasAction ? await Astro.slots.render('action') : '';
 ---
 <!doctype html>
-<html lang={lang} data-theme={themeAttr}>
+<html lang={lang} data-theme={themeAttr} data-action={hasAction ? "1" : undefined}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <title>{title} · IA desde cero</title>
   <style is:global set:html={TOKENS + LANG_FX}></style>
   <style is:global>
@@ -98,54 +115,363 @@ const ia = aiFlags(Astro.request);
        automatico porque la tarjeta de rango mide 436px; con width fijo a 372 se
        recortaba. Dos carriles fijos abajo-derecha se solapan, y el que perderia
        seria el aviso de error. */
-    #toasts{position:fixed;right:24px;bottom:24px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;width:auto;max-width:calc(100vw - 48px);z-index:99}
+    #toasts{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:flex-end;gap:10px;width:auto;max-width:calc(100vw - 48px);z-index:99}
     .toast{width:372px;box-sizing:border-box;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--hair);background:var(--panel);animation:tin .18s ease-out}
     @keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
     input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:30px;width:100%}
     input[type=range]::-webkit-slider-runnable-track{height:1px;background:rgba(235,235,245,.34)}
     input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:26px;margin-top:-13px;border-radius:0;background:var(--l1);cursor:ew-resize}
+    /* Sidebar: persistent rail on desktop, overlay on a phone. Collapsed width
+       is the icon column. The preference lives in a cookie so the first paint
+       already matches — the same reason lang, theme and AI mode do. */
+    /* dvh y no vh: en iOS Safari 100vh incluye la barra de direcciones, asi que
+       el contenedor sale mas alto que el area visible y recorta por abajo. */
+    .shell{display:flex;min-height:100dvh}
+    .sidebar{width:248px;flex:none;border-right:1px solid var(--hair2);display:flex;flex-direction:column;position:sticky;top:0;height:100dvh;background:var(--bg);z-index:20;overflow:hidden}
+    .sidebar-head{height:64px;display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--hair2);flex:none}
+    .sidebar-brand{height:64px;flex:1;min-width:0;display:flex;align-items:center;gap:11px;padding:0 8px 0 18px;color:var(--l1)}
+    .sidebar-mark{width:26px;height:26px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)}
+    .sidebar-toggle,.sidebar-open{width:44px;height:44px;flex:none;display:grid;place-items:center;background:none;border:0;color:var(--l3);cursor:pointer;padding:0}
+    .sidebar-toggle:hover,.sidebar-open:hover{color:var(--l1);background:var(--fill)}
+    .sidebar-toggle:focus-visible,.sidebar-open:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+    .sidebar-chevron{display:grid;transform:rotate(180deg)}
+    .sidebar-x{display:none}
+    .sidebar-nav{display:flex;flex-direction:column;padding:12px 0;gap:2px}
+    .sidebar-foot{margin-top:auto;border-top:1px solid var(--hair2);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+    .sidebar-user{display:flex;align-items:center;gap:11px;min-width:0}
+    .sidebar-avatar{width:34px;height:34px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:600 12px/1 var(--m)}
+    .sidebar-who{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .sidebar-name{font:600 13px/1 var(--f);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sidebar-backdrop{display:none}
+    .sidebar-open{display:none}
+    .app-head{height:64px;flex:none;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 28px;position:sticky;top:0;background:var(--bg);z-index:5}
+    /* La "fila 2" de la cabecera en movil NO es un elemento propio: se consigue
+       con flex-wrap sobre .app-head, porque <slot name="topbar"/> solo puede
+       existir una vez (examen/[n].astro:25 lleva id="exam-score" y chat.astro:53
+       un data-tut; dos copias romperian getElementById y el tutorial). Antes ese
+       slot se borraba en movil con .app-head-tools{display:none} y con el se iban
+       el conmutador Normal/IA de /chat y el marcador en vivo de /examen. */
+    /* Con barra de accion las tres capas fijas de abajo suben por encima de
+       ella. 68px = 44 del boton + 12+12 de padding. El gato lleva el estilo en
+       linea desde cat.ts:167, asi que ahi hace falta !important. */
+    html[data-action="1"] #toasts{bottom:calc(80px + env(safe-area-inset-bottom))}
+    html[data-action="1"] #ia-capa{bottom:calc(80px + env(safe-area-inset-bottom))}
+    /* #trazo-asoma lo crea cat.ts con estilo EN LINEA, asi que aqui hace falta
+       !important: un id no le gana a un style="". */
+    html[data-action="1"] #trazo-asoma{bottom:calc(78px + env(safe-area-inset-bottom))!important}
+    /* Barra de accion inferior, en la zona del pulgar. Solo la usan las paginas
+       cuya accion principal es un CTA de verdad: /panel y /curso. Los enlaces de
+       conveniencia (logros, perfil, ligas, ranking) NO van aqui: su destino ya
+       esta en el carril, y no justifican 44px permanentes. */
+    .actionbar{display:none}
+    .app-head-action{display:flex;align-items:center;gap:12px}
+    /* En CSS y no en linea: un style="" le gana a la regla movil de mas abajo,
+       y los dos .seg seguian comiendose la cabecera en un telefono. */
+    .app-head-prefs{display:flex;align-items:center;gap:18px}
+    .app-head-left{display:flex;align-items:center;gap:10px;min-width:0}
+    .app-head-right{display:flex;align-items:center;gap:18px;min-width:0}
+    .app-head-tools{display:flex;align-items:center;gap:12px}
+    .shell[data-sidebar-collapsed="1"] .sidebar{width:64px}
+    .shell[data-sidebar-collapsed="1"] .sidebar-head{flex-direction:column;height:auto;padding:8px 0;gap:0}
+    .shell[data-sidebar-collapsed="1"] .sidebar-brand{height:48px;padding:0;justify-content:center}
+    .shell[data-sidebar-collapsed="1"] .sidebar-copy{display:none}
+    .shell[data-sidebar-collapsed="1"] .sidebar-toggle{width:100%;height:40px}
+    .shell[data-sidebar-collapsed="1"] .sidebar-chevron{transform:none}
+    .shell[data-sidebar-collapsed="1"] .nav,.shell[data-sidebar-collapsed="1"] .ia-nav{padding:0;justify-content:center;gap:0}
+    .shell[data-sidebar-collapsed="1"] .ia-nav .ia-track{display:none}
+    .shell[data-sidebar-collapsed="1"] .sidebar-foot{padding:12px 0;align-items:center}
+    .shell[data-sidebar-collapsed="1"] .sidebar-user{justify-content:center}
+    .shell[data-sidebar-collapsed="1"] #logout{width:100%;justify-content:center;padding:0}
+    @media (min-width:901px){
+      .shell[data-sidebar-collapsed="1"] #ia-capa{left:80px;max-width:calc(100vw - 104px)}
+    }
+    .app-pad{padding:30px 28px 40px}
+    .stack-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+    .span-2{grid-column:span 2}
+    .lec-list-head,.lec-list-row{display:grid;grid-template-columns:46px minmax(0,1fr) 190px 92px 104px;gap:18px}
+    .ajustes-split{display:grid;grid-template-columns:200px minmax(0,1fr);gap:34px;align-items:start}
+    .ajustes-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .lec-top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+    .lec-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+    /* Rejillas que estaban escritas en linea pagina por pagina, sin media query
+       que las rescatase. En .app-pad a 390 px hay 362 utiles, y con las pistas
+       fijas mas los gaps se pasaban todas:
+         .curso-card     60+300+44  = 404  -> el 1fr (titulo y labs) a 0
+         .tbl-rank       460+64     = 524  -> desbordaba 162 px
+         .tbl-admin      350+64     = 414  -> nombre y correo a 0
+         .tbl-tutor      310+64     = 374  -> nombre y correo a 0
+         .cerrada-split  320+24     = 344 contra 334 (muro de pago)
+         .chat-split     300+24     = 324, y el 1fr del hilo se quedaba corto
+         .perfil-stats   4 columnas de 74 menos 44 de padding = 30 de contenido */
+    .curso-card{display:grid;grid-template-columns:60px minmax(0,1fr) 300px;gap:22px;align-items:start}
+    .cerrada-split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+    .chat-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+    .perfil-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+    .perfil-split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:24px;align-items:start}
+    .tutor-split{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:24px;align-items:start}
+    .soporte-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
+    .tbl-rank{display:grid;grid-template-columns:70px 1fr 190px 110px 90px;gap:16px}
+    .tbl-admin{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 150px 110px 90px;gap:16px}
+    .tbl-tutor{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 110px;gap:16px}
+/* EL SUELO TACTIL NO DEPENDE DEL ANCHO, DEPENDE DEL DEDO.
+       Las reglas de arriba viven en max-width:900px, que es el umbral correcto para
+       el LAYOUT y equivocado para esto: un iPad Pro son 1024px CSS y se toca con el
+       pulgar, y iPadOS amplia igual al enfocar un campo de menos de 16px. Medido a
+       1024 sin esta regla, /login y /registro volvian a 15px y .segb a 30px de alto.
+       pointer:coarse es la pregunta que de verdad importa -- «¿el puntero de este
+       aparato es impreciso?» -- y responde que si en cualquier pantalla tactil sea
+       cual sea su ancho, y que no en un escritorio con raton a 800px.
+       NO VERIFICADO EN ESTA MAQUINA: Chrome headless declara pointer:fine y browse
+       no expone emulacion de dispositivo, asi que esta regla esta escrita a partir
+       de la definicion de la media query, no de una medicion. Lo que si esta medido
+       es el fallo que arregla. */
+    @media (pointer: coarse){
+      .btn,.chip,.segb,button,[role="button"]{min-height:44px!important;height:auto!important}
+      .input,input.input,select.input,textarea.input,.coupon input{min-height:44px!important;height:auto!important;font-size:16px!important}
+    }
+    @media (max-width:900px){
+      .app-pad{padding:18px 14px 32px}
+      .stack-3,.ajustes-split,.ajustes-fields,.lec-cols{grid-template-columns:minmax(0,1fr)}
+      .span-2{grid-column:auto}
+      .lec-list-head{display:none}
+      .lec-list-row{grid-template-columns:46px 1fr auto;height:auto;padding:12px 4px;gap:10px 12px}
+      .lec-labs,.lec-count{display:none}
+      .lec-top{flex-direction:column;align-items:stretch}
+      .lec-math{width:auto!important}
+      .toast{width:min(372px, calc(100vw - 24px))}
+      /* EL SUELO TACTIL, POR ENCIMA DE TODO LO DEMAS.
+         44px no es una preferencia de diseno, es el minimo con el que un dedo
+         acierta. El problema no era declararlo -- .btn y .input ya dicen 44 --
+         sino que once sitios lo pisan con height:36px o height:34px ESCRITO EN
+         EL ATRIBUTO style, y uno mas lo inyecta desde JavaScript. Una media
+         query no le gana a un estilo en linea, asi que la unica forma de que
+         esos doce respeten el suelo es esta.
+         !important es un martillo y aqui es el correcto: la afirmacion es
+         justamente que en un telefono NADA puede bajar de 44, ni un ajuste
+         local ni codigo que escriba estilos en caliente. Lo que se cede es
+         poder fijar a mano una altura menor en movil, que es exactamente lo
+         que se quiere impedir.
+         height:auto junto a min-height para que un boton de dos lineas crezca
+         en vez de recortar su texto. */
+      /* `button` a secas y no solo .btn: en /leccion un control usa la clase
+         .lbl (10px mayusculas) y medía 26px de alto. Un elemento button SIEMPRE
+         es un control, lleve la clase que lleve, asi que el suelo es del
+         elemento, no de una clase que alguien recuerde poner. */
+      .btn,.chip,.segb,button,[role="button"]{min-height:44px!important;height:auto!important}
+      /* Enlaces dentro de una tabla de datos. En /tutor son <a> de 19px de alto:
+         texto, no botones, asi que no entran en la regla de arriba -- darle 44px
+         a todo <a> convertiria cada enlace dentro de un parrafo en un bloque y
+         rompería el flujo del texto. Aqui son celdas, y ahi si es una fila que
+         se toca. */
+      .tblwrap a,.tbl-tutor a,.tbl-admin a,.fila-lab{display:inline-flex;align-items:center;min-height:44px}
+      /* 16px es el umbral por debajo del cual Safari en iOS hace zoom al
+         enfocar el campo, y ese zoom no se deshace solo: el usuario se queda
+         con la pagina ampliada y desplazada. */
+      .input,input.input,select.input,textarea.input{min-height:44px!important;height:auto!important;font-size:16px!important}
+      .sidebar-open{display:grid}
+      .sidebar-chevron{display:none}
+      .sidebar-x{display:grid}
+      .sidebar{position:fixed;left:0;top:0;height:100%;width:min(248px,86vw);transform:translateX(-110%);visibility:hidden;box-shadow:none;z-index:40}
+      .shell[data-nav-open="1"] .sidebar{transform:translateX(0);visibility:visible}
+      .sidebar-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.46);z-index:30;border:0;padding:0;cursor:pointer}
+      .sidebar-backdrop[hidden]{display:none}
+      .shell[data-sidebar-collapsed="1"] .sidebar{width:min(248px,86vw)}
+      .shell[data-sidebar-collapsed="1"] .sidebar-head{flex-direction:row;height:64px;padding:0}
+      .shell[data-sidebar-collapsed="1"] .sidebar-brand{height:64px;padding:0 8px 0 18px;justify-content:flex-start}
+      .shell[data-sidebar-collapsed="1"] .sidebar-copy{display:unset}
+      .shell[data-sidebar-collapsed="1"] .sidebar-who{display:flex}
+      .shell[data-sidebar-collapsed="1"] .sidebar-toggle{width:44px;height:44px}
+      .shell[data-sidebar-collapsed="1"] .nav,.shell[data-sidebar-collapsed="1"] .ia-nav{padding:0 16px;justify-content:flex-start;gap:11px}
+      .shell[data-sidebar-collapsed="1"] .ia-nav .ia-track{display:inline-flex}
+      .shell[data-sidebar-collapsed="1"] .sidebar-foot{padding:14px 16px;align-items:stretch}
+      .shell[data-sidebar-collapsed="1"] .sidebar-user{justify-content:flex-start}
+      .shell[data-sidebar-collapsed="1"] #logout{width:auto;justify-content:flex-start;padding:0}
+      /* Cabecera de DOS filas, conseguida con wrap y no duplicando el slot:
+         <slot name="topbar"/> solo puede existir una vez (examen/[n].astro:25
+         lleva id="exam-score" y chat.astro:53 un data-tut; dos copias romperian
+         getElementById y el tutorial). .app-head-right pasa a flex-basis:100%,
+         asi que cae entera a la segunda linea con el slot dentro. */
+      .app-head{height:auto;flex-wrap:wrap;align-items:center;gap:0;padding:0}
+      .app-head-left{flex:1 1 auto;min-width:0;height:56px;padding:0 12px 0 4px}
+      /* La miga VUELVE. Sin carril lateral es la unica orientacion que queda; lo
+         que le comia el sitio eran los dos .seg, que en movil se van a /ajustes
+         (esta en el NAV, y ajustes.astro:47 y :74 tienen los mismos controles
+         como .chip de 44px, no como .segb de 30). */
+      .app-head-left .lbl{display:unset;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .app-head-right{flex:1 1 100%;gap:0;padding:0}
+      .app-head-prefs{display:none}
+      /* Esto sustituye al viejo .app-head-tools{display:none}, que se llevaba
+         por delante el conmutador Normal/IA de /chat y el marcador de /examen. */
+      .app-head-tools{display:flex;width:100%;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--hair2)}
+      .app-head-tools:empty{display:none}
+      .app-head-tools .seg{width:100%}
+      .app-head-tools .segb{flex:1}
+      /* Filas de .chip (idioma, tema) en /ajustes. Su contenedor lleva
+         display:flex;gap:8px;flex:none EN LINEA, asi que no puede encoger, y no
+         declara flex-wrap -- que es justo la propiedad que si se puede poner
+         desde aqui, porque no esta en el atributo. Sin envolver, tres chips de
+         80px mas huecos no caben a 320 y sacaban 24px por la derecha.
+         El selector mira quien CONTIENE un chip, porque esos contenedores son
+         div anonimos sin clase a los que no se puede apuntar de otra forma. */
+      *:has(> .chip){flex-wrap:wrap}
+      /* Cada ajuste es una fila [texto | grupo de botones] con space-between y
+         el grupo en flex:none. A 320 el texto y tres chips de 80px no caben en
+         la misma linea y sacaban 24px. Al envolver, el grupo baja a su propia
+         linea y se alinea a la izquierda: leerlo debajo de su titulo es ademas
+         mas claro que buscarlo pegado al borde derecho. */
+      .fila-ajuste{flex-wrap:wrap;gap:12px!important;align-items:flex-start!important}
+      .fila-ajuste > *{min-width:0}
+      /* La columna de la derecha lleva align-items:flex-end;flex:none EN LINEA.
+         Cuando la fila envuelve, ese flex-end deja los chips pegados al borde
+         derecho -- fuera de el, de hecho: sobraban 8px. Al bajar de linea el
+         sitio correcto es el margen izquierdo, alineado con su titulo. */
+      .fila-ajuste > :last-child{align-items:flex-start!important;flex:1 1 100%!important}
+      .segb{height:44px;padding:0 16px}
+      @media (max-width:420px){
+        .seg{max-width:100%}
+        .segb{flex:1 1 0;min-width:0;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      }
+      /* Barra de accion en la zona del pulgar. Solo /panel y /curso. */
+      .actionbar{display:flex;align-items:center;gap:12px;position:sticky;bottom:0;z-index:6;
+        background:var(--bg);border-top:1px solid var(--hair2);
+        padding:12px 14px calc(12px + env(safe-area-inset-bottom))}
+      .actionbar:empty{display:none}
+      .actionbar > *{flex:1}
+      /* El CTA que la barra ya carga se esconde dentro de la tarjeta para no
+         mostrar dos botones identicos a la vez. */
+      /* En movil manda la barra inferior, asi que la copia de la cabecera se
+         apaga. Cada anchura ensena exactamente una. */
+      .app-head-action{display:none}
+      .curso-card,.cerrada-split,.chat-split,.perfil-split,.tutor-split,.soporte-2,.ajustes-split{grid-template-columns:minmax(0,1fr)}
+      /* 2 y no 4: a 362 px cuatro columnas dan 74 por tarjeta, y .card gasta 44
+         en padding. Dentro hay numeros a font:700 34px, que piden ~90. */
+      .perfil-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+      /* El ranking lo ve el alumno y son cinco valores cortos: se reordena a dos
+         filas por jugador, sin esconder ningun dato. */
+      .tbl-rank{grid-template-columns:34px 1fr auto;gap:5px 12px;height:auto!important;padding:12px 4px!important}
+      .tbl-rank-head{display:none}
+      /* Colocacion explicita para que las cinco celdas quepan en dos filas sin
+         esconder ninguna. Sin esto el auto-placement las reparte a 3 por fila y
+         el rango termina bajo el puesto. */
+      .tbl-rank > :nth-child(1){grid-area:1/1}
+      .tbl-rank > :nth-child(2){grid-area:1/2/2/3}
+      .tbl-rank > :nth-child(3){grid-area:1/3;justify-self:end}
+      .tbl-rank > :nth-child(4){grid-area:2/2}
+      .tbl-rank > :nth-child(5){grid-area:2/3;justify-self:end}
+      /* Admin y tutor son herramientas internas con tablas densas de verdad
+         (nombre, correo, fechas). Apilarlas las vuelve ilegibles: scroll
+         horizontal dentro de su propio contenedor, que es el trato correcto
+         para una tabla, y el body nunca desborda. */
+      /* Un hijo de flex o grid trae min-width:auto, o sea que NO puede encoger
+         por debajo de su max-content: una linea larga infla al padre en vez de
+         partirse. En .card de /soporte eso daba un hijo de 301px dentro de una
+         tarjeta de 256 y 37px de desborde a 320. Es el mismo fallo que el 1fr
+         desnudo de arriba, en su version flex, y se cierra igual: dejar encoger.
+         Solo hijos directos: no toca rejillas internas ni .tblwrap, que necesita
+         su min-width para tener algo que desplazar. */
+      .card > *:not(.tblwrap){min-width:0}
+      .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+      .tblwrap > *{min-width:620px}
+    }
+    /* Banda de tablet 901-1180: el carril arranca contraido. A 1024 un carril de
+       248 deja 776, y stack-3 daria tres tarjetas de 232 cuando el parrafo del
+       heroe pide 560. Contraido a 64 quedan 960 y dos columnas leen bien.
+       Solo actua cuando el usuario NO ha elegido: data-sidebar-rail="auto". */
+    @media (min-width:901px) and (max-width:1180px){
+      .shell[data-sidebar-rail="auto"] .sidebar{width:64px}
+      .shell[data-sidebar-rail="auto"] .sidebar-head{flex-direction:column;height:auto;padding:8px 0;gap:0}
+      .shell[data-sidebar-rail="auto"] .sidebar-brand{height:48px;padding:0;justify-content:center}
+      .shell[data-sidebar-rail="auto"] .sidebar-copy{display:none}
+      .shell[data-sidebar-rail="auto"] .sidebar-toggle{width:100%;height:40px}
+      .shell[data-sidebar-rail="auto"] .sidebar-chevron{transform:none}
+      .shell[data-sidebar-rail="auto"] .nav,
+      .shell[data-sidebar-rail="auto"] .ia-nav{padding:0;justify-content:center;gap:0}
+      .shell[data-sidebar-rail="auto"] .ia-nav .ia-track{display:none}
+      .shell[data-sidebar-rail="auto"] .sidebar-foot{padding:12px 0;align-items:center}
+      .shell[data-sidebar-rail="auto"] .sidebar-user{justify-content:center}
+      .shell[data-sidebar-rail="auto"] #logout{width:100%;justify-content:center;padding:0}
+      .stack-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .span-2{grid-column:span 2}
+    }
+    @media (prefers-reduced-motion: no-preference){
+      .sidebar{transition:width .16s ease-out,transform .16s ease-out}
+    }
   </style>
 </head>
 <body>
-  <div style="display:flex;min-height:100vh">
-    <aside style="width:248px;flex:none;border-right:1px solid var(--hair2);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;background:var(--bg)">
-      <a href="/panel" style="height:64px;display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--hair2);color:var(--l1)">
-        <span style="width:26px;height:26px;border:1px solid var(--hair);display:grid;place-items:center;font:700 12px/1 var(--f)">IA</span>
-        <span style="font:600 13px/1.2 var(--f)">IA desde cero</span>
-      </a>
-      <nav style="display:flex;flex-direction:column;padding:12px 0;gap:2px">
+  <div id="app-shell" class="shell" data-sidebar-rail={rail} data-sidebar-collapsed={railCollapsed ? '1' : undefined}>
+    <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+    <aside id="app-sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <a href="/panel" class="sidebar-brand" aria-label="IA desde cero">
+          <span class="sidebar-mark">IA</span>
+          <span class="sidebar-copy" style="font:600 13px/1.2 var(--f)">IA desde cero</span>
+        </a>
+        <button id="sidebar-toggle" class="sidebar-toggle" type="button"
+                aria-controls="app-sidebar"
+                aria-expanded={railCollapsed ? 'false' : 'true'}
+                aria-label={railCollapsed ? L.ui.menuExpandir : L.ui.menuContraer}
+                data-label-close={L.ui.menuCerrar}
+                data-label-collapse={L.ui.menuContraer}
+                data-label-expand={L.ui.menuExpandir}>
+          <span class="sidebar-chevron"><Fragment set:html={icon('arrow', 16)} /></span>
+          <span class="sidebar-x"><Fragment set:html={icon('x', 16)} /></span>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
         {NAV.map((n) => (
-          <a href={n.href} class="nav" aria-current={n.label === active ? 'page' : undefined}>
+          <a href={n.href} class="nav" title={n.label} aria-label={n.label}
+             aria-current={n.label === active ? 'page' : undefined}>
             <Fragment set:html={icon(n.ic, 18)} />
-            <span>{n.label}</span>
+            <span class="sidebar-copy">{n.label}</span>
           </a>
         ))}
-        <button id="ia-toggle" class="ia-nav" type="button" role="switch"
-                aria-checked={ia.mode ? 'true' : 'false'} title={L.ia.modoAria}>
+        <button id="ia-toggle" class="ia-nav" type="button" role="switch" data-tut="panel-4"
+                aria-checked={ia.mode ? 'true' : 'false'} title={L.ia.modoAria}
+                aria-label={L.ia.modoAria}>
           <Fragment set:html={icon('spark', 18)} />
-          <span>{L.ia.modo}</span>
+          <span class="sidebar-copy">{L.ia.modo}</span>
           <span class="ia-track" aria-hidden="true"><span class="ia-knob"></span></span>
         </button>
       </nav>
-      <div style="margin-top:auto;border-top:1px solid var(--hair2);padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-        <div style="display:flex;align-items:center;gap:11px">
-          <div style="width:34px;height:34px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:600 12px/1 var(--m)">{initials(user.name)}</div>
-          <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
-            <div style="font:600 13px/1 var(--f);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{user.name}</div>
+      <div class="sidebar-foot">
+        <div class="sidebar-user">
+          <div class="sidebar-avatar">{initials(user.name)}</div>
+          <div class="sidebar-who sidebar-copy">
+            <div class="sidebar-name">{user.name}</div>
             <div class="lbl" style="color:var(--ac)">{ROL[user.role] ?? user.role}</div>
           </div>
         </div>
-        <button id="logout" class="nav" style="border-left:0;padding:0;height:32px;background:none;border:0;cursor:pointer;text-align:left">
+        <button id="logout" class="nav" style="border-left:0;padding:0;height:32px;background:none;border:0;cursor:pointer;text-align:left"
+                aria-label={L.salir} title={L.salir}>
           <Fragment set:html={icon('logout', 16)} />
-          <span>{L.salir}</span>
+          <span class="sidebar-copy">{L.salir}</span>
         </button>
       </div>
     </aside>
+    <script is:inline>
+      (() => {
+        const rail = document.getElementById('app-sidebar');
+        if (rail && matchMedia('(max-width:900px)').matches) rail.setAttribute('inert', '');
+      })();
+    </script>
 
     <main style="flex:1;min-width:0;display:flex;flex-direction:column">
-      <header style="height:64px;flex:none;border-bottom:1px solid var(--hair2);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 28px;position:sticky;top:0;background:var(--bg);z-index:5">
-        <div class="lbl">{crumb}</div>
-        <div style="display:flex;align-items:center;gap:18px">
+      <header class="app-head">
+        <div class="app-head-left">
+          <button id="sidebar-open" class="sidebar-open" type="button"
+                  aria-controls="app-sidebar" aria-expanded="false"
+                  aria-label={L.ui.menuAbrir}>
+            <Fragment set:html={icon('menu', 18)} />
+          </button>
+          <div class="lbl">{crumb}</div>
+        </div>
+        <div class="app-head-right">
+          <!-- Los dos .seg viven aqui en escritorio. En movil se esconden con
+               .app-head-prefs{display:none}: los mismos controles estan en
+               /ajustes, que esta en el carril, y ahi son .chip de 44px en vez de
+               .segb de 30. Asi la fila 1 queda para hamburguesa + miga. -->
+          <div class="app-head-prefs">
 
           <div class="seg" role="group" aria-label={L.idioma}>
             <button class="segb" data-pref="lang" data-val="auto" aria-pressed={user.lang === 'auto'}>{L.automatico}</button>
@@ -160,10 +486,18 @@ const ia = aiFlags(Astro.request);
             <button class="segb" data-pref="theme" data-val="paper" aria-pressed={user.theme === 'paper'}>{L.papel}</button>
           </div>
 
-          <div style="display:flex;align-items:center;gap:12px"><slot name="topbar" /></div>
+          </div>
+
+          <div class="app-head-tools"><slot name="topbar" /></div>
+          <div class="app-head-action" set:html={actionHtml}></div>
         </div>
       </header>
       <slot />
+      <!-- Barra de accion inferior (opcion A). Solo la usan /panel y /curso: las
+           dos paginas cuya accion principal es un CTA de verdad. Los enlaces de
+           conveniencia van al slot topbar (opcion B), porque su destino ya esta
+           en el carril y no justifican 44px permanentes de pantalla. -->
+      <div class="actionbar" set:html={actionHtml}></div>
     </main>
   </div>
 
@@ -174,56 +508,11 @@ const ia = aiFlags(Astro.request);
 
   <script>
     import { animarIdioma } from '../lib/lang-anim';
+    import { writeSidebarCollapsed } from '../lib/sidebar';
+    import { montarAvisos } from '../lib/avisos';
 
-    // Avisos: una sola API global, `toast(kind, title, body)`.
-    const ICONS: Record<string, string> = {
-      ok: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.6l4.4 4.4L19 7.2"/></svg>',
-      bad: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.4 2.8 19.6h18.4zM12 9.6v4.2M12 16.4v.1"/></svg>',
-      warn: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.4 2.8 19.6h18.4zM12 9.6v4.2M12 16.4v.1"/></svg>',
-      info: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.2a8.2 8.2 0 1 0 0-16.4 8.2 8.2 0 0 0 0 16.4zM12 11v5.4M12 8.1v.1"/></svg>',
-    };
-    const COLOR: Record<string, string> = { ok: 'var(--ok)', bad: 'var(--rd)', warn: 'var(--or)', info: 'var(--ac)' };
-    const seen = new Map<string, HTMLElement>();
-    const box = document.getElementById('toasts')!;
     const T = JSON.parse(document.getElementById('txt')!.textContent!) as Record<string, string>;
-    (window as any).toast = (kind: string, title: string, body: string, key?: string) => {
-      const id = key || title;
-      if (seen.has(id)) { seen.get(id)!.remove(); seen.delete(id); }
-      const el = document.createElement('div');
-      el.className = 'toast';
-      el.style.borderColor = COLOR[kind];
-      // `title` and `body` are caller data, not markup: admin.astro feeds this
-      // helper a stored user name and other callers feed it API error text. They
-      // are written with textContent so a name like `<img src=x onerror=...>`
-      // cannot execute in the authenticated origin. innerHTML is kept only for
-      // the fixed icon and close-button markup owned by this file.
-      const icono = document.createElement('div');
-      icono.setAttribute('style', `color:${COLOR[kind]};margin-top:1px`);
-      icono.innerHTML = ICONS[kind] ?? '';
-
-      const col = document.createElement('div');
-      col.setAttribute('style', 'display:flex;flex-direction:column;gap:4px;flex:1;min-width:0');
-      const h = document.createElement('div');
-      h.className = 'h3';
-      h.textContent = title;
-      const cuerpo = document.createElement('p');
-      cuerpo.className = 's';
-      cuerpo.setAttribute('style', 'color:var(--l2)');
-      cuerpo.textContent = body;
-      col.append(h, cuerpo);
-
-      const cerrar = document.createElement('button');
-      cerrar.setAttribute('aria-label', 'Cerrar');
-      cerrar.setAttribute('style', 'background:none;border:0;color:var(--l3);cursor:pointer;padding:0');
-      cerrar.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.2 6.2l11.6 11.6M17.8 6.2 6.2 17.8"/></svg>';
-      cerrar.onclick = () => { el.remove(); seen.delete(id); };
-
-      el.append(icono, col, cerrar);
-      box.append(el);
-      seen.set(id, el);
-      while (box.children.length > 3) box.firstElementChild!.remove();
-      if (kind === 'ok' || kind === 'info') setTimeout(() => { el.remove(); seen.delete(id); }, 4000);
-    };
+    montarAvisos(T.cerrar ?? 'Cerrar');
     // Toggles de idioma y tema. El tema se aplica al instante sobre <html data-theme>;
     // el idioma necesita recarga porque las cadenas se resuelven en el servidor.
     document.querySelectorAll<HTMLElement>('.segb[data-pref]').forEach((b) => b.addEventListener('click', async () => {
@@ -256,6 +545,71 @@ const ia = aiFlags(Astro.request);
       (window as any).toast('info', T.salio, T.salioB);
       setTimeout(() => location.assign('/login'), 500);
     };
+
+    const shell = document.getElementById('app-shell')!;
+    const rail = document.getElementById('app-sidebar') as HTMLElement;
+    const backdrop = document.getElementById('sidebar-backdrop')!;
+    const openBtn = document.getElementById('sidebar-open') as HTMLButtonElement;
+    const toggleBtn = document.getElementById('sidebar-toggle') as HTMLButtonElement;
+    const phone = window.matchMedia('(max-width:900px)');
+    const LABEL = {
+      abrir: openBtn.getAttribute('aria-label') ?? '',
+      cerrar: toggleBtn.dataset.labelClose ?? '',
+      contraer: toggleBtn.dataset.labelCollapse ?? '',
+      expandir: toggleBtn.dataset.labelExpand ?? '',
+    };
+    const navOpen = () => shell.getAttribute('data-nav-open') === '1';
+    const railClosed = () => shell.getAttribute('data-sidebar-collapsed') === '1';
+
+    const sync = () => {
+      if (phone.matches) {
+        const on = navOpen();
+        openBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+        openBtn.setAttribute('aria-label', on ? LABEL.cerrar : LABEL.abrir);
+        toggleBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', LABEL.cerrar);
+        backdrop.hidden = !on;
+        document.body.style.overflow = on ? 'hidden' : '';
+        rail.toggleAttribute('inert', !on);
+      } else {
+        const expanded = !railClosed();
+        openBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', expanded ? LABEL.contraer : LABEL.expandir);
+        backdrop.hidden = true;
+        document.body.style.overflow = '';
+        shell.removeAttribute('data-nav-open');
+        rail.removeAttribute('inert');
+      }
+    };
+    const setNav = (on: boolean) => {
+      if (on) shell.setAttribute('data-nav-open', '1');
+      else shell.removeAttribute('data-nav-open');
+      sync();
+      (on ? toggleBtn : openBtn).focus();
+    };
+    const setRail = (on: boolean) => {
+      if (on) shell.setAttribute('data-sidebar-collapsed', '1');
+      else shell.removeAttribute('data-sidebar-collapsed');
+      writeSidebarCollapsed(on);
+      sync();
+    };
+
+    openBtn.addEventListener('click', () => {
+      if (phone.matches) setNav(!navOpen());
+      else setRail(false);
+    });
+    toggleBtn.addEventListener('click', () => {
+      if (phone.matches) setNav(false);
+      else setRail(!railClosed());
+    });
+    backdrop.addEventListener('click', () => setNav(false));
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (phone.matches && navOpen()) { e.preventDefault(); setNav(false); }
+    });
+    phone.addEventListener('change', sync);
+    sync();
   </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// Behaviour of the 37 tools: that they answer with data rather than an error, that
+// Behaviour of the 41 tools: that they answer with data rather than an error, that
 // the queue and the stack really talk to each other (one tool enqueues, another
 // consumes) and that the memo saves queries without serving stale own data.
 //
@@ -30,7 +30,9 @@ interface NextResult { item: Focus; lab: { lesson_n: number }; mis: unknown; lec
 interface BackResult { cerrado: Focus; vuelvoA: Focus | null; ruta: string | null }
 interface MistakesResult { atascados: number; labs: { lab_id: string; misRespuestasMalas: unknown[] }[] }
 interface DiagResult { memo: { consultasAhorradas: number } }
-interface PriceResult { precio: { monto: number }; garantiaDias: number }
+// `moneda` esta en el tipo porque la asercion la comprueba: el importe sin la
+// moneda no dice nada — 35000 es un precio razonable en pesos y absurdo en dolares.
+interface PriceResult { precio: { monto: number; moneda: string }; garantiaDias: number }
 interface SearchResult { resultados: { leccion: number }[] }
 interface PrivacyResult { deTi: { intentosGuardados: number } }
 interface LessonTextResult { idioma: string; tecnica: string; analogia: string; nota?: string | null }
@@ -51,22 +53,24 @@ forgetAll();
 console.log('\n1) El catálogo está completo y clasificado');
 const cat = catalog();
 const fam = families();
-ok(cat.length === 37, `hay 37 herramientas (hay ${cat.length})`);
-ok(fam.contenido!.length === 7 && fam.propio!.length === 16 && fam.producto!.length === 7 && fam.coordinar!.length === 7,
-  'las cuatro familias tienen 7 · 16 · 7 · 7',
+ok(cat.length === 41, `hay 41 herramientas (hay ${cat.length})`);
+ok(fam.contenido!.length === 11 && fam.propio!.length === 16 && fam.producto!.length === 7 && fam.coordinar!.length === 7,
+  'las cuatro familias tienen 9 · 16 · 7 · 7',
   Object.entries(fam).map(([k, v]) => `${k}=${v.length}`).join(' '));
 ok(cat.every((h) => !!h.descripcion && h.descripcion.length > 20), 'toda herramienta se describe con algo más que su nombre');
 ok(new Set(cat.map((h) => h.nombre)).size === cat.length, 'no hay nombres repetidos');
 
-console.log('\n2) Las 37 responden con datos, no con un error');
+console.log('\n2) Las 41 responden con datos, no con un error');
 const ARGS: Record<string, Record<string, unknown>> = {
   leccion: { n: 5 }, leccion_texto: { n: 5 }, requisitos_leccion: { n: 7 },
+  quiz_leccion: { n: 1 }, examen: { n: 1 },
   mis_intentos: { lab_id: '2.1' }, lab_ficha: { lab_id: '2.1' },
   mis_pendientes: { n: 2 }, mi_historial: { dias: 7 },
   buscar_en_curso: { consulta: 'tokens' }, glosario: { termino: 'contexto' },
   donde_encuentro: { consulta: 'cambiar el idioma' }, soporte: { tema: 'olvidé la contraseña' },
   plan_estudio: { sesiones: 3 }, cola_encolar: { tipo: 'tema', ref: 'temperatura' },
   foco_apilar: { tipo: 'leccion', ref: '9' },
+  consulta: { table: 'lessons', select: ['n', 'title'], order: [{ column: 'n', dir: 'asc' }], limit: 3 },
 };
 let vacias = 0;
 for (const h of cat) {
@@ -139,7 +143,8 @@ ok(paso.hay && paso.lab_id === '1.2', `«¿qué hago ahora?» → el 1.2 (dijo $
 const acceso = await llamar('mi_acceso', {}, 'D');
 ok(Array.isArray(acceso.abiertas) && acceso.abiertas.includes(1), '«¿por qué no puedo abrir la 4?» → lista de abiertas y cerradas');
 const precio = await llamar<PriceResult>('precio_y_compra', {}, 'D');
-ok(precio.precio.monto === 9.99 && precio.garantiaDias === 14, '«¿cuánto cuesta?» → 9.99 USD y 14 días de garantía');
+ok(precio.precio.monto === 35000 && precio.precio.moneda === 'COP' && precio.garantiaDias === 14,
+   '«¿cuánto cuesta?» → 35.000 COP y 14 días de garantía');
 const donde = await llamar('donde_encuentro', { consulta: 'descargar el pdf' }, 'D');
 ok(donde.rutas[0]?.ruta === '/perfil', '«¿dónde descargo el pdf?» → /perfil');
 const sop = await llamar('soporte', { tema: 'pagué y sigue cerrado' }, 'D');

@@ -1,0 +1,12 @@
+.env
+*.env
+api/.env
+web/.env
+ai/.env
+payments/.env
+messages/.env
+.env.bak.*
+scripts/keys/
+ai/.venv/
+__pycache__/
+.pytest_cache/

@@ -113,7 +113,10 @@ const GATES = [
   { id: 'ontology-drift', what: 'ontology declares every real column',
     cmd: ['node', ['scripts/check-ontology-drift.mjs']] },
 
-  { id: 'tool-catalog', what: '37 tools readable from the registry by import',
+  { id: 'price', what: 'one price: charged == advertised == quoted, and no stale copy',
+    cmd: ['node', ['--experimental-strip-types', 'scripts/check-price.mjs']] },
+
+  { id: 'tool-catalog', what: '41 tools readable from the registry by import',
     cmd: ['node', ['--experimental-strip-types', 'scripts/emit-tool-catalog.mjs']] },
 
   { id: 'py-lint', what: 'ruff',
@@ -134,6 +137,19 @@ const GATES = [
 
   { id: 'api-types', what: 'tsgo against the pinned baseline',
     cmd: ['pnpm', ['--dir', 'api', 'check']] },
+
+  { id: 'api-data-boundary', what: 'runtime API has no Postgres credential or SQL escape hatch',
+    cmd: ['node', ['scripts/check-api-data-boundary.mjs']] },
+
+  { id: 'payments', what: 'tsgo and webhook security contracts',
+    absentIf: () => !existsSync(resolve(ROOT, 'payments/package.json')),
+    absentNote: 'no payments service yet',
+    cmd: ['sh', ['-c', 'pnpm --dir payments check && pnpm --dir payments test']] },
+
+  { id: 'messages', what: 'tsgo and JSONB document contracts',
+    absentIf: () => !existsSync(resolve(ROOT, 'messages/package.json')),
+    absentNote: 'no messages service yet',
+    cmd: ['sh', ['-c', 'pnpm --dir messages check && pnpm --dir messages test']] },
 
   { id: 'web-astro', what: 'astro check',
     cmd: ['pnpm', ['--dir', 'web', 'exec', 'astro', 'check']] },

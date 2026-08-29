@@ -10,7 +10,28 @@ const conVersion = (path: string) =>
     ? `/api/${V}/` + path.slice('/api/'.length)
     : path;
 
-export type Role = 'student' | 'tutor' | 'admin';
+export type Role = 'student' | 'tutor' | 'admin' | 'root';
+
+/**
+ * Jerarquia de roles para el SSR. Copia deliberada de CONTIENE en
+ * auth/src/core.ts: web y api son procesos distintos y web ya duplicaba `Role`.
+ * root cumple cualquier exigencia; los otros tres siguen siendo planos.
+ */
+const CONTIENE: Record<string, readonly string[]> = {
+  root: ['root', 'admin', 'tutor', 'student'],
+  admin: ['admin'],
+  tutor: ['tutor'],
+  student: ['student'],
+};
+
+/** ¿`role` cumple con alguno de los roles `exigidos`? */
+export function satisface(role: string, exigidos: readonly string[]): boolean {
+  const propios = CONTIENE[role] ?? [role];
+  return exigidos.some((r) => propios.includes(r));
+}
+
+/** ¿`role` manda en la plataforma? admin y root. */
+export const mandaPlataforma = (role: string): boolean => satisface(role, ['admin']);
 export type LangPref = 'es' | 'en' | 'auto';
 export type ThemePref = 'dark' | 'paper' | 'auto';
 export interface User { id: number; email: string; name: string; role: Role; lang: LangPref; theme: ThemePref; paid: boolean; cohort: string | null; }
@@ -48,7 +69,9 @@ export async function getUser(request: Request): Promise<User | null> {
 export async function gate(request: Request, roles: Role[] = ['student', 'tutor', 'admin']) {
   const user = await getUser(request);
   if (!user) return { user: null, redirect: '/login' as const };
-  if (!roles.includes(user.role)) return { user, redirect: '/panel' as const };
+  // satisface, no includes: una pagina que exige ['admin'] no tiene que
+  // acordarse de nombrar a root para dejarlo pasar.
+  if (!satisface(user.role, roles)) return { user, redirect: '/panel' as const };
   return { user, redirect: null };
 }
 

@@ -18,7 +18,7 @@
 // WHY NOT RABBITMQ (yet)
 //
 // A broker solves fan-out between services, high throughput and consumers on
-// several machines. Today there is one job, one consumer and a USD 9.99 payment
+// several machines. Today there is one job, one consumer and a 35.000 COP payment
 // per person. Adding RabbitMQ would be one more container, one more protocol, a
 // dead-letter queue to watch and a new failure mode (broker down = payments not
 // processed) in order to move one message every so often.
@@ -47,8 +47,7 @@
 // intentos, corre_en, tomado_en, acabado_en, creado_en) and the `estado` values
 // ('pendiente', 'curso', 'hecho', 'muerto'), which the jobs_estado_check
 // constraint enumerates: those are api/prisma/, not this module.
-import { all, get, run } from './db.ts';
-import type { JobRow } from './db.ts';
+import { many, one, write, writeMany } from './data.ts';
 
 // The MINIMUM the worker needs from a log. Not `Console`: asking for Console
 // forces every test double to implement 21 methods nobody calls, and then the
@@ -70,7 +69,11 @@ export type Handler = (data: Record<string, unknown>) => Promise<void> | void;
 /** Handlers by type. Registered from outside so the queue is not coupled to the domain. */
 const HANDLERS = new Map<string, Handler>();
 
-export function register(type: string, fn: Handler): void { HANDLERS.set(type, fn); }
+const JOB_TYPE = /^[a-z0-9_.-]{1,100}$/;
+export function register(type: string, fn: Handler): void {
+  if (!JOB_TYPE.test(type)) throw new Error(`invalid job type: ${type}`);
+  HANDLERS.set(type, fn);
+}
 
 export const MAX_ATTEMPTS = 6;
 // Exponential backoff with a ceiling: 2s, 8s, 32s, 128s, 512s, 1024s. A payment
@@ -86,17 +89,23 @@ export const backoff = (attempts: number): number =>
  */
 export async function enqueue(
   type: string, data: unknown, key: string | null = null): Promise<{ nuevo: boolean }> {
-  const r = await run(
-    `INSERT INTO jobs (tipo, clave, datos, corre_en)
-     VALUES (?,?,?, now())
-     ON CONFLICT (tipo, clave) DO NOTHING`,
-    [type, key ?? `${type}:${Date.now()}:${Math.random().toString(36).slice(2)}`,
-     JSON.stringify(data ?? {})]);
-  return { nuevo: (r?.rowCount ?? 0) > 0 };
+  if (!JOB_TYPE.test(type)) throw new Error(`invalid job type: ${type}`);
+  const affected = await write('job.enqueue', {
+    type,
+    key: key ?? `${type}:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+    payload: JSON.stringify(data ?? {}),
+  });
+  return { nuevo: affected > 0 };
 }
 
 /** A job as takeBatch() returns it. */
-export type TakenJob = Pick<JobRow, 'id' | 'tipo' | 'clave' | 'datos' | 'intentos'>;
+export interface TakenJob {
+  id: number;
+  tipo: string;
+  clave: string | null;
+  datos: unknown;
+  intentos: number;
+}
 
 /**
  * Takes up to `n` due jobs and marks them in progress IN THE SAME query.
@@ -117,20 +126,12 @@ export type TakenJob = Pick<JobRow, 'id' | 'tipo' | 'clave' | 'datos' | 'intento
  */
 export async function takeBatch(n = 5, types: readonly string[] = [...HANDLERS.keys()]): Promise<TakenJob[]> {
   if (!types.length) return [];
-  return all<TakenJob>(
-    `UPDATE jobs SET estado = 'curso', intentos = intentos + 1, tomado_en = now()
-     WHERE id IN (
-       SELECT id FROM jobs
-       WHERE estado = 'pendiente' AND corre_en <= now() AND tipo = ANY(?)
-       ORDER BY corre_en
-       LIMIT ?
-       FOR UPDATE SKIP LOCKED
-     )
-     RETURNING id, tipo, clave, datos, intentos`, [types, n]);
+  if (!types.every((type) => JOB_TYPE.test(type))) throw new Error('invalid job type in handler set');
+  return writeMany<TakenJob>('job.take', { types: types.join(','), limit: n });
 }
 
 async function finish(id: number): Promise<void> {
-  await run(`UPDATE jobs SET estado = 'hecho', acabado_en = now(), error = NULL WHERE id = ?`, [id]);
+  await write('job.finish', { job: id });
 }
 
 async function reschedule(
@@ -139,13 +140,11 @@ async function reschedule(
   if (attempts >= MAX_ATTEMPTS) {
     // It is not deleted: a dead job that disappears is a lost payment with no
     // trace. It stays as 'muerto' so it can be seen and retried by hand.
-    await run(`UPDATE jobs SET estado = 'muerto', error = ?, acabado_en = now() WHERE id = ?`, [msg, id]);
+    await write('job.dead', { job: id, error: msg });
     return { muerto: true };
   }
   const s = backoff(attempts);
-  await run(
-    `UPDATE jobs SET estado = 'pendiente', error = ?, corre_en = now() + (? * interval '1 second')
-     WHERE id = ?`, [msg, s, id]);
+  await write('job.reschedule', { job: id, error: msg, seconds: s });
   return { muerto: false, enSegundos: s };
 }
 
@@ -170,7 +169,7 @@ export async function runBatch(n = 5, log: Log = console): Promise<BatchResult> 
       // With takeBatch's filter this should not happen. If it does, somebody
       // unregistered a type between taking and running: it goes back to pending
       // instead of being killed, because the job is still valid.
-      await run(`UPDATE jobs SET estado = 'pendiente', intentos = intentos - 1 WHERE id = ?`, [j.id]);
+      await write('job.release', { job: j.id });
       continue;
     }
     try {
@@ -241,8 +240,6 @@ export function worker({ idleMs = 5000, busyMs = 200, batch = 5, log = console }
 // WHEN THIS MOVES: the day a second kind of counter appears, or the day quotas
 // need a window that is not a calendar day, this earns its own table. Until
 // then, one type of row in an existing table beats a schema change.
-const COUNTER = 'contador';
-
 let lastPrune = 0;
 const PRUNE_MS = 60 * 60 * 1000;
 
@@ -252,28 +249,20 @@ const PRUNE_MS = 60 * 60 * 1000;
  * requests cannot both read 4 and both write 5.
  */
 export async function increment(key: string, n = 1): Promise<number> {
-  const row = await get<{ n: number }>(
-    `INSERT INTO jobs (tipo, clave, datos, estado, acabado_en)
-     VALUES (?, ?, jsonb_build_object('n', ?::int), 'hecho', now())
-     ON CONFLICT (tipo, clave) DO UPDATE
-       SET datos = jsonb_set(jobs.datos, '{n}',
-                             to_jsonb(COALESCE((jobs.datos->>'n')::int, 0) + ?::int))
-     RETURNING (datos->>'n')::int AS n`,
-    [COUNTER, String(key), n, n]);
+  await write('counter.bump', { key: String(key), amount: n });
+  const row = await one<{ n: number }>('counter.read', { key: String(key) });
   // Counters are one row per key per day and nothing else prunes this table, so
   // they would accumulate forever. Swept at most once an hour per process.
   if (Date.now() - lastPrune > PRUNE_MS) {
     lastPrune = Date.now();
-    await run(`DELETE FROM jobs WHERE tipo = ? AND creado_en < now() - interval '30 days'`, [COUNTER]);
+    await write('counter.prune');
   }
   return row?.n ?? n;
 }
 
 /** Reads a counter without touching it. 0 when it was never written. */
 export async function readCounter(key: string): Promise<number> {
-  const row = await get<{ n: number }>(
-    `SELECT (datos->>'n')::int AS n FROM jobs WHERE tipo = ? AND clave = ?`,
-    [COUNTER, String(key)]);
+  const row = await one<{ n: number }>('counter.read', { key: String(key) });
   return row?.n ?? 0;
 }
 
@@ -287,25 +276,20 @@ export interface QueueState {
 
 /** For /api/health, and to know whether something is piling up. */
 export async function queueState(): Promise<QueueState> {
-  const byState = await all<{ estado: string; n: number }>(
-    `SELECT estado, COUNT(*)::int AS n FROM jobs WHERE tipo <> ? GROUP BY estado`, [COUNTER]);
-  const oldest = await get<{ s: number | null }>(
-    `SELECT EXTRACT(EPOCH FROM (now() - MIN(corre_en)))::int AS s
-     FROM jobs WHERE estado = 'pendiente' AND corre_en <= now()`);
+  const byState = await many<{ estado: string; n: number }>('job.state_counts');
+  const oldest = await one<{ oldest: string | null }>('job.oldest_due');
   const types = [...HANDLERS.keys()];
   // Orphans: pending jobs of a type THIS process cannot run. With a single
   // instance it is a programming error; with several it can be normal for a while
   // during a deploy. Either way it has to be visible: a job nobody takes and
   // nobody counts is a job lost in silence.
-  const orphans = types.length
-    ? await all<{ tipo: string; n: number }>(
-        `SELECT tipo, COUNT(*)::int AS n FROM jobs
-         WHERE estado = 'pendiente' AND NOT (tipo = ANY(?)) GROUP BY tipo`, [types])
-    : await all<{ tipo: string; n: number }>(
-        `SELECT tipo, COUNT(*)::int AS n FROM jobs WHERE estado = 'pendiente' GROUP BY tipo`);
+  const orphans = await many<{ tipo: string; n: number }>(
+    'job.orphans', { handled: types.join(',') });
   return {
     por: Object.fromEntries(byState.map((f) => [f.estado, f.n])),
-    esperaMax: oldest?.s ?? 0,
+    esperaMax: oldest?.oldest
+      ? Math.max(0, Math.floor((Date.now() - Date.parse(oldest.oldest)) / 1000))
+      : 0,
     manejadores: types,
     huerfanos: Object.fromEntries(orphans.map((f) => [f.tipo, f.n])),
   };
