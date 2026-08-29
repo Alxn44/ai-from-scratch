@@ -1,0 +1,8 @@
+# local.properties lleva la ruta del SDK de ESTA maquina. Versionarla rompe el
+# build de cualquier otra.
+local.properties
+.gradle/
+build/
+app/build/
+.idea/
+*.iml

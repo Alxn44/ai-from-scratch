@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Negro fijo, igual que iOS y que la landing. El fondo se declara aqui y
+         no solo en Compose para que la ventana no parpadee en blanco entre el
+         arranque del proceso y el primer frame compuesto. -->
+    <style name="Theme.IAdesdeCero" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
