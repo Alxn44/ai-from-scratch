@@ -155,6 +155,13 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
     const seen = new Map<string, HTMLElement>();
     const box = document.getElementById('toasts')!;
     const T = JSON.parse(document.getElementById('txt')!.textContent!) as Record<string, string>;
+    // El aviso se arma con innerHTML por el icono, que es SVG de la casa. El titulo
+    // y el cuerpo no lo son: varios llamantes pasan el `msg` que vino del servidor,
+    // y un `msg` puede acabar llevando algo que escribio el cliente (por ejemplo el
+    // content-type que mando). Escapar aqui, en la primitiva, protege a todos los
+    // llamantes de una vez en lugar de confiar en que cada uno se acuerde.
+    const esc = (v: string) => String(v).replace(/[&<>"]/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
     (window as any).toast = (kind: string, title: string, body: string, key?: string) => {
       const id = key || title;
       if (seen.has(id)) { seen.get(id)!.remove(); seen.delete(id); }
@@ -163,7 +170,7 @@ const ROL: Record<string, string> = { student: L.ui.rolStudent, tutor: L.ui.rolT
       el.style.borderColor = COLOR[kind];
       el.innerHTML = `<div style="color:${COLOR[kind]};margin-top:1px">${ICONS[kind]}</div>
         <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-          <div class="h3">${title}</div><p class="s" style="color:var(--l2)">${body}</p></div>
+          <div class="h3">${esc(title)}</div><p class="s" style="color:var(--l2)">${esc(body)}</p></div>
         <button aria-label="Cerrar" style="background:none;border:0;color:var(--l3);cursor:pointer;padding:0">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.2 6.2l11.6 11.6M17.8 6.2 6.2 17.8"/></svg></button>`;
       el.querySelector('button')!.onclick = () => { el.remove(); seen.delete(id); };

@@ -59,7 +59,7 @@ pnpm dev             # levanta api + web con reload
 ```bash
 pnpm reset                # borra DB, la levanta de nuevo y reseed
 pnpm test:aislamiento     # test de aislamiento de datos entre usuarios
-pnpm --dir api test:medios   # 87 comprobaciones de medios, sin Postgres ni Docker
+pnpm --dir api test:medios   # 90 comprobaciones de medios, sin Postgres ni Docker
 pnpm ontologia            # regenera el grafo de ontología de conceptos
 pnpm stop                 # apaga web local + contenedores docker
 ```

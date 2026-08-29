@@ -16,11 +16,25 @@ const labPct = prog ? Math.round((prog.solvedLabs / prog.totalLabs) * 100) : 0;
   <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1180px">
 
     <div style="display:flex;align-items:flex-start;gap:24px;border-bottom:1px solid var(--hair);padding-bottom:26px">
-      <div style="width:92px;height:92px;flex:none;border:1px solid var(--hair);display:grid;place-items:center;font:600 28px/1 var(--m)">{initials(user!.name)}</div>
+      <!-- Las iniciales debajo y la foto encima. Si no hay foto, la peticion da 404,
+           salta `error` y el cuadro se queda con las iniciales: ni parpadeo ni hueco. -->
+      <div style="position:relative;width:92px;height:92px;flex:none">
+        <div style="position:absolute;inset:0;border:1px solid var(--hair);display:grid;place-items:center;font:600 28px/1 var(--m)">{initials(user!.name)}</div>
+        <!-- alt vacio a proposito: el nombre esta escrito al lado y un lector de
+             pantalla no gana nada leyendolo dos veces. -->
+        <img id="av-img" alt="" hidden
+             style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:1px solid var(--hair)" />
+      </div>
       <div style="display:flex;flex-direction:column;gap:10px;flex:1">
         <p class="eb">{L.perfil.titulo} · {user!.role === 'student' ? L.nav.perfil : user!.role}</p>
         <h1 class="h1">{user!.name}</h1>
         <p class="s" style="color:var(--l2)">{user!.email}{user!.cohort ? ` · cohorte de ${user!.cohort}` : ''} · {user!.paid ? L.perfil.comprado : L.perfil.sinCompra}</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:2px">
+          <input type="file" id="av-file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" hidden />
+          <button class="btn ghost" id="av-cambiar" style="height:32px;font-size:10px"><Fragment set:html={icon('user', 14)} /><span>{L.perfil.cambiarFoto}</span></button>
+          <button class="btn ghost" id="av-quitar" hidden style="height:32px;font-size:10px"><Fragment set:html={icon('x', 14)} /><span>{L.perfil.quitarFoto}</span></button>
+          <span class="s" style="color:var(--l2)">{L.perfil.fotoNota}</span>
+        </div>
       </div>
     </div>
 
@@ -62,6 +76,84 @@ const labPct = prog ? Math.round((prog.solvedLabs / prog.totalLabs) * 100) : 0;
 
   <script>
     const U = JSON.parse(document.getElementById('ui-txt')!.textContent!);
+
+    // ---- la foto ----
+    // Los mismos limites que declara `api/src/medios.js` para el cubo `avatares`.
+    // Repetirlos aqui no sustituye al servidor: sirve para contestar al instante en
+    // vez de subir 5 MB para que los rechacen.
+    const MAX_FOTO = 2 * 1024 * 1024;
+    const TIPOS_FOTO = ['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/gif'];
+
+    const img = document.getElementById('av-img') as HTMLImageElement;
+    const quitar = document.getElementById('av-quitar') as HTMLButtonElement;
+    const cambiar = document.getElementById('av-cambiar') as HTMLButtonElement;
+    const fichero = document.getElementById('av-file') as HTMLInputElement;
+
+    // Cada codigo de medios, a su aviso. Los cuatro de infraestructura dicen lo
+    // mismo: al que mira la pantalla no le sirve saber cual de los cuatro fue.
+    const AVISOS: Record<string, [string, string]> = {
+      demasiado_grande: [U.avGrande, U.avGrandeB],
+      tipo_no_permitido: [U.avTipo, U.avTipoB],
+      medios_caido: [U.avSinAlmacen, U.avSinAlmacenB],
+      medios_sin_configurar: [U.avSinAlmacen, U.avSinAlmacenB],
+      medios_sin_preparar: [U.avSinAlmacen, U.avSinAlmacenB],
+      medios_mal_configurado: [U.avSinAlmacen, U.avSinAlmacenB],
+    };
+
+    const verFoto = (hay: boolean) => { img.hidden = !hay; quitar.hidden = !hay; };
+    img.addEventListener('load', () => verFoto(true));
+    img.addEventListener('error', () => verFoto(false));
+    // El cubo va sin cache, asi que no hace falta romperla al cargar; al
+    // reemplazar si, porque la URL es la misma y el navegador ya tiene una imagen
+    // pintada en pantalla.
+    img.src = '/api/medios/avatar';
+
+    cambiar.addEventListener('click', () => fichero.click());
+
+    fichero.addEventListener('change', async () => {
+      const f = fichero.files?.[0];
+      fichero.value = '';                       // permite reintentar con el mismo fichero
+      if (!f) return;
+      if (!TIPOS_FOTO.includes(f.type)) return window.toast('warn', U.avTipo, U.avTipoB);
+      if (f.size > MAX_FOTO) return window.toast('warn', U.avGrande, U.avGrandeB);
+
+      cambiar.disabled = true;
+      try {
+        // El cuerpo son los bytes en crudo, no un formulario: Astro los reenvia
+        // como stream y el API los pasa al almacen sin juntarlos en memoria.
+        const res = await fetch('/api/medios/avatar', {
+          method: 'PUT', headers: { 'content-type': f.type }, body: f,
+        });
+        if (res.ok) {
+          img.src = `/api/medios/avatar?v=${Date.now()}`;
+          window.toast('ok', U.avPuesta, U.avPuestaB);
+        } else {
+          const d = await res.json().catch(() => ({}));
+          const [t, b] = AVISOS[d.error] ?? [U.avFallo, d.msg ?? U.avFalloB];
+          window.toast(res.status >= 500 ? 'bad' : 'warn', t, b);
+        }
+      } catch {
+        window.toast('bad', U.avFallo, U.avFalloB);
+      } finally {
+        cambiar.disabled = false;
+      }
+    });
+
+    quitar.addEventListener('click', async () => {
+      quitar.disabled = true;
+      try {
+        const res = await fetch('/api/medios/avatar', { method: 'DELETE' });
+        // El borrado es idempotente: un 204 y un 404 significan lo mismo aqui.
+        if (res.ok || res.status === 404) { img.removeAttribute('src'); verFoto(false); window.toast('ok', U.avQuitada, U.avQuitadaB); }
+        else window.toast('bad', U.avFallo, U.avFalloB);
+      } catch {
+        window.toast('bad', U.avFallo, U.avFalloB);
+      } finally {
+        quitar.disabled = false;
+      }
+    });
+
+    // ---- los PDF ----
     for (const lang of ['es', 'en']) {
       document.getElementById(`pdf-${lang}`)!.addEventListener('click', async () => {
         const res = await fetch(`/api/pdf/${lang}`);

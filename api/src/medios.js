@@ -129,8 +129,17 @@ export function claveDeSesion(nombreCubo, usuario) {
   return Number.isInteger(id) && id > 0 ? `u${id}` : null;
 }
 
-/** El tipo de contenido, sin parámetros: 'image/png; charset=x' → 'image/png'. */
-export const tipoLimpio = (v) => String(v ?? '').split(';')[0].trim().toLowerCase();
+/** El tipo de contenido, sin parámetros: 'image/png; charset=x' → 'image/png'.
+ *
+ *  Se recorta a los caracteres que un tipo puede tener de verdad. No es cosmética:
+ *  este valor se devuelve al cliente en `recibido` cuando el cubo no lo admite, y
+ *  lo que vuelve al cliente lo escribió el cliente. Filtrarlo aquí, en el borde,
+ *  vale más que confiar en que todos los que lo pinten se acuerden de escaparlo.
+ *  Lo que no encaje se queda en cadena vacía, que es lo que era: no un tipo. */
+export const tipoLimpio = (v) => {
+  const t = String(v ?? '').split(';')[0].trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9.+-]*\/[a-z0-9][a-z0-9.+-]*$/.test(t) ? t : '';
+};
 
 // ---------------------------------------------------------------------------
 // Permisos

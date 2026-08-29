@@ -92,7 +92,8 @@ El gestor de paquetes es **pnpm** (`packageManager` fijado en los dos `package.j
 | Contraste | medido: 0 fallos WCAG AA en las páginas públicas y de la app × oscuro y papel |
 | Panel tutor / admin | funciona · datos reales, cambio de rol auditado |
 | PDF | ruta lista · 402 sin compra. Ahora busca primero en el cubo `libros` del almacén de medios y usa `api/files/curso-{es,en}.pdf` como respaldo; 503 si no está en ninguno de los dos |
-| Medios | cableado y probado · `/api/medios/*` con cuatro cubos, muro por cubo y por lección, subida y bajada en streaming. **87 comprobaciones sin Postgres ni Docker** (`pnpm --dir api test:medios`). El servicio `media` todavía no tiene imagen publicada, así que hoy responde 503 |
+| Medios | cableado y probado · `/api/medios/*` con cuatro cubos, muro por cubo y por lección, subida y bajada en streaming. **90 comprobaciones sin Postgres ni Docker** (`pnpm --dir api test:medios`). El servicio `media` todavía no tiene imagen publicada, así que hoy responde 503 |
+| Foto de perfil | funciona · `/perfil` la sube, la enseña y la quita. La clave la pone el servidor, así que nadie puede pedir la de otro (403 probado). Sin foto se ven las iniciales |
 | Mercado Pago | **no cobra**: sin `MP_ACCESS_TOKEN` devuelve 501. El webhook verifica firma y ya hay `back_urls` a `/pago/gracias` y `/pago/error` |
 
 ## Rutas

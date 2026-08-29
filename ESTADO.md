@@ -7,7 +7,7 @@ salvo donde esta sección lo corrija.
 
 | punto | estado | con qué se comprueba |
 |---|---|---|
-| `api` hace de proxy de los medios | hecho | `api/src/medios.js` (permisos), `media-bridge.js` (cable), `medios-rutas.js` (rutas) · `pnpm --dir api test:medios` → **87 comprobaciones, sin fallos** |
+| `api` hace de proxy de los medios | hecho | `api/src/medios.js` (permisos), `media-bridge.js` (cable), `medios-rutas.js` (rutas) · `pnpm --dir api test:medios` → **90 comprobaciones, sin fallos** |
 | Autorización antes de proxear | hecho | cuatro cubos con muro propio; `lecciones` usa el muro lección a lección. `media` no decide nada |
 | Errores del almacén traducidos | hecho | un solo `switch` para la web; tabla en `MEDIOS.md` |
 | Subida y bajada en streaming | hecho | ni el API ni Astro juntan el fichero en memoria; una comprobación manda 900 KiB y los compara byte a byte |
@@ -15,6 +15,7 @@ salvo donde esta sección lo corrija.
 | `media` en compose | hecho | `media:8792`, **sin puerto publicado**, volumen `media-data`, detrás del perfil `medios` |
 | `/api/pdf/:lang` desde el almacén | hecho | busca en el cubo `libros` y usa `api/files/` como respaldo |
 | Convenio de cubos y claves | hecho | `MEDIOS.md`. Falta subir los medios: en este repositorio no hay ninguno |
+| Foto de perfil en `/perfil` | hecho | sube, enseña y quita; límites comprobados antes de mandar; cada código con su aviso en es y en. Sin foto, iniciales |
 
 ## Arreglado de paso
 
@@ -24,6 +25,8 @@ salvo donde esta sección lo corrija.
 | El proxy de Astro corrompía cualquier binario | `web/src/pages/api/[...path].ts` | Reenviaba el cuerpo con `await request.text()`, que decodifica como UTF-8: un PNG o un PDF salía con los bytes inválidos sustituidos por U+FFFD. Ahora va como stream |
 | CORS sin `PUT` ni `DELETE` | `api/src/server.js:23` | `access-control-allow-methods` no los listaba. Latente desde antes: `DELETE /api/ranking/optin` ya existía |
 | Una subida grande cortaba el socket | `api/src/medios-rutas.js` | Al pasarse del techo se destruía la conexión y el cliente recibía `ECONNRESET` en vez del 413. Lo encontró la prueba de subida sin `content-length` |
+| `window.toast` pintaba con `innerHTML` sin escapar | `web/src/layouts/App.astro` | Varias pantallas ya le pasaban el `msg` que vino del servidor. Hoy todos esos `msg` son cadenas fijas, pero la foto añadió un camino donde un valor del cliente (su `content-type`) podía volver en la respuesta. Se escapa en la primitiva, que protege a los 30 llamantes de una vez |
+| Un `content-type` cualquiera volvía al cliente | `api/src/medios.js` | `tipoLimpio` solo bajaba a minúsculas. Ahora recorta a lo que un tipo puede ser de verdad; lo que no encaja se queda en vacío, que es lo que era |
 
 ## Bloqueado, y no por ti
 

@@ -111,6 +111,13 @@ Todas bajo `/api/medios`. Prefijo registrado en `api/src/server.js:20`.
 En `avatares` y `lecciones` el permiso depende de la clave, así que **listar
 exige prefijo**: sin él no hay índice que enseñar y responde 400 `falta_prefijo`.
 
+Un detalle del camino que conviene saber: el proxy de Astro quita
+`content-length` (está en su lista de cabeceras salto a salto), así que **una
+subida desde el navegador siempre llega al API sin tamaño anunciado**. El chequeo
+previo contra `content-length` no se dispara nunca en ese camino, y quien corta de
+verdad es el contador de bytes del stream. Los dos casos están probados por
+separado, y el segundo es el que importa.
+
 El cuerpo de una subida son **los bytes en crudo**, no un formulario:
 
 ```bash
@@ -159,7 +166,7 @@ alguien por un error nuestro.
 
 ```bash
 cp api/.env.example api/.env         # pon JWT_SECRET y IA_SECRETO
-pnpm --dir api test:medios           # 87 comprobaciones, sin Postgres y sin almacén
+pnpm --dir api test:medios           # 90 comprobaciones, sin Postgres y sin almacén
 docker compose --profile medios up -d media   # cuando la imagen exista
 ```
 
@@ -202,9 +209,14 @@ Ordenado por lo que bloquea a lo demás.
 5. **Sembrar los medios que ya existen.** No hay ningún fichero del curso en este
    repositorio, así que no se ha subido nada. Cuando estén: renombrarlos al
    convenio de arriba y subirlos con `PUT /api/medios/:cubo/*` como admin.
-6. **Interfaz.** No hay ninguna pantalla que suba un avatar ni que enseñe un
-   medio. El API está listo y probado; `web/` no se ha tocado más que para
-   arreglar el proxy. Cuando se haga, hará falta i18n para los códigos nuevos.
+6. **Interfaz, a medias.** `/perfil` ya sube, enseña y quita la foto de cada
+   quien, con los límites comprobados en el cliente antes de mandar nada y cada
+   código de error traducido a un aviso (es y en). Lo que **no** tiene pantalla:
+   los medios de lección (`lecciones`) y el cubo `publico`, que hoy solo se
+   alimentan con un `PUT` de admin a mano. La foto no aparece fuera de `/perfil`:
+   ponerla en la barra de arriba costaría una petición por página, porque el cubo
+   va sin caché. Se arregla el día que el almacén conteste peticiones
+   condicionales y el API pueda devolver un 304.
 
 ## Nota sobre los dos handoffs
 
