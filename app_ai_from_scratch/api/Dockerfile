@@ -52,7 +52,7 @@ COPY --from=build /app/api/dist ./dist
 # by that account rather than failing on a fresh arm64 host.
 RUN chown -R node:node /app/api
 USER node
-CMD ["sh", "-c", "pnpm db:deploy && node dist/api/src/seed.js"]
+CMD ["sh", "-c", "pnpm db:deploy && node dist/api/src/bootstrap-root.js && node dist/api/src/seed.js"]
 
 # ---------------------------------------------------------------------------
 # runtime
