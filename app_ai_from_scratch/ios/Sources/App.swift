@@ -40,6 +40,7 @@ final class Sesion {
 
 struct RootView: View {
     @Environment(Sesion.self) private var sesion
+    @State private var pestana = "curso"
 
     var body: some View {
         ZStack {
@@ -76,18 +77,23 @@ struct RootView: View {
     /// Cuatro y no ocho porque HIG pide 3–5 y porque panel/perfil son vistas de
     /// resumen que aqui ya cubren la lista y el camino.
     private var pestanas: some View {
-        TabView {
+        TabView(selection: $pestana) {
             LessonsView()
-                .tabItem { Label("Curso", systemImage: "book") }
+                .tabItem { Label("Curso", systemImage: "book") }.tag("curso")
             ChatView()
-                .tabItem { Label("Tutor", systemImage: "bubble.left.and.bubble.right") }
+                .tabItem { Label("Tutor", systemImage: "bubble.left.and.bubble.right") }.tag("tutor")
             CaminoView()
-                .tabItem { Label("Camino", systemImage: "chart.bar") }
+                .tabItem { Label("Camino", systemImage: "chart.bar") }.tag("camino")
             MasView()
-                .tabItem { Label("Más", systemImage: "ellipsis.circle") }
+                .tabItem { Label("Más", systemImage: "ellipsis.circle") }.tag("mas")
         }
         .toolbarBackground(T.bg, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .onAppear {
+            #if DEBUG
+            if let t = QA.valor("IA_QA_TAB") { pestana = t }
+            #endif
+        }
     }
 }
 

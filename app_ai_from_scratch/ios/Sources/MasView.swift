@@ -5,6 +5,8 @@ import SwiftUI
 /// enlaza, no se imita.
 struct MasView: View {
     @Environment(Sesion.self) private var sesion
+    @State private var verRanking = false
+    @State private var verLigas = false
 
     var body: some View {
         NavigationStack {
@@ -13,8 +15,8 @@ struct MasView: View {
                     Text("Más").label(T.l1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     seccion("Comunidad") {
-                        fila("Ranking", destino: RankingView())
-                        fila("Ligas", destino: LigasView())
+                        fila("Ranking") { verRanking = true }
+                        fila("Ligas") { verLigas = true }
                     }
                     cuenta
                     enlaces
@@ -24,6 +26,17 @@ struct MasView: View {
             }
             .background(T.bg)
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $verRanking) { RankingView() }
+            .navigationDestination(isPresented: $verLigas) { LigasView() }
+            .onAppear {
+                #if DEBUG
+                switch QA.valor("IA_QA_MAS") {
+                case "ranking": verRanking = true
+                case "ligas":   verLigas = true
+                default: break
+                }
+                #endif
+            }
         }
     }
 
@@ -34,8 +47,8 @@ struct MasView: View {
         }
     }
 
-    private func fila(_ titulo: String, destino: some View) -> some View {
-        NavigationLink { destino } label: {
+    private func fila(_ titulo: String, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
             HStack {
                 Text(titulo).font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
                 Spacer()
