@@ -55,6 +55,10 @@ struct LabView: View {
     /// Reiniciar sube esto y el `.id()` recrea la mecanica con estado limpio.
     @State private var generacion = 0
     @State private var cerca: [IntentoCerca] = []   // historial de hotcold
+    @State private var disparoExito = 0
+    @State private var disparoFallo = 0
+    @State private var chispasEn: CGPoint?
+    @State private var marcoBoton: CGRect = .zero
 
     // El payload se interpreta UNA vez. Si se interpretara en `body`, las fichas
     // de `build` recibirian UUID nuevos en cada render y ForEach parpadearia.
@@ -120,6 +124,8 @@ struct LabView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     mecanica.id(generacion)
+                        .modifier(Respiro(disparo: disparoExito))
+                        .modifier(Temblor(disparo: disparoFallo))
 
                     if lab.kind == "hotcold" && !cerca.isEmpty { historial }
 
@@ -143,9 +149,53 @@ struct LabView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom) { pie }
             .onChange(of: answer) { resultado = nil }
+            .overlay {
+                // El punto llega en coordenadas GLOBALES y la capa resta su
+                // propio origen global: un espacio con nombre no cubre lo que
+                // vive en safeAreaInset y devolvia .zero — las chispas nacian
+                // en la esquina, a un palmo del boton que las causo.
+                GeometryReader { g in
+                    if let p = chispasEn {
+                        let o = g.frame(in: .global).origin
+                        Chispas(origen: CGPoint(x: p.x - o.x, y: p.y - o.y)) { chispasEn = nil }
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+            .overlay { CapaDesbloqueos() }
         }
         .preferredColorScheme(.dark)
+        #if DEBUG
+        .onAppear { qaFx() }
+        #endif
     }
+
+    #if DEBUG
+    /// Disparadores visuales por entorno, para capturas sin dedos.
+    private func qaFx() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            switch QA.valor("IA_QA_FX") {
+            case "exito":
+                disparoExito += 1
+                chispasEn = CGPoint(x: marcoBoton.midX, y: marcoBoton.minY + marcoBoton.height * 0.3)
+                Sonido.sonar(.lab, paso: 5)
+            case "fallo":
+                disparoFallo += 1
+                Sonido.sonar(.fallo)
+            case "desbloqueo":
+                Desbloqueos.shared.mostrar(HitoDesbloqueo(
+                    tipo: .rango, titulo: RANGOS[4], cuerpo: "Muestra QA del aviso de rango.",
+                    meta: .init(lbl: "Rango", num: "4 / 12", pct: 33)))
+                Sonido.sonar(.rango, paso: 4)
+            default: break
+            }
+            if let h = QA.valor("IA_QA_SONIDO").flatMap({ Sonido.Hito(rawValue: $0) }) {
+                Sonido.sonar(h, paso: 6)
+            }
+        }
+    }
+    #endif
 
     // MARK: mecanica por kind
 
@@ -189,6 +239,11 @@ struct LabView: View {
                 habilitado: answer != nil,
                 accion: enviar
             )
+            .background(GeometryReader { g in
+                Color.clear
+                    .onAppear { marcoBoton = g.frame(in: .global) }
+                    .onChange(of: g.frame(in: .global)) { marcoBoton = g.frame(in: .global) }
+            })
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
@@ -207,6 +262,7 @@ struct LabView: View {
                     cerca.append(IntentoCerca(n: Int(g), err: Int(e), word: w))
                 }
                 resultado = r
+                celebrar(r)
                 alIntento(r)
             } catch let f as APIFailure {
                 error = f.errorDescription
@@ -214,6 +270,55 @@ struct LabView: View {
                 error = otro.localizedDescription
             }
             enviando = false
+        }
+    }
+
+    /// La celebracion, con la escala de labs-client.ts: el acierto sube la racha
+    /// (a partir de 3 suena la racha, no el lab), el fallo la corta e informa
+    /// sin castigar, y los logros que llegan en `nuevos` traen su tarjeta y su
+    /// sonido — grado con estrella, rango con el cofre.
+    private func celebrar(_ r: AttemptResult) {
+        if r.correct {
+            Racha.n += 1
+            if Racha.n >= 3 { Sonido.sonar(.racha, paso: min(12, Racha.n)) }
+            else { Sonido.sonar(.lab, paso: max(1, min(12, lab.lesson))) }
+            disparoExito += 1
+            if !Fx.quieto {
+                chispasEn = CGPoint(x: marcoBoton.midX, y: marcoBoton.minY + marcoBoton.height * 0.3)
+            }
+            Desbloqueos.shared.mostrar(HitoDesbloqueo(
+                tipo: .lab, titulo: "Lab \(lab.id) resuelto", cuerpo: nil, meta: nil))
+        } else {
+            Racha.n = 0
+            Sonido.sonar(.fallo)
+            disparoFallo += 1
+        }
+        for nuevo in r.nuevos ?? [] {
+            switch nuevo.kind {
+            case "rango":
+                // el codigo es "rango.N": el numero coloca el cofre en la escala
+                let n = Int(nuevo.code.split(separator: ".").last.map(String.init) ?? "") ?? 1
+                let idx = max(0, min(RANGOS.count - 1, n))
+                Desbloqueos.shared.mostrar(HitoDesbloqueo(
+                    tipo: .rango, titulo: RANGOS[idx], cuerpo: nil,
+                    meta: .init(lbl: "Rango", num: "\(n) / \(RANGOS.count - 1)",
+                                pct: Double(n) / Double(RANGOS.count - 1) * 100)))
+                Sonido.sonar(.rango, paso: max(1, min(12, n)))
+            case "leccion":
+                // "aprendiz|oficiante|maestro" ordenados: la posicion es el avance
+                let clave = nuevo.code.split(separator: ".").last.map(String.init) ?? ""
+                let k = ["aprendiz", "oficiante", "maestro"].firstIndex(of: clave).map { $0 + 1 } ?? 0
+                let nl = nuevo.lesson_n ?? lab.lesson
+                Desbloqueos.shared.mostrar(HitoDesbloqueo(
+                    tipo: .grado,
+                    titulo: "\(clave.capitalized) · Lección \(String(format: "%02d", nl))",
+                    cuerpo: nil,
+                    meta: k > 0 ? .init(lbl: "Grados de la lección", num: "\(k) / 3",
+                                        pct: Double(k) / 3 * 100) : nil))
+                Sonido.sonar(.estrella, paso: max(1, min(12, nl)))
+            default:
+                break
+            }
         }
     }
 

@@ -50,6 +50,7 @@ struct AttemptResult: Codable {
     let correct: Bool
     let explanation: String
     let hint: AttemptHint?
+    let nuevos: [Logro]?
 }
 
 // MARK: - Chat

@@ -7,6 +7,7 @@ struct MasView: View {
     @Environment(Sesion.self) private var sesion
     @State private var verRanking = false
     @State private var verLigas = false
+    @State private var sonidoOn = Sonido.suena
 
     var body: some View {
         NavigationStack {
@@ -77,6 +78,15 @@ struct MasView: View {
                 }
                 .padding(.bottom, 14)
             }
+            Toggle(isOn: $sonidoOn) {
+                Text("Sonido").font(.system(size: 15)).foregroundStyle(T.l1)
+            }
+            .tint(T.ac)
+            .frame(minHeight: T.tap)
+            .onChange(of: sonidoOn) { Sonido.silenciar(!sonidoOn) }
+            .overlay(alignment: .bottom) { Rectangle().fill(T.hair2).frame(height: 1) }
+            .padding(.bottom, 12)
+
             Button {
                 Task { await sesion.salir() }
             } label: {
