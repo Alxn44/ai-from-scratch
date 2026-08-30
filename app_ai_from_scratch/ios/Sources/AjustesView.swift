@@ -219,21 +219,30 @@ struct AjustesView: View {
 struct Segmentado: View {
     let opciones: [(String, String)]
     let elegida: String
+    /// La variante que vive DENTRO del composer del chat: se ciñe al texto en vez
+    /// de repartir el ancho, porque ahi comparte fila con el esfuerzo y el envio.
+    /// Sigue siendo el mismo control — un `.seg` de la web — y no un desplegable
+    /// del sistema: el producto no tiene ni uno.
+    var compacto = false
+    var deshabilitadas: Set<String> = []
     let alElegir: (String) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(opciones, id: \.0) { valor, titulo in
+                let muerta = deshabilitadas.contains(valor)
                 Button {
-                    if valor != elegida { alElegir(valor) }
+                    if valor != elegida && !muerta { alElegir(valor) }
                 } label: {
                     Text(titulo)
                         .font(T.mono(10, .semibold)).tracking(10 * 0.12).textCase(.uppercase)
-                        .foregroundStyle(valor == elegida ? T.onAc : T.l3)
-                        .frame(maxWidth: .infinity, minHeight: T.tap)
+                        .foregroundStyle(valor == elegida ? T.onAc : (muerta ? T.l3.opacity(0.4) : T.l3))
+                        .padding(.horizontal, compacto ? 11 : 0)
+                        .frame(maxWidth: compacto ? nil : .infinity, minHeight: compacto ? 32 : T.tap)
                         .background(valor == elegida ? T.acSolid : Color.clear)
                         .contentShape(Rectangle())
                 }
+                .disabled(muerta)
                 if valor != opciones.last?.0 {
                     Rectangle().fill(T.hair2).frame(width: 1)
                 }

@@ -7,6 +7,7 @@ struct LessonsView: View {
     @State private var cargando = true
     @State private var error: String?
     @State private var ruta: [Lesson] = []
+    @State private var rumbo = Rumbo.compartido
 
     var body: some View {
         NavigationStack(path: $ruta) {
@@ -22,6 +23,17 @@ struct LessonsView: View {
         }
         .task { await cargar() }
         .refreshable { await cargar() }
+        // El destino que deja el rail del tutor. Se atiende cuando la lista ya
+        // esta cargada — de ahi los dos disparadores: si el toque llega antes de
+        // la respuesta de red, lo recoge el `onChange` de `lecciones`.
+        .onChange(of: rumbo.leccion) { abrirPendiente() }
+        .onChange(of: lecciones) { abrirPendiente() }
+    }
+
+    private func abrirPendiente() {
+        guard let n = rumbo.leccion, let l = lecciones.first(where: { $0.n == n }) else { return }
+        rumbo.leccion = nil
+        if ruta.last != l { ruta = [l] }
     }
 
     private var lista: some View {
@@ -173,7 +185,9 @@ private struct Fila: View {
     }
 }
 
-private struct Etiqueta: View {
+/// Etiqueta de una linea: mono en mayusculas dentro de un recuadro fino. La usa la
+/// lista de lecciones y el rail del tutor; una sola, no dos parecidas.
+struct Etiqueta: View {
     let texto: String
     let color: Color
     var body: some View {

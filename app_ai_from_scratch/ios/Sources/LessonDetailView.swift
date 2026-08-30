@@ -179,7 +179,7 @@ struct LessonDetailView: View {
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 8) {
-                                if let n = lab.level, !n.isEmpty { Text(n).label() }
+                                if let n = lab.level, !n.isEmpty { Text(nivelNombre(n)).label() }
                                 if lab.attempts > 0 {
                                     Text("\(lab.attempts) \(L.intentos)")
                                         .font(T.mono(10, .medium)).tracking(T.lblTrack)

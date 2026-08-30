@@ -1,0 +1,3 @@
+# El binario compilado de cmd/oracle. La fuente es cmd/ e internal/; `go build`
+# lo deja aqui con el nombre del paquete y son 8,6 MB de artefacto.
+/oracle

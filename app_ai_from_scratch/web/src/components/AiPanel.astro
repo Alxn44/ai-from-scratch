@@ -36,6 +36,7 @@
 import { icon } from '../lib/icons';
 import { jsonSafe } from '../lib/json-safe';
 import { gato, gatoCSS } from '../lib/cat';
+import { prosaCSS } from '../lib/prosa';
 import { t } from '../lib/i18n';
 import type { Lang } from '../lib/i18n';
 import type { AiFlags } from '../lib/ai-mode';
@@ -194,6 +195,7 @@ const open = flags.mode && flags.open;
 </style>
 
 <style is:global set:html={gatoCSS('ia-conito')}></style>
+<style is:global set:html={prosaCSS()}></style>
 
 <script type="application/json" id="ia-cfg" is:inline set:html={jsonSafe({ lang, nombre, txt: I, flags, flujo: L.flujo })}></script>
 
@@ -202,6 +204,7 @@ const open = flags.mode && flags.open;
   import type { AiFlags } from '../lib/ai-mode';
   import { preguntarIA, cargarHistorial } from '../lib/chat-client';
   import { montarPick } from '../lib/ai-pick';
+  import { prosa } from '../lib/prosa';
   import type { Traza } from '../lib/chat-client';
   import { armarFlujo, pintarFlujo, flujoDe } from '../lib/workflows';
   import { EMPTY_BUDGET, QUIET_AFTER_KEY_MS, candidates, noted, pickNudge, spend } from '../lib/coach';
@@ -222,10 +225,17 @@ const open = flags.mode && flags.open;
   const pickHost = document.getElementById('ia-pick') as HTMLElement;
   let leerPick = (): { proveedor: string | null; esfuerzo: string } => ({ proveedor: null, esfuerzo: 'medio' });
   void fetch('/api/chat/estado').then((r) => r.ok ? r.json() : null).then((d) => {
-    const ids = Array.isArray(d?.proveedores) ? d.proveedores.map((p: { id?: string }) => String(p.id ?? '')) : [];
+    // Se pasan las FILAS, no solo los ids: el carril viene con cada una y es lo
+    // que el picker necesita para ofrecer «Rápido» / «Razona» sin llevar su
+    // propia tabla de qué modelo es cuál.
+    const provs = Array.isArray(d?.proveedores)
+      ? d.proveedores.map((p: { id?: string; modelo?: string; carril?: string }) => ({
+          id: String(p.id ?? ''), modelo: p.modelo ?? null, carril: p.carril ?? null }))
+      : [];
     leerPick = montarPick(pickHost, {
       modelo: T.modelo, esfuerzo: T.esfuerzo, bajo: T.bajo, medio: T.medio, alto: T.alto,
-    }, ids);
+      carrilFlash: T.carrilFlash, carrilRazon: T.carrilRazon,
+    }, provs);
   }).catch(() => { /* picker stays empty: the turn still uses the default chain */ });
   const swAvisos = document.getElementById('ia-avisos') as HTMLButtonElement;
   const caja = document.getElementById('ia-aviso') as HTMLElement;
@@ -506,7 +516,9 @@ const open = flags.mode && flags.open;
       const pie = `<p class="s" style="margin-top:8px">${T.proveedorPie
         .replace('{p}', () => esc(String(d.proveedor ?? '')))
         .replace('{m}', () => esc(String(d.modelo ?? '')))}</p>`;
-      const box = burbuja('bot', `<span style="white-space:pre-wrap;color:var(--l1)">${esc(d.respuesta)}</span>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+      // Misma prosa que /chat: el panel y la pagina no pueden pintar la misma
+      // respuesta de dos formas distintas. prosa() ya escapa.
+      const box = burbuja('bot', `<div class="pr">${prosa(d.respuesta)}</div>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
       const fid = flujoDe(q);
       if (fid && cfg.flujo) pintarFlujo(armarFlujo(fid, cfg.flujo, {}), box, false);
     } catch {
