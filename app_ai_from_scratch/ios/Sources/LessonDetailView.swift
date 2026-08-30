@@ -13,8 +13,11 @@ struct LessonDetailView: View {
     @State private var error: String?
     @State private var pago = false
     @State private var labAbierto: LabFull?
+    @State private var narrador = Narrador()
+    @Environment(\.scenePhase) private var fase
 
     var body: some View {
+        ScrollViewReader { lector in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 cabecera
@@ -46,6 +49,13 @@ struct LessonDetailView: View {
             .padding(.top, 8)
             .padding(.bottom, 40)
         }
+        .onChange(of: narrador.i) {
+            // la frase que suena se queda a la vista, como el scrollIntoView de la web
+            if let t = narrador.trozos[safe: narrador.i], narrador.estado != .parado {
+                withAnimation { lector.scrollTo("nb-\(t.bloque)", anchor: .center) }
+            }
+        }
+        }
         .background(T.bg)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(T.bg, for: .navigationBar)
@@ -53,6 +63,16 @@ struct LessonDetailView: View {
         .task { await cargar() }
         .sheet(item: $labAbierto) { lab in
             LabView(lab: lab) { r in registrar(lab.id, r) }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !narrador.trozos.isEmpty && !leccion.locked && !pago {
+                BarraNarrador(narrador: narrador)
+            }
+        }
+        // la web cancela en pagehide y pausa al ocultarse la pestaña: aqui igual
+        .onDisappear { narrador.parar() }
+        .onChange(of: fase) {
+            if fase != .active { narrador.pausa() }
         }
     }
 
@@ -65,17 +85,15 @@ struct LessonDetailView: View {
             } else {
                 Text(String(format: "%02d", leccion.n)).eyebrow().padding(.bottom, 10)
             }
-            Text(leccion.title)
-                .font(T.h1).tracking(T.h1Track)
-                .foregroundStyle(T.l1)
-                .fixedSize(horizontal: false, vertical: true)
+            TextoNarrado(bloque: 0, fuente: T.h1, colorBase: T.l1, lineaExtra: 0, narrador: narrador)
+                .tracking(T.h1Track)
                 .padding(.bottom, 14)
+                .id("nb-0")
             if let s = leccion.summary, !s.isEmpty {
-                Text(s)
-                    .font(T.p).lineSpacing(T.pLine)
-                    .foregroundStyle(T.l2)
-                    .fixedSize(horizontal: false, vertical: true)
+                TextoNarrado(bloque: 1, fuente: T.p, colorBase: T.l2, lineaExtra: T.pLine, narrador: narrador)
                     .padding(.bottom, 26)
+                    .id("nb-1")
+                    .accessibilityLabel(s)
             }
         }
     }
@@ -87,20 +105,18 @@ struct LessonDetailView: View {
             if let tec = t.technical, !tec.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Qué es").label()
-                    Text(tec)
-                        .font(T.p).lineSpacing(T.pLine)
-                        .foregroundStyle(T.l2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    TextoNarrado(bloque: 2, fuente: T.p, colorBase: T.l2, lineaExtra: T.pLine, narrador: narrador)
                 }
+                .id("nb-2")
+                .accessibilityLabel(tec)
             }
             if let ana = t.analogy, !ana.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("La analogía").label()
-                    Text(ana)
-                        .font(T.p).lineSpacing(T.pLine)
-                        .foregroundStyle(T.l2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    TextoNarrado(bloque: 3, fuente: T.p, colorBase: T.l2, lineaExtra: T.pLine, narrador: narrador)
                 }
+                .id("nb-3")
+                .accessibilityLabel(ana)
             }
         }
         .padding(.bottom, 26)
@@ -219,6 +235,18 @@ struct LessonDetailView: View {
         cargando = true
         do {
             detalle = try await API.shared.lessonDetail(n: leccion.n)
+            narrador.cargar(bloques: [
+                leccion.title,
+                leccion.summary ?? "",
+                detalle?.texto?.technical ?? "",
+                detalle?.texto?.analogy ?? "",
+            ], lang: "es")
+            #if DEBUG
+            if QA.valor("IA_QA_NARRA") != nil {
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                narrador.arranca()
+            }
+            #endif
             #if DEBUG
             if let idx = QA.valor("IA_QA_LAB_IDX").flatMap({ Int($0) }),
                let lab = detalle?.labs.first(where: { $0.idx == idx }), !lab.draft {
