@@ -30,14 +30,14 @@ const texto = r.data.texto;
 const textoIdioma = r.data.textoIdioma;
 const quiz = r.data.quiz ?? [];
 const quizScore = r.data.quizScore ?? { correct: 0, total: quiz.length, passed: false, passAt: quiz.length };
-const LEVEL: Record<string, [string, string]> = { facil: ['FÁCIL', 'var(--ok)'], medio: ['MEDIO', 'var(--or)'], dificil: ['DIFÍCIL', 'var(--rd)'] };
 const lang = lang0;
 const L = t(lang);
+const LEVEL: Record<string, [string, string]> = { facil: [L.curso.nFacil, 'var(--ok)'], medio: [L.curso.nMedio, 'var(--or)'], dificil: [L.curso.nDuro, 'var(--rd)'] };
 const solved = labs.filter((l) => l.solved).length;
 ---
 {cerrada ? <LeccionCerrada user={user!} lang={lang} lesson={lesson} labs={labs} /> : (
-<App user={user!} title={lesson.title} crumb={`CURSO / LECCIÓN ${String(n).padStart(2, '0')} DE 12`} active="Curso">
-  <span slot="topbar" class="lbl num">{solved} / {labs.length} LABS DE ESTA LECCIÓN</span>
+<App user={user!} title={lesson.title} crumb={L.lec.crumb.replace('{n}', String(n).padStart(2, '0'))} active={L.nav.curso}>
+  <span slot="topbar" class="lbl num">{L.lec.topbar.replace('{a}', String(solved)).replace('{b}', String(labs.length))}</span>
 
   <div class="app-pad" style="display:flex;flex-direction:column;gap:30px;max-width:1180px">
 
@@ -136,7 +136,7 @@ const solved = labs.filter((l) => l.solved).length;
         ))}
         <script type="application/json" id="quiz-data" is:inline set:html={jsonSafe({
           questions: quiz,
-          txt: { ...L.lab, ...L.quiz },
+          txt: { ...L.lab, ...L.quiz, lang },
           hecho: L.quiz.hecho, progreso: L.quiz.progreso,
         })}></script>
       </div>
@@ -152,7 +152,7 @@ const solved = labs.filter((l) => l.solved).length;
       logroEb: L.logros.eb, logroTitulo: L.logros.titulo, logroSub: L.logros.sub,
       logroCerrar: L.logros.cerrar, logroSeguir: L.logros.seguir, logroParada: L.logros.parada,
       rangos: L.logros.rangos, grados: L.logros.grados,
-      db: L.logros.db,
+      db: L.logros.db, lang,
     })}></script>
 
     <script type="application/json" id="narra-txt" is:inline set:html={jsonSafe({ ...L.narra, lang })}></script>
@@ -167,7 +167,7 @@ const solved = labs.filter((l) => l.solved).length;
           <div style="display:flex;align-items:center;gap:12px">
             <span style="display:inline-flex;align-items:center;gap:9px;height:30px;padding:0 12px;border:1px solid var(--hair)">
               <Fragment set:html={icon('lab', 15, 'var(--ac)')} />
-              <span class="num" style="font:600 11px/1 var(--m);letter-spacing:.1em">LAB {lab.id}</span>
+              <span class="num" style="font:600 11px/1 var(--m);letter-spacing:.1em">{L.lec.lab} {lab.id}</span>
             </span>
             <span class="lbl" style={`color:${LEVEL[lab.level][1]}`}>{LEVEL[lab.level][0]}</span>
             {lab.solved && <span class="lbl" style="color:var(--ok)">{L.resuelto.toUpperCase()}</span>}
@@ -180,7 +180,7 @@ const solved = labs.filter((l) => l.solved).length;
         {lab.draft ? (
           <div style="border:1px dashed var(--hair);padding:18px;display:flex;gap:12px;align-items:flex-start">
             <Fragment set:html={icon('alert', 18, 'var(--or)')} />
-            <p class="s" style="color:var(--l2)">Este lab está en borrador: la mecánica ya está definida ({lab.kind}) pero el enunciado y la explicación no se han escrito. No se puede responder todavía.</p>
+            <p class="s" style="color:var(--l2)">{L.lec.borrador.replace('{kind}', lab.kind)}</p>
           </div>
         ) : (
           <Fragment>

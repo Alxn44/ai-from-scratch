@@ -28,7 +28,7 @@ type LabTxt = {
   logroEb: string; logroTitulo: string; logroSub: string; logroCerrar: string; logroSeguir: string;
   logroParada: string; rangos: string[]; grados: Record<string, string>;
   nuevoLogro: string; nuevoLogroB: string; tusIntentos: string; gatoMaestro?: string;
-  db: Record<string, string>;
+  db: Record<string, string>; lang?: 'es' | 'en';
 };
 const TXT: LabTxt = (() => {
   const el = document.getElementById('lab-txt');
@@ -129,7 +129,7 @@ export function mountLabs() {
       try {
         const res = await fetch(`/api/labs/${lab.id}/attempt`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ answer }),
+          body: JSON.stringify({ answer, lang: TXT.lang }),
         });
         const d = await res.json();
         if (!res.ok) {

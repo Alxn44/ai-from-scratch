@@ -311,7 +311,7 @@ app.post('/api/ligas/cerrar', async (req, reply) => {
   return closeWeek();
 });
 
-app.post<{ Params: { id: string }; Body: { answer?: unknown } }>('/api/labs/:id/attempt', async (req, reply) => {
+app.post<{ Params: { id: string }; Body: { answer?: unknown; lang?: unknown } }>('/api/labs/:id/attempt', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   const id = String(req.params.id);
   const card = await one<Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>>('lab.card_by_id', { id });
@@ -330,7 +330,8 @@ app.post<{ Params: { id: string }; Body: { answer?: unknown } }>('/api/labs/:id/
   // Only a correct answer can unlock anything: if they got it wrong, nothing is
   // recomputed.
   const achievements = correct ? await syncAchievements(u.id) : { nuevos: [] };
-  return { correct, explanation: explanation?.explanation ?? '', hint: hint(gradable, answer), nuevos: achievements.nuevos };
+  const lang = req.body?.lang === 'en' ? 'en' : 'es';
+  return { correct, explanation: explanation?.explanation ?? '', hint: hint(gradable, answer, lang), nuevos: achievements.nuevos };
 });
 
 app.get('/api/exams', async (req, reply) => {
@@ -377,7 +378,7 @@ app.get<{ Params: { n: string }; Querystring: { lang?: string } }>('/api/exams/:
   };
 });
 
-app.post<{ Params: { id: string }; Body: { answer?: unknown } }>('/api/questions/:id/attempt', async (req, reply) => {
+app.post<{ Params: { id: string }; Body: { answer?: unknown; lang?: unknown } }>('/api/questions/:id/attempt', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
   const id = String(req.params.id);
   const card = await one<{ id: string; kind: string; pack: string; lesson_n: number }>('question.card_by_id', { id });
@@ -396,7 +397,7 @@ app.post<{ Params: { id: string }; Body: { answer?: unknown } }>('/api/questions
   // the attempt is recorded. This prevents an unattempted question from
   // becoming an explanation oracle and makes the ownership boundary explicit.
   const expl = await one<{ explanation_es: string; explanation_en: string }>('question.explanation', { id }, u.id);
-  const lang = u.lang === 'en' ? 'en' : 'es';
+  const lang = req.body?.lang === 'en' ? 'en' : 'es';
   const explanation = lang === 'en' ? (expl?.explanation_en ?? '') : (expl?.explanation_es ?? '');
   const pack = card.pack;
   const allBest = await many<QuestionBest>('qattempt.best_by_question', {}, u.id);

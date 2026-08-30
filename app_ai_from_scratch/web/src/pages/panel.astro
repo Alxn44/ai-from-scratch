@@ -24,6 +24,7 @@ const liga = await apiFetch<{ yo: { subida: Subida | null } | null; semana: { lu
   '/api/ligas', Astro.request).catch(() => null);
 const subida = liga?.yo?.subida ?? null;
 const L = t(lang);
+const NIVEL: Record<string, string> = { facil: L.curso.nFacil, medio: L.curso.nMedio, dificil: L.curso.nDuro };
 const rolTxt = user!.role === 'tutor' ? L.ui.rolTutor : user!.role === 'admin' ? L.ui.rolAdmin : L.ui.rolStudent;
 const lessons = data?.lessons ?? [];
 // «Continuar» debe llevar a algo que se pueda resolver: la primera lección con
@@ -63,7 +64,7 @@ const STATE = (l: Lesson) => {
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           {next?.labs.map((l) => (
             <span class="chip" data-on={l.solved ? '' : undefined} style="min-height:38px;font-size:12px">
-              LAB {l.id} · {l.level.toUpperCase()}{l.draft ? ` · ${L.ui.borradorTag}` : ''}
+              {L.lec.lab} {l.id} · {(NIVEL[l.level] ?? l.level).toUpperCase()}{l.draft ? ` · ${L.ui.borradorTag}` : ''}
             </span>
           ))}
         </div>

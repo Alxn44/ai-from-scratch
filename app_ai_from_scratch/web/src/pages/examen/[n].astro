@@ -55,7 +55,7 @@ const titulo = L.exam.nDe.replace('{n}', String(exam.n));
 
   <script type="application/json" id="quiz-data" is:inline set:html={jsonSafe({
     questions: exam.questions,
-    txt: { ...L.lab, ...L.quiz, ...L.exam },
+    txt: { ...L.lab, ...L.quiz, ...L.exam, lang },
     hecho: L.exam.hecho, falta: L.exam.falta,
   })}></script>
   <script>

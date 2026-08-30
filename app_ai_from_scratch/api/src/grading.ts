@@ -60,11 +60,13 @@ export type Hint =
 // Without this the client would have to know the answer in order to say «cold» or
 // «hot». The words are product copy for a Spanish-language course and travel to
 // web/src/pages/leccion/[n].astro as data: they are not identifiers.
-export function hint(lab: GradableLab, answer: Answer): Hint {
+export function hint(lab: GradableLab, answer: Answer, lang: 'es' | 'en' = 'es'): Hint {
   const sol = JSON.parse(lab.solution) as Solution;
   if (lab.kind === 'hotcold') {
     const err = Math.abs(Number(answer) - Number(sol.value));
-    const word = err === 0 ? 'exacto' : err <= 5 ? 'caliente' : err <= 20 ? 'tibio' : 'frío';
+    const word = lang === 'en'
+      ? (err === 0 ? 'exact' : err <= 5 ? 'hot' : err <= 20 ? 'warm' : 'cold')
+      : (err === 0 ? 'exacto' : err <= 5 ? 'caliente' : err <= 20 ? 'tibio' : 'frío');
     return { err, word };
   }
   if (lab.kind === 'knob') return { range: [sol.min, sol.max] };

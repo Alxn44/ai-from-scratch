@@ -288,7 +288,9 @@ export const STR = {
       sinSoporte: 'Este navegador no puede narrar texto',
     },
     lec: { comoFunciona: 'Cómo funciona de verdad', comoSiFuera: 'Como si fuera…', ejemplos: 'Ejemplos',
-      pides: 'Le pides', pasa: 'Qué pasa', ahoraTu: 'Ahora tú', ahoraTuB: 'Tres labs. Se resuelven con lo que acabas de leer.' },
+      pides: 'Le pides', pasa: 'Qué pasa', ahoraTu: 'Ahora tú', ahoraTuB: 'Tres labs. Se resuelven con lo que acabas de leer.',
+      crumb: 'CURSO / LECCIÓN {n} DE 12', topbar: '{a} / {b} LABS DE ESTA LECCIÓN', lab: 'LAB',
+      borrador: 'Este lab está en borrador: la mecánica ya está definida ({kind}) pero el enunciado y la explicación no se han escrito. No se puede responder todavía.' },
     quiz: {
       titulo: 'Quiz rápido', sub: 'Tres preguntas. No bloquea los labs: es para comprobar que se quedó.',
       hecho: 'Quiz cerrado', progreso: '{a} de {b}',
@@ -863,7 +865,9 @@ export const STR = {
       sinSoporte: 'This browser cannot narrate text',
     },
     lec: { comoFunciona: 'How it actually works', comoSiFuera: 'As if it were…', ejemplos: 'Examples',
-      pides: 'You ask', pasa: 'What happens', ahoraTu: 'Your turn', ahoraTuB: 'Three labs. Everything you need is in what you just read.' },
+      pides: 'You ask', pasa: 'What happens', ahoraTu: 'Your turn', ahoraTuB: 'Three labs. Everything you need is in what you just read.',
+      crumb: 'COURSE / LESSON {n} OF 12', topbar: '{a} / {b} LABS IN THIS LESSON', lab: 'LAB',
+      borrador: 'This lab is a draft: its mechanic is defined ({kind}), but its prompt and explanation are not written yet. It cannot be answered.' },
     quiz: {
       titulo: 'Quick quiz', sub: 'Three questions. It does not block the labs: it is to check it stuck.',
       hecho: 'Quiz closed', progreso: '{a} of {b}',

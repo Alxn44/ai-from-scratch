@@ -10,7 +10,7 @@ export type Score = { correct: number; total: number; passed: boolean; passAt: n
 type Txt = {
   comprobar: string; deNuevo: string; sinResp: string; sinRespB: string;
   correcto: string; todaviaNo: string; sinRed: string; sinRedB: string;
-  aprobado?: string; noAprobado?: string; corte?: string;
+  aprobado?: string; noAprobado?: string; corte?: string; lang?: 'es' | 'en';
 };
 
 declare global { interface Window { toast: (k: string, t: string, b: string, key?: string) => void } }
@@ -74,7 +74,7 @@ export function mountQuestions(host: HTMLElement, questions: Question[], txt: Tx
       try {
         const res = await fetch(`/api/questions/${q.id}/attempt`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ answer: pick }),
+          body: JSON.stringify({ answer: pick, lang: txt.lang }),
         });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) {
