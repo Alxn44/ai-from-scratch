@@ -30,6 +30,10 @@ struct LessonDetailView: View {
                     muro
                 } else if let d = detalle {
                     labs(d.labs)
+                    if let qs = d.quiz, !qs.isEmpty {
+                        QuizSeccion(preguntas: qs, puntaje: d.quizScore)
+                            .padding(.top, 30)
+                    }
                 } else if cargando {
                     ProgressView().tint(T.l3)
                         .frame(maxWidth: .infinity)
@@ -38,7 +42,7 @@ struct LessonDetailView: View {
 
                 if let error {
                     Aviso(texto: error).padding(.top, 8)
-                    Button("Reintentar") { Task { await cargar() } }
+                    Button(L.reintentar) { Task { await cargar() } }
                         .font(T.btn).tracking(T.btnTrack).textCase(.uppercase)
                         .foregroundStyle(T.ac)
                         .frame(minHeight: T.tap)
@@ -104,7 +108,7 @@ struct LessonDetailView: View {
         VStack(alignment: .leading, spacing: 22) {
             if let tec = t.technical, !tec.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Qué es").label()
+                    Text(L.queEs).label()
                     TextoNarrado(bloque: 2, fuente: T.p, colorBase: T.l2, lineaExtra: T.pLine, narrador: narrador)
                 }
                 .id("nb-2")
@@ -112,7 +116,7 @@ struct LessonDetailView: View {
             }
             if let ana = t.analogy, !ana.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("La analogía").label()
+                    Text(L.laAnalogia).label()
                     TextoNarrado(bloque: 3, fuente: T.p, colorBase: T.l2, lineaExtra: T.pLine, narrador: narrador)
                 }
                 .id("nb-3")
@@ -124,7 +128,7 @@ struct LessonDetailView: View {
 
     private func tarjetaMatematica(_ m: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("La matemática").label()
+            Text(L.laMatematica).label()
             Text(m)
                 .font(.system(size: 30, weight: .bold))
                 .tracking(30 * -0.03)
@@ -150,7 +154,7 @@ struct LessonDetailView: View {
     private func labs(_ lista: [LabFull]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Labs").label()
+                Text(L.labs).label()
                 Spacer()
                 Text("\(lista.filter(\.solved).count)/\(lista.count)")
                     .font(T.mono(10, .medium)).tracking(T.lblTrack)
@@ -177,7 +181,7 @@ struct LessonDetailView: View {
                             HStack(spacing: 8) {
                                 if let n = lab.level, !n.isEmpty { Text(n).label() }
                                 if lab.attempts > 0 {
-                                    Text("\(lab.attempts) intentos")
+                                    Text("\(lab.attempts) \(L.intentos)")
                                         .font(T.mono(10, .medium)).tracking(T.lblTrack)
                                         .textCase(.uppercase).monospacedDigit()
                                         .foregroundStyle(T.l3)
@@ -187,7 +191,7 @@ struct LessonDetailView: View {
 
                         Spacer(minLength: 8)
 
-                        Text(lab.draft ? "En preparación" : lab.solved ? "Resuelto" : "Pendiente")
+                        Text(lab.draft ? L.enPreparacion : lab.solved ? L.resuelto : L.pendiente)
                             .font(T.mono(10, .medium)).tracking(10 * 0.12).textCase(.uppercase)
                             .foregroundStyle(lab.draft ? T.l3 : lab.solved ? T.ok : T.l3)
                     }
@@ -205,17 +209,17 @@ struct LessonDetailView: View {
     /// callejon: aqui igual, dice QUE se compra y donde.
     private var muro: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("De pago").label(T.or)
-            Text("Esta lección está en la parte de pago del curso.")
+            Text(L.dePago).label(T.or)
+            Text(L.muroTitulo)
                 .font(T.h3).tracking(T.h3Track)
                 .foregroundStyle(T.l1)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("La compra se hace en la web. Al volver aquí, la lección estará abierta.")
+            Text(L.muroCuerpo)
                 .font(T.s).lineSpacing(T.sLine)
                 .foregroundStyle(T.l2)
                 .fixedSize(horizontal: false, vertical: true)
             Link(destination: URL(string: "https://aifromscratch.shop/pago")!) {
-                Text("Ver el precio")
+                Text(L.verPrecio)
                     .font(T.btn).tracking(T.btnTrack).textCase(.uppercase)
                     .frame(maxWidth: .infinity, minHeight: T.tap)
                     .background(T.btnBg)

@@ -13,7 +13,7 @@ struct CaminoView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    Text("El camino").label(T.l1)
+                    Text(L.elCamino).label(T.l1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if let d = datos {
                         rango(d)
@@ -37,12 +37,12 @@ struct CaminoView: View {
         // El indice se acota: un nivel 13 del servidor no debe tirar la app.
         let nivel = min(max(d.nivel, 0), RANGOS.count - 1)
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Tu rango").label()
+            Text(L.tuRango).label()
             Text(RANGOS[nivel])
                 .font(T.h2).tracking(T.h2Track)
                 .foregroundStyle(T.l1)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Nivel \(nivel) de \(RANGOS.count - 1) · \(d.logros.count) logros")
+            Text(rellena(L.nivelDe, ["n": nivel, "t": RANGOS.count - 1, "l": d.logros.count]))
                 .font(T.s).monospacedDigit().foregroundStyle(T.l3)
             GeometryReader { g in
                 ZStack(alignment: .leading) {
@@ -61,7 +61,7 @@ struct CaminoView: View {
 
     private func porLeccion(_ filas: [LeccionAvance]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Por lección").label().padding(.bottom, 12)
+            Text(L.porLeccion).label().padding(.bottom, 12)
             ForEach(filas) { f in
                 HStack(spacing: 12) {
                     Text(String(format: "%02d", f.n))

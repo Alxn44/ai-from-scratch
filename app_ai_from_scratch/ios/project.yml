@@ -38,9 +38,6 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: IA desde cero
-        # La app es negra fija, igual que la landing. No hay tema claro que
-        # respetar, asi que se declara aqui en vez de forzarlo en cada vista.
-        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1,2"

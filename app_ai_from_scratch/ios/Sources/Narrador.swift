@@ -303,7 +303,7 @@ struct BarraNarrador: View {
 
             if narrador.estado != .parado {
                 Button(action: { narrador.parar() }) {
-                    Text("Parar")
+                    Text(L.parar)
                         .font(T.btn).tracking(T.btnTrack).textCase(.uppercase)
                         .foregroundStyle(T.l2)
                         .padding(.horizontal, 12)
@@ -348,11 +348,11 @@ struct BarraNarrador: View {
             Spacer(minLength: 0)
 
             if narrador.estado == .leyendo || narrador.estado == .pausado {
-                Text("frase \(narrador.i + 1) de \(narrador.trozos.count)")
+                Text(rellena(L.fraseDeN, ["i": narrador.i + 1, "n": narrador.trozos.count]))
                     .font(T.s).monospacedDigit().foregroundStyle(T.l3)
                     .lineLimit(1)
             } else if !narrador.hayVoz {
-                Text("Sin voz en español").font(T.s).foregroundStyle(T.or)
+                Text(L.sinVoz).font(T.s).foregroundStyle(T.or)
             }
         }
         .padding(.horizontal, 14)
@@ -364,10 +364,10 @@ struct BarraNarrador: View {
 
     private var etiquetaPrincipal: String {
         switch narrador.estado {
-        case .parado:     return "Escuchar la lección"
-        case .preparando: return "Preparando…"
-        case .leyendo:    return "Pausa"
-        case .pausado:    return "Seguir"
+        case .parado:     return L.escuchar
+        case .preparando: return L.preparando
+        case .leyendo:    return L.pausa
+        case .pausado:    return L.seguir
         }
     }
 

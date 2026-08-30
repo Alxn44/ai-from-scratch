@@ -29,7 +29,7 @@ struct LessonsView: View {
             LazyVStack(spacing: 0) {
                 // El titulo vive en el contenido y no en la barra: iOS 26 mete
                 // un ToolbarItem de texto en un circulo de cristal y lo trunca.
-                Text("El curso").label(T.l1)
+                Text(L.elCurso).label(T.l1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 16)
@@ -60,7 +60,7 @@ struct LessonsView: View {
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Progreso").label()
+                Text(L.progreso).label()
                 Spacer()
                 Text("\(hechos)/\(todos)")
                     .font(T.mono(10, .medium)).tracking(T.lblTrack)
@@ -142,7 +142,7 @@ private struct Fila: View {
 
             if leccion.total > 0 {
                 HStack(spacing: 8) {
-                    Text("\(leccion.solved)/\(leccion.total) labs")
+                    Text("\(leccion.solved)/\(leccion.total) \(L.labsMin)")
                         .font(T.mono(10, .medium)).tracking(T.lblTrack)
                         .textCase(.uppercase)
                         .monospacedDigit()
@@ -164,11 +164,11 @@ private struct Fila: View {
     /// palabra no dice si es "aun no" o "de pago".
     @ViewBuilder private var estado: some View {
         if leccion.locked {
-            Etiqueta(texto: "De pago", color: T.or)
+            Etiqueta(texto: L.dePago, color: T.or)
         } else if leccion.total > 0 && leccion.solved == leccion.total {
-            Etiqueta(texto: "Hecha", color: T.ok)
+            Etiqueta(texto: L.hecha, color: T.ok)
         } else {
-            Etiqueta(texto: "Abierta", color: T.l3)
+            Etiqueta(texto: L.abierta, color: T.l3)
         }
     }
 }
