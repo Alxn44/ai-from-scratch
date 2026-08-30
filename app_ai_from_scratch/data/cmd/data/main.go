@@ -319,6 +319,7 @@ func probeArgs(ctx context.Context, dsn string) (map[string]probe, error) {
 		"tutor.stuck_all":                {args: map[string]any{}},
 		"tutor.stuck_cohort":             {args: map[string]any{"cohort": "smoke-never"}},
 		"admin.student_timeline":         {args: map[string]any{}, actor: actor, authority: actor},
+		"root.solved_labs":               {args: map[string]any{}},
 		"auth.user":                      {args: map[string]any{}, actor: actor},
 		"auth.user_by_email":             {args: map[string]any{"login": email}},
 		"auth.throttle":                  {args: map[string]any{}, actor: actor},

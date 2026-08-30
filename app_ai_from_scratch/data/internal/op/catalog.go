@@ -698,6 +698,21 @@ var catalog = []Operation{
 		Params:  []Param{{Name: "actor", Kind: Actor}, {Name: "authority", Kind: Authority}},
 		Why:     "a student's chronological lab-attempt milestones for a verified administrator",
 	},
+	// This is intentionally a completion register, not a submissions register.
+	// Root can supervise which lab was completed and when, but neither answers
+	// nor solutions are selected here, so a new rendering route cannot turn into
+	// an answer-discovery surface by accident.
+	{
+		Name: "root.solved_labs", Table: "attempts", Scope: Public, Audience: Internal, Muro: Gratis,
+		Raw: "SELECT us.id AS student_id, us.name AS student_name, l.id AS lab_id, " +
+			"l.lesson_n AS lesson_n, l.idx AS lab_idx, MIN(a.at) AS solved_at " +
+			"FROM attempts a JOIN users us ON us.id = a.user_id AND us.deleted_at IS NULL " +
+			"JOIN labs l ON l.id = a.lab_id WHERE a.correct = 1 " +
+			"GROUP BY us.id, us.name, l.id, l.lesson_n, l.idx ORDER BY solved_at DESC LIMIT 1000",
+		Returns: []string{"student_id", "student_name", "lab_id", "lesson_n", "lab_idx", "solved_at"},
+		Why:     "the root-only operations register of each student's first successful lab completion",
+		Justify: "the root-only rendering route needs an account id and display name to supervise course completion. It returns completion metadata only, never submitted answers, prompts, explanations or solutions",
+	},
 	{
 		Name: "tutor.students_all", Table: "users", Scope: Public, Audience: Internal, Muro: Gratis,
 		Raw: "SELECT us.id AS id, us.name AS name, us.email AS email, COALESCE(a.solved, 0) AS solved, a.last_seen AS last_seen " +

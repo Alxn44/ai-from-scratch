@@ -18,6 +18,7 @@ const payRes = await apiTry<{ payments: P[] }>('/api/admin/payments', Astro.requ
 const pays = payRes.data?.payments ?? [];
 const paysOk = payRes.status === 200;
 const L = t(resolveLang(user!.lang, Astro.request));
+const rootLabsLabel = resolveLang(user!.lang, Astro.request) === 'en' ? 'Solved labs' : 'Labs resueltos';
 const ROLEC: Record<string, string> = { student: 'var(--l2)', tutor: 'var(--ac)', admin: 'var(--or)', root: 'var(--rd)' };
 const ROLE_ES: Record<string, string> = { student: 'Estudiante', tutor: 'Tutor', admin: 'Admin', root: 'Root' };
 // Cobrado, AGRUPADO POR MONEDA. Antes esto era un `reduce` sobre `p.amount` con
@@ -42,6 +43,7 @@ const cobrado = [...porMoneda.entries()]
 ---
 <App user={user!} title="Admin" crumb="ADMIN / PLATAFORMA" active="Admin">
   <span slot="topbar" class="lbl" style="color:var(--or)">MODO ADMIN</span>
+  {user!.role === 'root' && <a slot="topbar" class="btn ghost" style="text-decoration:none" href="/root/labs-resueltos">{rootLabsLabel}</a>}
   <div style="padding:30px 28px 48px;display:flex;flex-direction:column;gap:26px;max-width:1180px">
     <div style="display:flex;flex-direction:column;gap:12px">
       <p class="eb">Panel · Admin</p>

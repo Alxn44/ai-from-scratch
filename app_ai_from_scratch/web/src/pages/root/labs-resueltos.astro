@@ -1,0 +1,95 @@
+---
+export const prerender = false;
+import App from '../../layouts/App.astro';
+import { gate, apiFetch } from '../../lib/session';
+import { icon } from '../../lib/icons';
+import { resolveLang } from '../../lib/i18n';
+
+// Defense in depth: the page is gated server-side and the API repeats the
+// exact root-role check. A client-side navigation cannot reveal this rendering.
+const { user, redirect } = await gate(Astro.request, ['root']);
+if (redirect) return Astro.redirect(redirect);
+
+type SolvedLab = {
+  student_id: number;
+  student_name: string;
+  lab_id: string;
+  lesson_n: number;
+  lab_idx: number;
+  solved_at: string;
+};
+const labs = (await apiFetch<{ labs: SolvedLab[] }>('/api/root/solved-labs', Astro.request))?.labs ?? [];
+const lang = resolveLang(user!.lang, Astro.request);
+const copy = lang === 'en'
+  ? {
+      eyebrow: 'Root operations', title: 'Solved labs', back: 'Back to admin',
+      completions: 'Completions', students: 'Students', register: 'Completion register',
+      learner: 'Student', lab: 'Lab', lesson: 'Lesson', completed: 'Completed',
+      timeline: 'View timeline', empty: 'There are no solved labs yet.',
+      privacy: 'This register contains completion metadata only. Student answers and lab solutions are not shown.',
+    }
+  : {
+      eyebrow: 'Operación root', title: 'Labs resueltos', back: 'Volver a admin',
+      completions: 'Completados', students: 'Estudiantes', register: 'Registro de completitud',
+      learner: 'Estudiante', lab: 'Lab', lesson: 'Lección', completed: 'Resuelto',
+      timeline: 'Ver línea de aprendizaje', empty: 'Todavía no hay labs resueltos.',
+      privacy: 'Este registro contiene solo datos de completitud. No muestra respuestas de estudiantes ni soluciones de los labs.',
+    };
+const people = new Set(labs.map((lab) => lab.student_id)).size;
+const stamp = (at: string) => new Intl.DateTimeFormat(lang === 'en' ? 'en' : 'es-CO', {
+  dateStyle: 'medium', timeStyle: 'short',
+}).format(new Date(at));
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<App user={user!} title={copy.title} crumb={`ROOT / ${copy.title.toUpperCase()}`} active="Admin">
+  <div class="app-pad root-labs">
+    <a class="btn ghost" style="align-self:flex-start;text-decoration:none" href="/admin">{copy.back}</a>
+    <header class="root-head">
+      <p class="eb">{copy.eyebrow}</p>
+      <h1 class="h1">{copy.title}</h1>
+    </header>
+
+    <section class="root-stats" aria-label={copy.title}>
+      <div class="card"><p class="lbl">{copy.completions}</p><p class="num metric">{labs.length}</p></div>
+      <div class="card"><p class="lbl">{copy.students}</p><p class="num metric" style="color:var(--ac)">{people}</p></div>
+    </section>
+
+    <section class="card register" aria-labelledby="register-title">
+      <div class="register-title"><Fragment set:html={icon('chart', 18, 'var(--ac)')} /><h2 id="register-title" class="h2">{copy.register}</h2></div>
+      {labs.length ? <div class="tblwrap"><div class="root-table" role="table" aria-label={copy.register}>
+        <div class="root-row root-table-head" role="row">
+          <span role="columnheader">{copy.learner}</span><span role="columnheader">{copy.lab}</span>
+          <span role="columnheader">{copy.lesson}</span><span role="columnheader">{copy.completed}</span><span aria-hidden="true"></span>
+        </div>
+        {labs.map((entry) => <div class="root-row" role="row">
+          <strong role="cell">{entry.student_name}</strong>
+          <span role="cell" class="mono">{entry.lab_id}</span>
+          <span role="cell">{pad(entry.lesson_n)}</span>
+          <time role="cell" class="s" datetime={entry.solved_at}>{stamp(entry.solved_at)}</time>
+          <a role="cell" class="s timeline-link" href={`/admin/progreso?student=${entry.student_id}`}>{copy.timeline}</a>
+        </div>)}
+      </div></div> : <p class="s">{copy.empty}</p>}
+    </section>
+
+    <p class="s privacy"><Fragment set:html={icon('lock', 16, 'var(--ac)')} />{copy.privacy}</p>
+  </div>
+
+  <style>
+    .root-labs{display:flex;flex-direction:column;gap:26px;max-width:1120px}
+    .root-head{display:flex;flex-direction:column;gap:10px}
+    .root-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:500px}
+    .metric{font:700 32px/1 var(--f);letter-spacing:-.04em;margin:12px 0 0}
+    .register{display:flex;flex-direction:column;gap:18px}
+    .register-title{display:flex;align-items:center;gap:10px}
+    .root-table{min-width:780px;display:flex;flex-direction:column}
+    .root-row{display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(100px,.8fr) 90px minmax(170px,1fr) 185px;gap:16px;align-items:center;min-height:56px;border-bottom:1px solid var(--hair2)}
+    .root-table-head{min-height:34px;padding-bottom:10px;border-bottom:1px solid var(--hair);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase;color:var(--l3)}
+    .root-row:last-child{border-bottom:0}
+    .mono{font:500 13px/1 var(--m);color:var(--l2)}
+    .timeline-link{color:var(--ac);text-decoration:none;justify-self:end}
+    .timeline-link:hover,.timeline-link:focus-visible{text-decoration:underline}
+    .privacy{display:flex;align-items:flex-start;gap:8px;border-left:2px solid var(--ac);padding-left:12px}
+    @media (max-width:700px){.root-stats{grid-template-columns:1fr;max-width:none}.timeline-link{justify-self:start}}
+  </style>
+</App>

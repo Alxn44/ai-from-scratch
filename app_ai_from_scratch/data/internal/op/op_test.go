@@ -222,6 +222,7 @@ func TestTheExemptionListDoesNotGrowQuietly(t *testing.T) {
 		"lab.solution_for_grading -> labs.solution",
 		"league.flow -> ranking_optin.user_id",
 		"question.solution_for_grading -> questions.solution",
+		"root.solved_labs -> attempts.id",
 		"tutor.students_all -> users.email,id",
 		"tutor.students_cohort -> users.email,id",
 		"user.credentials_by_email -> users.email,failed,id,locked_until,pass_hash,token_version",

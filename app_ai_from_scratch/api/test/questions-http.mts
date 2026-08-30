@@ -21,6 +21,7 @@ const req = (path: string, init: RequestInit = {}, sid = '') => fetch(`${API}${p
 const json = (init: RequestInit = {}) => ({ ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) } });
 const body = (r: Response): Promise<Record<string, any>> => r.json() as Promise<Record<string, any>>;
 const hasSolution = (x: unknown): boolean => JSON.stringify(x).includes('solution');
+const hasSubmission = (x: unknown): boolean => JSON.stringify(x).includes('answer');
 
 const suffix = randomBytes(10).toString('hex');
 const register = async (label: string) => {
@@ -32,7 +33,21 @@ const register = async (label: string) => {
 };
 const free = await register('Free quiz');
 const paid = await register('Paid exam');
+const root = await register('Root solved labs');
 await run('UPDATE users SET paid = 1 WHERE id = ?', [paid.id]);
+await run("UPDATE users SET role = 'root' WHERE id = ?", [root.id]);
+
+// The root register is deliberately narrower than an admin capability. A
+// normal signed-in student is still forbidden, while root receives completion
+// metadata only -- never a student's submission or a lab solution.
+assert.equal((await req('/api/v3/root/solved-labs')).status, 401);
+assert.equal((await req('/api/v3/root/solved-labs', {}, free.sid)).status, 403);
+const rootLabs = await req('/api/v3/root/solved-labs', {}, root.sid);
+const rootLabsBody = await body(rootLabs);
+assert.equal(rootLabs.status, 200);
+assert.ok(Array.isArray(rootLabsBody.labs));
+assert.equal(hasSolution(rootLabsBody), false);
+assert.equal(hasSubmission(rootLabsBody), false);
 
 assert.equal((await req('/api/v3/questions/q01.1/attempt', json({ method: 'POST', body: JSON.stringify({ answer: 'a' }) }))).status, 401);
 const freeLesson = await req('/api/v3/lessons/1?lang=es', {}, free.sid); const freeBody = await body(freeLesson);
@@ -76,8 +91,8 @@ for (const userId of [free.id, paid.id]) {
     assert.equal(hasSolution(result), false, `${name} tool must not expose solution`);
   }
 }
-await run('DELETE FROM attempts WHERE user_id IN (?, ?)', [free.id, paid.id]);
-await run('DELETE FROM users WHERE id IN (?, ?)', [free.id, paid.id]);
+await run('DELETE FROM attempts WHERE user_id IN (?, ?, ?)', [free.id, paid.id, root.id]);
+await run('DELETE FROM users WHERE id IN (?, ?, ?)', [free.id, paid.id, root.id]);
 await pool.end();
 console.log('questions HTTP: auth/paywall/persistence/isolation/ES-EN/exam 5-of-6/tools passed');
 process.exit(0);

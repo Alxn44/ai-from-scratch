@@ -851,6 +851,21 @@ app.get<{ Params: { id: string } }>('/api/admin/students/:id/timeline', async (r
   return { events };
 });
 
+// This is a root-only operational register. Keep it separate from the admin
+// timeline: role inheritance means root may read an admin timeline, while this
+// platform-wide view must never become available to every administrator.
+// The catalog operation deliberately exposes only a successful lab id, its
+// position, the completion time and the student's display identity -- never an
+// answer, prompt, explanation or solution.
+app.get('/api/root/solved-labs', async (req, reply) => {
+  const root = await requireRole(req, reply, ['root']); if (!root) return;
+  const labs = await many<{
+    student_id: number; student_name: string; lab_id: string;
+    lesson_n: number; lab_idx: number; solved_at: string;
+  }>('root.solved_labs');
+  return { labs };
+});
+
 
 // ---------- payments gateway ----------
 // Provider credentials, webhooks, retries and subscription state live in the
