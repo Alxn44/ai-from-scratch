@@ -37,6 +37,8 @@ export interface AiHealth {
   vueltas?: number;
   proveedores?: string[];
   modelos?: Record<string, string>;
+  /** id del proveedor -> "flash" | "razon". El carril, no el nombre comercial. */
+  carriles?: Record<string, string>;
   prompt_sha?: { es: string; en: string };
   violaciones?: number;
 }

@@ -24,9 +24,23 @@ Format = Literal["anthropic", "openai"]
 Lane = Literal["flash", "razon"]
 Effort = Literal["bajo", "medio", "alto"]
 
-# The four models the UI offers as buttons. `anthropic` is accepted as an alias
-# for the sonnet lane: the button shows claude-sonnet-5, not Haiku.
-SELECTABLE = frozenset({"sonnet", "deepseek", "kimi", "together", "anthropic"})
+# `anthropic` is accepted as an ALIAS for the sonnet lane: the button shows
+# claude-sonnet-5, not Haiku. It is an alias, not a catalog.
+#
+# THERE IS NO HAND-WRITTEN LIST OF SELECTABLE IDS ANY MORE. There was one:
+#
+#     SELECTABLE = frozenset({"sonnet", "deepseek", "kimi", "together", "anthropic"})
+#
+# and it went stale exactly the way house rule 4 says a copy does. providers()
+# below declares eleven ids today; that set knew five. `grok` is the FIRST
+# provider of the "razon" lane, so a UI that offers "reasoning" resolves it to
+# grok, sends grok, and pick_chain silently ignored it — answering from a flash
+# model while the screen said the other thing. Nothing failed; it just lied.
+#
+# The catalog is providers(). An id is selectable when it is IN the chain, which
+# is a check against the live catalog and cannot drift from it. It also still
+# fails closed: an id that is not there is ignored and the full chain stands.
+ALIAS = {"anthropic": "sonnet"}
 _EFFORT = {
     "bajo": (768, 30.0, "low"),
     "medio": (1536, 45.0, "medium"),
@@ -168,13 +182,10 @@ def pick_chain(wanted: str | None, active: Sequence[Provider] | None = None,
     the complete fallback chain stays. `anthropic` means the Sonnet lane."""
     chain = tuple(active) if active is not None else providers()
     if wanted:
-        name = wanted.strip().lower()
-        if name in SELECTABLE:
-            if name == "anthropic":
-                name = "sonnet"
-            chosen = next((p for p in chain if p.id == name), None)
-            if chosen is not None:
-                return (chosen, *tuple(p for p in chain if p.id != chosen.id))
+        name = ALIAS.get(wanted.strip().lower(), wanted.strip().lower())
+        chosen = next((p for p in chain if p.id == name), None)
+        if chosen is not None:
+            return (chosen, *tuple(p for p in chain if p.id != chosen.id))
     ranked = _language_order(lang)
     if not ranked:
         return chain
@@ -214,7 +225,10 @@ async def turn(client: httpx.AsyncClient, prov: Provider, *, system: str,
                max_tokens: int = 1024, timeout_s: float = 45.0,
                effort: str | None = None) -> Turn:
     """One model turn, in a common shape so the loop knows nothing about providers."""
-    tokens, timeout, effort_name = effort_budget(effort)
+    # El tercer valor es el nombre nativo del esfuerzo. Aqui NO se usa: ver
+    # abajo, la API de Anthropic rechaza el campo. effort_budget lo sigue
+    # devolviendo porque es su contrato y hay pruebas sobre el.
+    tokens, timeout, _ = effort_budget(effort)
     if effort:
         max_tokens, timeout_s = tokens, timeout
     if prov.fmt == "anthropic":
@@ -234,9 +248,30 @@ async def turn(client: httpx.AsyncClient, prov: Provider, *, system: str,
                         "cache_control": {"type": "ephemeral"}}],
             "tools": as_tools(catalog, "anthropic"), "messages": list(messages),
         }
-        # Effort is a Claude 4.5 knob. Haiku (the flash lane) does not take it.
-        if prov.lane == "razon" or "sonnet" in prov.model:
-            body["effort"] = effort_name
+        # NO `effort` FIELD. It used to send one:
+        #
+        #     if prov.lane == "razon" or "sonnet" in prov.model:
+        #         body["effort"] = effort_name
+        #
+        # The Messages API has no such top-level parameter, and it does not
+        # ignore it — it rejects the whole request. Measured against the real
+        # endpoint, verbatim:
+        #
+        #     HTTP 400 {"type":"error","error":{"type":"invalid_request_error",
+        #      "message":"effort: Extra inputs are not permitted"}}
+        #
+        # So EVERY call on the "razon" lane died, the loop fell through to the
+        # next provider, and the answer came back from Haiku on the flash lane.
+        # Nothing failed out loud: the screen said one thing and the fallback
+        # quietly did another. Same shape as the stale SELECTABLE set above.
+        #
+        # The effort knob keeps the effect it can actually have here — it is
+        # already applied above as max_tokens and timeout_s via effort_budget(),
+        # which is a real difference in how long and how far a turn may go.
+        # Wiring it to extended thinking (`thinking.budget_tokens`) is a
+        # separate change with its own constraints (budget < max_tokens, a 1024
+        # floor, and its interaction with tool use); it does not get bolted on
+        # blind on the way out the door.
         r = await client.post(
             prov.base, timeout=timeout_s,
             headers={"content-type": "application/json", "x-api-key": prov.key,
