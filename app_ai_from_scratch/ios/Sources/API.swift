@@ -92,7 +92,20 @@ actor API {
     /// `web/src/pages/api/[...path].ts` reenvia a la API interna añadiendo `v3/`.
     /// La app entra por la MISMA puerta: si algun dia el prefijo pasa a v4, este
     /// fichero no se entera, que es justo lo que el proxy existe para conseguir.
-    static let origin = URL(string: "https://aifromscratch.shop")!
+    ///
+    /// En Debug se puede apuntar a otro sitio con `IA_QA_ORIGEN`, que es como se
+    /// prueba la app contra `pnpm dev` sin tocar produccion. Hizo falta el dia
+    /// que produccion estuvo caida y la app no se podia ejercitar de ninguna
+    /// forma: compilaba limpia y nadie la habia visto correr. El simulador
+    /// alcanza el 127.0.0.1 del anfitrion, asi que basta con
+    ///   SIMCTL_CHILD_IA_QA_ORIGEN=http://127.0.0.1:4321
+    /// En Release no existe: es la constante y nada mas.
+    static let origin: URL = {
+        #if DEBUG
+        if let v = QA.valor("IA_QA_ORIGEN"), let u = URL(string: v), u.scheme != nil { return u }
+        #endif
+        return URL(string: "https://aifromscratch.shop")!
+    }()
 
     private let session: URLSession
 
