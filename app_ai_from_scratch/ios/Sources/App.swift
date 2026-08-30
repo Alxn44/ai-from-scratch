@@ -44,16 +44,50 @@ struct RootView: View {
     var body: some View {
         ZStack {
             T.bg.ignoresSafeArea()
-            switch sesion.estado {
-            case .comprobando:
-                ProgressView().tint(T.l3)
-            case .fuera:
-                LoginView()
-            case .dentro:
-                LessonsView()
+            #if DEBUG
+            // La galeria de QA manda sobre todo: sin poder tocar el simulador
+            // desde esta maquina, es la unica forma de capturar una mecanica.
+            if let kind = QA.valor("IA_QA_LAB") {
+                GaleriaQA(kind: kind)
+            } else {
+                interior
             }
+            #else
+            interior
+            #endif
         }
         .task { await sesion.arrancar() }
+    }
+
+    @ViewBuilder private var interior: some View {
+        switch sesion.estado {
+        case .comprobando:
+            ProgressView().tint(T.l3)
+        case .fuera:
+            LoginView()
+        case .dentro:
+            pestanas
+        }
+    }
+
+    /// El menu. En la web es la barra lateral (App.astro: panel, curso, logros,
+    /// ranking, ligas, perfil, ajustes); en iOS el patron equivalente es la tab
+    /// bar: Curso, Tutor, Camino y Más (que agrupa ranking, ligas y cuenta).
+    /// Cuatro y no ocho porque HIG pide 3–5 y porque panel/perfil son vistas de
+    /// resumen que aqui ya cubren la lista y el camino.
+    private var pestanas: some View {
+        TabView {
+            LessonsView()
+                .tabItem { Label("Curso", systemImage: "book") }
+            ChatView()
+                .tabItem { Label("Tutor", systemImage: "bubble.left.and.bubble.right") }
+            CaminoView()
+                .tabItem { Label("Camino", systemImage: "chart.bar") }
+            MasView()
+                .tabItem { Label("Más", systemImage: "ellipsis.circle") }
+        }
+        .toolbarBackground(T.bg, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 }
 

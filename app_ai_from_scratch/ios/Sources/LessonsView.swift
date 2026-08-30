@@ -6,9 +6,10 @@ struct LessonsView: View {
     @State private var lecciones: [Lesson] = []
     @State private var cargando = true
     @State private var error: String?
+    @State private var ruta: [Lesson] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $ruta) {
             Group {
                 if cargando && lecciones.isEmpty {
                     ProgressView().tint(T.l3).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -17,23 +18,7 @@ struct LessonsView: View {
                 }
             }
             .background(T.bg)
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("El curso").label(T.l1)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Salir") { Task { await sesion.salir() } }
-                        .font(T.lbl).tracking(T.lblTrack).textCase(.uppercase)
-                        .foregroundStyle(T.l3)
-                        // El suelo de 44 tambien en la barra: un boton de 10px de
-                        // alto es el defecto que el handoff documenta en la web
-                        // (`.navlink` medía 10 de alto), y no se repite aqui.
-                        .frame(minWidth: T.tap, minHeight: T.tap, alignment: .trailing)
-                }
-            }
-            .toolbarBackground(T.bg, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar(.hidden, for: .navigationBar)
         }
         .task { await cargar() }
         .refreshable { await cargar() }
@@ -42,6 +27,12 @@ struct LessonsView: View {
     private var lista: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
+                // El titulo vive en el contenido y no en la barra: iOS 26 mete
+                // un ToolbarItem de texto en un circulo de cristal y lo trunca.
+                Text("El curso").label(T.l1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 16)
                 if let error {
                     Aviso(texto: error).padding(.horizontal, 14).padding(.bottom, 18)
                 }
@@ -90,6 +81,13 @@ struct LessonsView: View {
         error = nil
         do {
             lecciones = try await API.shared.lessons()
+            #if DEBUG
+            // QA sin dedos: empuja una leccion al cargar si el entorno la pide.
+            if let n = QA.valor("IA_QA_LECCION").flatMap({ Int($0) }),
+               let l = lecciones.first(where: { $0.n == n }), ruta.isEmpty {
+                ruta = [l]
+            }
+            #endif
         } catch APIFailure.sinSesion {
             // La cookie caduco o el servidor la invalido. No se enseña un error:
             // se vuelve al login, que es lo unico que se puede hacer al respecto.

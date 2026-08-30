@@ -109,13 +109,22 @@ actor API {
 
     // MARK: Peticiones
 
-    private func request(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
+    // Interno y no privado: APIMore.swift extiende este actor con las llamadas de
+    // leccion/labs/chat y necesita el mismo transporte — dos pilas HTTP serian
+    // dos sitios donde arreglar el proximo bug de cookies.
+    func request(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
+        var data: Data? = nil
+        if let body { data = try JSONSerialization.data(withJSONObject: body) }
+        return try await requestRaw(method, path, body: data)
+    }
+
+    func requestRaw(_ method: String, _ path: String, body: Data? = nil) async throws -> Data {
         var req = URLRequest(url: Self.origin.appendingPathComponent(path))
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "accept")
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "content-type")
-            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+            req.httpBody = body
         }
 
         let data: Data, response: URLResponse
@@ -142,7 +151,7 @@ actor API {
         return data
     }
 
-    private func decode<X: Decodable>(_ type: X.Type, _ data: Data) throws -> X {
+    func decode<X: Decodable>(_ type: X.Type, _ data: Data) throws -> X {
         do { return try JSONDecoder().decode(X.self, from: data) }
         catch {
             // Un fallo de decodificacion es un cambio de contrato, no un fallo de
