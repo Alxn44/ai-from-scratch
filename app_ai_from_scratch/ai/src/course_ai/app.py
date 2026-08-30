@@ -153,6 +153,11 @@ async def health() -> dict[str, Any]:
     return {"ok": True, "version": VERSION, "api": 3, "vueltas": MAX_TURNS,
             "proveedores": [p.id for p in active],
             "modelos": {p.id: p.model for p in active},
+            # El CARRIL, que ya existe en Provider.lane y hasta ahora se quedaba
+            # dentro. Sin el, una interfaz que quiera ofrecer "rapido" o "razona"
+            # tiene que escribir a mano que proveedor es cada cosa — y esa copia
+            # se queda vieja en silencio en cuanto cambia esta tabla.
+            "carriles": {p.id: p.lane for p in active},
             "prompt_sha": {"es": fingerprint("es"), "en": fingerprint("en")},
             "puente": Bridge.from_env().base,
             "secreto_configurado": bool(os.environ.get("IA_SECRETO")),

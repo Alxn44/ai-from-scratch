@@ -72,7 +72,17 @@ struct ChatMsg: Codable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey { case role, content }
 }
 
-private struct ChatReq: Codable { let mensajes: [ChatMsg] }
+// El cuerpo mandaba SOLO `mensajes`, asi que el movil no podia elegir carril ni
+// esfuerzo y ademas dejaba `lang` al valor de la cuenta aunque la app estuviera
+// en otro idioma. Los cuatro campos opcionales son los que el servidor ya acepta
+// (api/src/server.ts, SCHEMA_CHAT); ninguno es nuevo en el cable.
+private struct ChatReq: Codable {
+    let mensajes: [ChatMsg]
+    let lang: String?
+    let fuente: String?
+    let proveedor: String?
+    let esfuerzo: String?
+}
 private struct ChatOK: Codable {
     let respuesta: String?
     let proveedor: String?
@@ -80,6 +90,56 @@ private struct ChatOK: Codable {
     let error: String?
     let esperaS: Int?
 }
+
+/// Una respuesta del tutor con QUIEN la firmo. El pie de cada respuesta lo dice
+/// en pantalla porque la politica de privacidad publicada lo promete.
+struct ChatTurno: Equatable {
+    let mensaje: ChatMsg
+    let proveedor: String?
+    let modelo: String?
+}
+
+// MARK: - Estado del chat
+//
+// GET /api/chat/estado  →  { disponible, proveedores:[{id,modelo,carril}],
+//                            herramientas:[...], familias:{...} }
+//
+// SE ELIGE UN CARRIL, NO UNA MARCA, y la lista de carriles vivos sale del
+// SERVIDOR. Escribirla aqui seria la copia que prohibe la regla 4 de la casa: el
+// dia que un id cambia en ai/src/course_ai/agent/providers.py, el boton sigue
+// pintado y manda un proveedor que ya no existe.
+
+struct ProvFila: Codable, Identifiable, Equatable {
+    var id: String { ident }
+    let ident: String
+    let modelo: String?
+    let carril: String?
+
+    private enum CodingKeys: String, CodingKey { case ident = "id", modelo, carril }
+}
+
+struct ChatEstado: Codable, Equatable {
+    let disponible: Bool
+    let proveedores: [ProvFila]
+    let herramientas: [String]
+
+    /// Primer proveedor vivo de ese carril, o nil si hoy no lo sirve nadie.
+    func resolver(_ carril: String) -> String? {
+        proveedores.first { $0.carril == carril }?.ident
+    }
+
+    /// Carriles que el servidor puede atender ahora mismo.
+    var carrilesVivos: [String] {
+        ["flash", "razon"].filter { c in proveedores.contains { $0.carril == c } }
+    }
+
+    static let vacio = ChatEstado(disponible: false, proveedores: [], herramientas: [])
+}
+
+/// GET /api/coach → la racha ya calculada (api/src/coach.ts). No se recalcula en
+/// la app: es la misma cifra que usa el sistema de avisos, y dos calculos
+/// separados acaban diciendo dos cosas distintas.
+struct CoachRacha: Codable, Equatable { let racha: Int }
 
 // MARK: - Camino / Ranking / Ligas
 
@@ -149,14 +209,31 @@ extension API {
         return try decode(AttemptResult.self, data)
     }
 
-    func chat(mensajes: [ChatMsg]) async throws -> ChatMsg {
-        let body = try JSONEncoder().encode(ChatReq(mensajes: mensajes))
+    /// `fuente` va explicito y vale "chat": es el MISMO hilo que la web. El
+    /// servidor ya lo tomaba por defecto (server.ts), pero escribirlo deja claro
+    /// que compartir la conversacion entre movil y escritorio es deliberado.
+    func chat(mensajes: [ChatMsg], proveedor: String?, esfuerzo: String) async throws -> ChatTurno {
+        let body = try JSONEncoder().encode(ChatReq(
+            mensajes: mensajes,
+            lang: Idioma.compartido.efectivo,
+            fuente: "chat",
+            proveedor: proveedor,
+            esfuerzo: esfuerzo))
         let data = try await requestRaw("POST", "api/chat", body: body)
         let r = try decode(ChatOK.self, data)
         guard let texto = r.respuesta, !texto.isEmpty else {
             throw APIFailure.servidor(200, r.error ?? "sin_respuesta")
         }
-        return ChatMsg(role: "assistant", content: texto)
+        return ChatTurno(mensaje: ChatMsg(role: "assistant", content: texto),
+                         proveedor: r.proveedor, modelo: r.modelo)
+    }
+
+    func chatEstado() async throws -> ChatEstado {
+        try decode(ChatEstado.self, await request("GET", "api/chat/estado"))
+    }
+
+    func racha() async throws -> Int {
+        try decode(CoachRacha.self, await request("GET", "api/coach")).racha
     }
 
     func camino() async throws -> CaminoData {

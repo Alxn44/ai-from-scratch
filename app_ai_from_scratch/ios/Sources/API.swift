@@ -92,7 +92,20 @@ actor API {
     /// `web/src/pages/api/[...path].ts` reenvia a la API interna añadiendo `v3/`.
     /// La app entra por la MISMA puerta: si algun dia el prefijo pasa a v4, este
     /// fichero no se entera, que es justo lo que el proxy existe para conseguir.
-    static let origin = URL(string: "https://aifromscratch.shop")!
+    ///
+    /// En Debug se puede apuntar a otro sitio con `IA_QA_ORIGEN`, que es como se
+    /// prueba la app contra `pnpm dev` sin tocar produccion. Hizo falta el dia
+    /// que produccion estuvo caida y la app no se podia ejercitar de ninguna
+    /// forma: compilaba limpia y nadie la habia visto correr. El simulador
+    /// alcanza el 127.0.0.1 del anfitrion, asi que basta con
+    ///   SIMCTL_CHILD_IA_QA_ORIGEN=http://127.0.0.1:4321
+    /// En Release no existe: es la constante y nada mas.
+    static let origin: URL = {
+        #if DEBUG
+        if let v = QA.valor("IA_QA_ORIGEN"), let u = URL(string: v), u.scheme != nil { return u }
+        #endif
+        return URL(string: "https://aifromscratch.shop")!
+    }()
 
     private let session: URLSession
 
@@ -118,8 +131,28 @@ actor API {
         return try await requestRaw(method, path, body: data)
     }
 
+    /// La URL de una ruta. `appendingPathComponent` NO sirve aqui: trata la
+    /// cadena entera como UN componente de ruta y escapa la `?`, asi que
+    ///
+    ///     origin.appendingPathComponent("api/chat/history?fuente=chat")
+    ///     -> https://aifromscratch.shop/api/chat/history%3Ffuente=chat
+    ///
+    /// que es un 404. Comprobado, no supuesto. Tres llamadas iban asi:
+    /// `api/chat/history?fuente=chat`, `api/exams/N?lang=`, y `api/lessons?lang=`.
+    /// La del historial explica por que el chat del movil abria SIEMPRE en blanco
+    /// aunque la web tuviera la conversacion entera: el `catch` de ChatView se
+    /// tragaba el error y empezaba de cero, que es indistinguible de «no hay
+    /// historial».
+    static func url(_ path: String) -> URL {
+        var c = URLComponents(url: origin, resolvingAgainstBaseURL: false)!
+        let partes = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        c.path = "/" + partes[0]
+        c.query = partes.count > 1 ? String(partes[1]) : nil
+        return c.url ?? origin.appendingPathComponent(path)
+    }
+
     func requestRaw(_ method: String, _ path: String, body: Data? = nil) async throws -> Data {
-        var req = URLRequest(url: Self.origin.appendingPathComponent(path))
+        var req = URLRequest(url: Self.url(path))
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "accept")
         if let body {
@@ -175,8 +208,12 @@ actor API {
         for c in HTTPCookieStorage.shared.cookies ?? [] { HTTPCookieStorage.shared.deleteCookie(c) }
     }
 
+    /// `lang` va explicito. Sin el, el servidor cae al idioma de la CUENTA, que
+    /// suele ser `auto` y resuelve a español: la interfaz en ingles enseñaba los
+    /// titulos de leccion en español. La web ya lo manda asi
+    /// (`/api/lessons?lang=${lang}` en chat.astro).
     func lessons() async throws -> [Lesson] {
-        let data = try await request("GET", "api/lessons")
+        let data = try await request("GET", "api/lessons?lang=\(Idioma.compartido.efectivo)")
         return try decode(LessonsOK.self, data).lessons
     }
 

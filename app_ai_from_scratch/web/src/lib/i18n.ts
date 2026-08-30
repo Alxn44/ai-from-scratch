@@ -183,6 +183,21 @@ export const STR = {
       proveedorPie: 'Responde {p} · modelo {m}',
       modelo: 'Modelo', esfuerzo: 'Esfuerzo',
       bajo: 'Bajo', medio: 'Medio', alto: 'Alto',
+      // Se elige un CARRIL, no una marca. El proveedor concreto lo resuelve el
+      // servidor y se dice después, en proveedorPie, que es lo que la política
+      // de privacidad promete.
+      carrilFlash: 'Rápido', carrilRazon: 'Razona',
+      // Rail del curso. El chat deja de ser solo una caja de texto: enseña dónde
+      // estás y qué toca, que es lo que se venía a preguntar de todas formas.
+      cabecera: 'Chat · todo en uno',
+      tuProgreso: 'Tu progreso', deLabs: '/ {n} labs',
+      racha: 'Racha {n} días', rachaUno: 'Racha 1 día', rachaCero: 'Sin racha',
+      leccionDe: 'Lección {n} de {m}',
+      siguienteLab: 'Siguiente lab', empezarLab: 'Empezar lab',
+      cursoHecho: 'Curso completo', cursoHechoB: 'Las 12 lecciones cerradas. Pregunta lo que quieras repasar.',
+      atajosCurso: 'Atajos del curso', preguntaEsto: 'Pregúntale esto',
+      sugFallo: '¿Por qué falló mi último lab?', sugSimple: 'Dame un ejemplo más simple', sugPrueba: 'Ponme a prueba',
+      railPie: '{n} herramientas · solo ven tu cuenta',
       privAviso: 'Lo que escribas en modo IA viaja al proveedor del modelo para poder responderte. No se usa para entrenar.',
       soloTuyo: 'Solo veo tu cuenta', soloTuyoB: 'Las herramientas del agente no aceptan el identificador de otra persona: el servidor pone el tuyo.',
     },
@@ -765,6 +780,16 @@ export const STR = {
       proveedorPie: 'Answered by {p} · model {m}',
       modelo: 'Model', esfuerzo: 'Effort',
       bajo: 'Low', medio: 'Medium', alto: 'High',
+      carrilFlash: 'Fast', carrilRazon: 'Reasoning',
+      cabecera: 'Chat · all in one',
+      tuProgreso: 'Your progress', deLabs: '/ {n} labs',
+      racha: '{n} day streak', rachaUno: '1 day streak', rachaCero: 'No streak',
+      leccionDe: 'Lesson {n} of {m}',
+      siguienteLab: 'Next lab', empezarLab: 'Start lab',
+      cursoHecho: 'Course complete', cursoHechoB: 'All 12 lessons closed. Ask about anything you want to review.',
+      atajosCurso: 'Course shortcuts', preguntaEsto: 'Ask it this',
+      sugFallo: 'Why did my last lab fail?', sugSimple: 'Give me a simpler example', sugPrueba: 'Quiz me',
+      railPie: '{n} tools · they only see your account',
       privAviso: 'What you type in AI mode travels to the model provider so it can answer you. It is not used for training.',
       soloTuyo: 'I only see your account', soloTuyoB: 'The agent tools do not accept anyone else’s id: the server injects yours.',
     },

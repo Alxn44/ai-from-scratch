@@ -81,9 +81,28 @@ final class Sesion {
     }
 }
 
+/// A donde va la app cuando algo que no es la barra de pestañas pide ir a otro
+/// sitio. Hoy lo pide una sola cosa: el boton «Empezar lab» del rail del tutor.
+///
+/// Existe porque la seleccion de pestaña vivia en un `@State` privado de
+/// RootView y la pila de /curso en otro `@State` privado de LessonsView, asi que
+/// desde el chat no habia forma de llegar a una leccion. Un boton que no lleva a
+/// ningun sitio es peor que no tener boton.
+@Observable
+final class Rumbo {
+    static let compartido = Rumbo()
+    var pestana = "curso"
+    /// Leccion pendiente de abrir. La consume LessonsView en cuanto tiene la
+    /// lista cargada, y la borra: un destino que se queda puesto vuelve a
+    /// dispararse cada vez que se pisa la pestaña.
+    var leccion: Int?
+    func abrir(leccion n: Int) { leccion = n; pestana = "curso" }
+    private init() {}
+}
+
 struct RootView: View {
     @Environment(Sesion.self) private var sesion
-    @State private var pestana = "curso"
+    @State private var rumbo = Rumbo.compartido
 
     var body: some View {
         ZStack {
@@ -120,7 +139,8 @@ struct RootView: View {
     /// Cuatro y no ocho porque HIG pide 3–5 y porque panel/perfil son vistas de
     /// resumen que aqui ya cubren la lista y el camino.
     private var pestanas: some View {
-        TabView(selection: $pestana) {
+        @Bindable var rumbo = rumbo
+        return TabView(selection: $rumbo.pestana) {
             LessonsView()
                 .tabItem { Label(L.curso, systemImage: "book") }.tag("curso")
             ChatView()
@@ -134,7 +154,7 @@ struct RootView: View {
         .toolbarBackground(.visible, for: .tabBar)
         .onAppear {
             #if DEBUG
-            if let t = QA.valor("IA_QA_TAB") { pestana = t }
+            if let t = QA.valor("IA_QA_TAB") { rumbo.pestana = t }
             #endif
         }
     }

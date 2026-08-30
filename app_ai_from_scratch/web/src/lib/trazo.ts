@@ -1,12 +1,18 @@
-// Trazo on stage. The still SVG in the AI panel stays still on purpose
-// (cat.ts): a mascot that fidgets while you read competes with the lesson.
-// This module is the opposite moment — he WALKS IN CARRYING the thing.
-// Toasts, unlock cards and the first-visit tour all go through here so
-// the gait, the hold point and the look-at-pointer are one implementation.
+// Trazo en escena. El SVG quieto del panel de IA sigue quieto a proposito
+// (cat.ts): una mascota que se mueve mientras lees compite con la leccion.
+// Este modulo es el momento contrario — ENTRA ANDANDO trayendo la cosa. Toasts,
+// tarjetas de desbloqueo, el tour y el tutorial pasan por aqui para que la
+// marcha, el punto de carga y la mirada sean una sola implementacion.
+//
+// El actor es el rig 3D de cat3d.ts. El transporte lo sigue moviendo GSAP desde
+// aqui, igual que antes; lo que cambio es que el rig MIDE ese movimiento y saca
+// de ahi la cadencia de las patas. Antes el cuerpo iba con `power2.out` (0.92 s)
+// y las patas con un keyframe CSS de `.92s linear infinite`: dos relojes
+// distintos, y las almohadillas patinaban sobre el suelo. Ver la cabecera de
+// cat3d.ts para por que ahora eso es imposible.
 import { gsap } from 'gsap';
-import { gato, gatoCSS } from './cat';
+import { montarConito, type Conito, type Gesto } from './cat3d';
 
-const ID = 'trazo';
 const reduce = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export type Entrega = {
@@ -19,17 +25,16 @@ export type Entrega = {
 let cola: Promise<void> = Promise.resolve();
 let cssOn = false;
 
+/**
+ * Estilos del ESCENARIO. Los del gato los inyecta el propio rig. Aqui solo
+ * queda lo que es de la puesta en escena: el tour a pantalla completa.
+ */
 function css() {
   if (cssOn) return;
   cssOn = true;
   const s = document.createElement('style');
   s.id = 'trazo-css-stage';
-  s.textContent = gatoCSS(ID) + `
-#trazo-actor{position:fixed;left:0;top:0;z-index:120;pointer-events:none;will-change:transform}
-#trazo-actor .trazo-cuerpo{position:relative;filter:drop-shadow(0 10px 14px rgba(0,0,0,.35))}
-#trazo-actor .trazo-hold{position:absolute;left:6%;top:-8%;transform-origin:left bottom;pointer-events:none}
-#trazo-actor .trazo-hold > *{box-shadow:0 8px 22px rgba(0,0,0,.28)}
-#trazo-glow{position:absolute;left:50%;bottom:4%;width:160%;height:70%;transform:translate(-50%,0);pointer-events:none}
+  s.textContent = `
 #trazo-tour{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;justify-content:flex-start;background:rgba(8,10,18,.88)}
 #trazo-tour canvas{position:absolute;inset:0;width:100%;height:100%}
 #trazo-tour .tour-ui{position:relative;z-index:1;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;
@@ -46,10 +51,7 @@ function css() {
   #trazo-tour .tour-drop{width:min(280px,calc(100vw - 32px))!important}
 }
 #trazo-tour .tour-skip:hover{color:#fff}
-#trazo-tour .tour-drop{position:absolute;z-index:2;pointer-events:auto;cursor:pointer}
-@media (prefers-reduced-motion: reduce){
-  #trazo-actor .trazo-cuerpo{filter:none}
-}`;
+#trazo-tour .tour-drop{position:absolute;z-index:2;pointer-events:auto;cursor:pointer}`;
   document.head.append(s);
 }
 
@@ -58,103 +60,41 @@ function g() {
   return G as typeof gsap;
 }
 
-/** Tiny WebGL spotlight that follows Trazo's feet. Falls back to nothing. */
-function glow(host: HTMLElement, follow: () => { x: number; y: number }): () => void {
-  const c = document.createElement('canvas');
-  c.id = 'trazo-glow';
-  c.setAttribute('aria-hidden', 'true');
-  host.prepend(c);
-  const gl = c.getContext('webgl', { alpha: true, antialias: false, premultipliedAlpha: true });
-  if (!gl) { c.remove(); return () => {}; }
-  const vs = gl.createShader(gl.VERTEX_SHADER)!;
-  gl.shaderSource(vs, `attribute vec2 a; void main(){ gl_Position = vec4(a,0,1); }`);
-  gl.compileShader(vs);
-  const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
-  gl.shaderSource(fs, `precision mediump float;
-uniform float u_t; uniform vec2 u_res; uniform vec2 u_spot;
-void main(){
-  vec2 uv = gl_FragCoord.xy / u_res;
-  float d = distance(uv, u_spot);
-  float spot = smoothstep(.55, .0, d);
-  float g = fract(sin(dot(uv * 140.0 + u_t, vec2(12.9898,78.233))) * 43758.5453);
-  float a = spot * .42 + g * .05 * spot;
-  gl_FragColor = vec4(0.18, 0.32, 0.95, a);
-}`);
-  gl.compileShader(fs);
-  const p = gl.createProgram()!;
-  gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { c.remove(); return () => {}; }
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  const loc = gl.getAttribLocation(p, 'a');
-  gl.enableVertexAttribArray(loc);
-  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  gl.useProgram(p);
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  const uT = gl.getUniformLocation(p, 'u_t');
-  const uR = gl.getUniformLocation(p, 'u_res');
-  const uS = gl.getUniformLocation(p, 'u_spot');
-  let raf = 0, live = true, t0 = performance.now();
-  const draw = (now: number) => {
-    if (!live) return;
-    const w = host.clientWidth || 160, h = host.clientHeight || 120;
-    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; gl.viewport(0, 0, w, h); }
-    const f = follow();
-    const r = host.getBoundingClientRect();
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.uniform1f(uT, (now - t0) / 1000);
-    gl.uniform2f(uR, w, h);
-    gl.uniform2f(uS, (f.x - r.left) / Math.max(1, r.width), 1 - (f.y - r.top) / Math.max(1, r.height));
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    raf = requestAnimationFrame(draw);
-  };
-  raf = requestAnimationFrame(draw);
-  return () => { live = false; cancelAnimationFrame(raf); c.remove(); };
-}
-
-// 'anda' por defecto, no 'carga'. `carga` es el gato de FRENTE con dos patas
-// balanceandose como un pendulo: eso es un trote de dibujo animado. La marcha de
-// verdad — cuatro patas, secuencia lateral — vive en la pose de perfil.
-function actor(size: number, pose: 'anda' | 'carga' | 'saluda' | 'sentado' = 'anda'): HTMLElement {
-  css();
-  const el = document.createElement('div');
-  el.id = 'trazo-actor';
-  el.className = pose === 'anda' || pose === 'carga' ? 'trazo-anda' : '';
-  el.setAttribute('aria-hidden', 'true');
-  const cuerpo = document.createElement('div');
-  cuerpo.className = 'trazo-cuerpo';
-  cuerpo.innerHTML = gato(size, pose, ID);
-  const hold = document.createElement('div');
-  hold.className = 'trazo-hold';
-  el.append(cuerpo, hold);
-  document.body.append(el);
-  return el;
-}
-
-function mira(el: HTMLElement, on: boolean): () => void {
-  const cabeza = el.querySelector<HTMLElement>(`.${ID}-cabeza`);
-  if (!cabeza || !on || reduce()) return () => {};
-  const go = (e: PointerEvent) => {
-    const r = el.getBoundingClientRect();
-    const cx = r.left + r.width * 0.36, cy = r.top + r.height * 0.36;
-    const dx = (e.clientX - cx) / 40, dy = (e.clientY - cy) / 60;
-    cabeza.style.transform = `rotate(${Math.max(-14, Math.min(14, dx))}deg) translateY(${Math.max(-3, Math.min(3, dy))}px)`;
-  };
-  window.addEventListener('pointermove', go, { passive: true });
-  return () => { window.removeEventListener('pointermove', go); cabeza.style.transform = ''; };
-}
-
-function pie(el: HTMLElement) {
-  const r = el.getBoundingClientRect();
-  return { x: r.left + r.width * 0.42, y: r.bottom - 8 };
-}
+// El tour y el tutorial reciben el ELEMENTO, no el rig, y no hace falta
+// cambiarlos: este mapa da el rig a partir del elemento. Es debil, asi que
+// cuando el nodo muere el rig se recoge con el.
+const rigs = new WeakMap<HTMLElement, Conito>();
 
 /**
- * Trazo walks in from the right carrying `cargo`, sets it down in `dest`
- * (or leaves it where he stands), sits, and walks off. One at a time.
+ * Monta a Trazo y devuelve su elemento. Quien llama lo coloca (GSAP), el rig
+ * deduce la marcha del desplazamiento. Hay que llamarlo despues de tenerlo en
+ * el documento, cosa que `montarConito` no hace: aqui se hace y se arranca.
+ */
+function actor(size: number): HTMLElement {
+  css();
+  const c = montarConito(size);
+  document.body.append(c.el);
+  c.vive();
+  rigs.set(c.el, c);
+  return c.el;
+}
+
+/** Mirar al puntero. La cabeza gira en Y de verdad, en perspectiva. */
+function mira(el: HTMLElement, on: boolean): () => void {
+  const c = rigs.get(el);
+  if (!c || reduce()) return () => {};
+  c.mirar(on);
+  return () => c.mirar(false);
+}
+
+/** Un gesto suelto. Los de fondo ya salen solos, en Poisson. */
+export function trazoGesto(el: HTMLElement, gesto: Gesto) { rigs.get(el)?.gesto(gesto); }
+/** Sentarse / levantarse. */
+export function trazoSentar(el: HTMLElement, on = true) { rigs.get(el)?.sentarse(on); }
+
+/**
+ * Trazo entra andando por la derecha con `cargo`, lo deja en `dest` (o donde
+ * este), se sienta un momento, se levanta, se da la vuelta y se va. De uno en uno.
  */
 export function trazoEntregar(job: Entrega): Promise<void> {
   const run = () => entregarUno(job);
@@ -165,35 +105,49 @@ export function trazoEntregar(job: Entrega): Promise<void> {
 async function entregarUno(job: Entrega): Promise<void> {
   const dest = job.dest ?? document.getElementById('toasts');
   const size = job.size ?? 112;
-  // The tour owns Trazo. A toast that walked in over the tour would be two
-  // cats with the same id, so we plant the card and wait.
-  // Phone: the walk covers the form. Plant the card and skip the gait.
+  // El tour manda sobre Trazo. Un toast que entrara andando por encima del tour
+  // serian dos gatos a la vez, asi que se planta la tarjeta y se espera.
+  // En movil el paseo tapa el formulario: se planta y no hay marcha.
   if (reduce() || document.getElementById('trazo-tour') || window.innerWidth < 720) {
     dest?.append(job.cargo);
     return;
   }
-  const el = actor(size, 'anda');
-  const hold = el.querySelector('.trazo-hold') as HTMLElement;
+  const el = actor(size);
+  const c = rigs.get(el)!;
+  const hold = c.hold;
   const cargo = job.cargo;
   cargo.style.width = cargo.style.width || (cargo.classList.contains('toast') ? '280px' : '');
   cargo.style.transformOrigin = 'left bottom';
   hold.append(cargo);
-  const stopGlow = glow(el, () => pie(el));
   const stopMira = mira(el, true);
   const gs = g();
+
   const endX = dest
     ? Math.max(16, window.innerWidth - (dest.getBoundingClientRect().width || 372) - size - 36)
     : window.innerWidth - size - 32;
   const endY = dest
     ? Math.max(8, window.innerHeight - dest.getBoundingClientRect().height - size - 28)
     : window.innerHeight - size - 24;
-  gs.set(el, { x: window.innerWidth + 24, y: window.innerHeight - size - 18, rotation: 0 });
+
+  // Entra desde 460 px, no desde el borde de un monitor de 2560. Cruzar la
+  // pantalla entera en un segundo son ~30 zancadas: un gato no da 30 zancadas
+  // para recorrer un salon. Acotar el viaje es lo que deja que el paso sea
+  // creible sin que el aviso tarde una eternidad.
+  gs.set(el, { x: Math.min(window.innerWidth + 24, endX + 460), y: window.innerHeight - size - 18 });
+  c.rumbo(180);                       // entra por la derecha: ya viene mirando a la izquierda
   gs.set(hold, { scale: 0.52, y: 8, x: 10, rotation: -8 });
-  await gs.to(el, { x: endX, y: endY, duration: 0.92, ease: 'power2.out' });
-  el.classList.remove('trazo-anda');
-  const svg = el.querySelector('svg');
-  if (svg) svg.setAttribute('data-gato', 'saluda');
+  // 0.92 → 1.7 s. Con el viaje acotado arriba, esto da ~270 px/s de media, que
+  // con zancada de gato son dos o tres zancadas por segundo. A 0.92 s eran
+  // dieciocho, y por eso se veia como un juguete de cuerda.
+  await gs.to(el, { x: endX, y: endY, duration: 1.7, ease: 'power2.out' });
+
+  // Llega, se para y se ASIENTA. El rig devuelve las cuatro patas al reposo solo
+  // (antes se quedaban congeladas a media zancada). Estos 180 ms son eso mas el
+  // rebote de la cola, que llega con retraso porque es un resorte.
+  await new Promise((r) => setTimeout(r, 180));
+  c.gesto('cola');
   await gs.to(hold, { scale: 1, x: size * 0.08, y: -12, rotation: 0, duration: 0.38, ease: 'back.out(1.6)' });
+
   if (dest) {
     const slot = cargo.getBoundingClientRect();
     dest.append(cargo);
@@ -201,14 +155,30 @@ async function entregarUno(job: Entrega): Promise<void> {
     gs.set(cargo, { x: slot.left - to.left, y: slot.top - to.top });
     await gs.to(cargo, { x: 0, y: 0, duration: 0.42, ease: 'power3.out' });
   }
-  await gs.to(el, { y: endY + 6, duration: 0.22, ease: 'sine.inOut', yoyo: true, repeat: 1 });
-  if (job.holdMs) await new Promise((r) => setTimeout(r, job.holdMs));
-  el.classList.add('trazo-anda');
-  await gs.to(el, { x: window.innerWidth + 40, duration: 0.7, ease: 'power2.in' });
-  stopGlow(); stopMira(); el.remove();
+
+  // Se sienta y parpadea LENTO. Antes esto era un bote de 6 px con yoyo, que es
+  // un asentimiento de dibujo animado; un gato que ha dejado algo se sienta.
+  c.sentarse(true);
+  c.gesto('parpadeoLento');
+  await new Promise((r) => setTimeout(r, job.holdMs ? job.holdMs + 420 : 620));
+
+  // Se levanta y SIGUE DE LARGO, saliendo por la izquierda. Antes se interpolaba
+  // solo x hacia la derecha y se iba de espaldas, haciendo el moonwalk.
+  //
+  // La otra opcion era darse la vuelta, y se probo: no funciona. El rig es un
+  // plano en 3D, y al cruzar los 90 grados un plano se ve de canto — ancho cero.
+  // Ninguna transformacion lo desaplana (el scaleX se aplica ANTES de la
+  // rotacion), asi que el gato desaparecia un par de fotogramas. Y de todas
+  // formas un gato no hace un cambio de sentido parado: entra por un lado y
+  // sale por el otro.
+  c.sentarse(false);
+  await new Promise((r) => setTimeout(r, 380));
+  await gs.to(el, { x: -size - 40, duration: 1.25, ease: 'power2.in' });
+  stopMira();
+  c.destruir();
 }
 
-/** Trazo walks in with a speech bubble. Used when a lesson closes. */
+/** Trazo entra con un globo de texto. Se usa al cerrar una leccion. */
 export function trazoDice(texto: string, ms = 4200): () => void {
   const globo = document.createElement('div');
   globo.className = 'card';
@@ -218,9 +188,8 @@ export function trazoDice(texto: string, ms = 4200): () => void {
   p.style.color = 'var(--l1)';
   p.textContent = texto;
   globo.append(p);
-  let dead = false;
   void trazoEntregar({ cargo: globo, dest: null, holdMs: Math.max(800, ms - 1800), size: 96 });
-  return () => { dead = true; globo.remove(); void dead; };
+  return () => globo.remove();
 }
 
-export { actor as montarActor, mira as trazoMira, glow as trazoGlow, css as trazoCSS, reduce as trazoQuieto, g as trazoGsap };
+export { actor as montarActor, mira as trazoMira, css as trazoCSS, reduce as trazoQuieto, g as trazoGsap };

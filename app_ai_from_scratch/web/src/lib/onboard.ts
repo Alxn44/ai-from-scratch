@@ -3,7 +3,7 @@
 // never plays twice on this device. Reduced motion: static cards, no walk.
 import { gsap } from 'gsap';
 import { cookies } from './prefs';
-import { montarActor, trazoCSS, trazoGlow, trazoMira, trazoQuieto } from './trazo';
+import { montarActor, trazoCSS, trazoGesto, trazoMira, trazoQuieto, trazoSentar } from './trazo';
 
 export const COOKIE_TOUR = 'trazo_tour';
 const MAX_AGE = 60 * 60 * 24 * 365;
@@ -141,7 +141,7 @@ export function abrirTour(copy: TourCopy, nombre: string): () => void {
   document.documentElement.style.overflow = 'hidden';
 
   const size = Math.min(128, Math.round(window.innerWidth * 0.22));
-  const cat = montarActor(size, 'anda');
+  const cat = montarActor(size);
   cat.style.zIndex = '201';
   cat.style.pointerEvents = 'auto';
   cat.style.cursor = 'pointer';
@@ -149,10 +149,6 @@ export function abrirTour(copy: TourCopy, nombre: string): () => void {
   cat.setAttribute('role', 'button');
   cat.setAttribute('aria-label', copy.next);
   const stopMira = trazoMira(cat, true);
-  const stopGlow = trazoGlow(cat, () => {
-    const r = cat.getBoundingClientRect();
-    return { x: r.left + r.width * 0.4, y: r.bottom - 6 };
-  });
   const stopFloor = shader(canvas, () => {
     const r = cat.getBoundingClientRect();
     return { x: r.left + r.width * 0.4, y: r.bottom - 10 };
@@ -170,7 +166,7 @@ export function abrirTour(copy: TourCopy, nombre: string): () => void {
     live = false;
     writeTourHecho();
     document.documentElement.style.overflow = '';
-    stopMira(); stopGlow(); stopFloor();
+    stopMira(); stopFloor();
     gs.to(root, { opacity: 0, duration: quieto ? 0 : 0.35, onComplete: () => { root.remove(); cat.remove(); } });
     if (quieto) { root.remove(); cat.remove(); }
   };
@@ -188,6 +184,8 @@ export function abrirTour(copy: TourCopy, nombre: string): () => void {
       ? Math.max(168, window.innerHeight * 0.36) + n * 92
       : Math.max(200, window.innerHeight * 0.42);
     const tl = gs.timeline();
+    // Se levanta antes de andar: si no, camina sentado.
+    trazoSentar(cat, false);
     tl.to(cat, { x: Math.min(x + 70, window.innerWidth - size - 24), duration: quieto ? 0 : 0.85, ease: 'power2.out' }, 0)
       .to(hold, { scale: 1, x: 0, y: -16, rotation: 0, duration: quieto ? 0 : 0.32, ease: 'back.out(1.7)' }, 0.55)
       .add(() => {
@@ -196,6 +194,10 @@ export function abrirTour(copy: TourCopy, nombre: string): () => void {
         gs.set(card, { left: x, top: y });
         gs.fromTo(card, { y: 18, opacity: 0.4 }, { y: 0, opacity: 1, duration: quieto ? 0 : 0.35, ease: 'power3.out' });
         hold.innerHTML = '';
+        // Deja la tarjeta y se sienta a esperar. Un gato que ha terminado de
+        // llevar algo no se queda de pie mirando al frente. El parpadeo lento
+        // es el gesto con el que un gato dice que se fia de ti.
+        if (!quieto) { trazoSentar(cat, true); trazoGesto(cat, 'parpadeoLento'); }
       });
     return tl;
   };

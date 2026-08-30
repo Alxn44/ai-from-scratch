@@ -569,7 +569,12 @@ app.get('/api/chat/estado', async (req, reply) => {
   const s = await aiHealth();
   return {
     disponible: Boolean(s.ok) && (s.proveedores?.length ?? 0) > 0,
-    proveedores: (s.proveedores ?? []).map((id) => ({ id, modelo: s.modelos?.[id] ?? null })),
+    // El carril viaja con cada proveedor. Es lo que deja que la interfaz ofrezca
+    // "rapido" y "razona" sin llevar su propia tabla de que modelo es cual: esa
+    // copia se queda vieja sola y nadie se entera hasta que un alumno elige un
+    // modelo que ya no existe.
+    proveedores: (s.proveedores ?? []).map((id) => ({
+      id, modelo: s.modelos?.[id] ?? null, carril: s.carriles?.[id] ?? null })),
     herramientas: catalog().map((h) => h.nombre),
     familias: families(),
     // The turn cap is declared by whoever RUNS the loop, which is the Python
@@ -707,7 +712,14 @@ const SCHEMA_CHAT = {
       },
       lang: { type: 'string', enum: ['es', 'en', 'auto'] },
       fuente: { type: 'string', enum: ['chat', 'panel'] },
-      proveedor: { type: 'string', enum: ['sonnet', 'deepseek', 'kimi', 'together', 'anthropic'] },
+      // NO ENUM AQUI. Era enum: ['sonnet','deepseek','kimi','together','anthropic'],
+      // o sea una COPIA del catalogo de ai/src/course_ai/agent/providers.py, que
+      // hoy declara once ids. Los seis que faltaban se rechazaban con 400 antes
+      // de llegar al servicio — incluido `grok`, que es el primero del carril
+      // "razon" y por tanto lo que resuelve el boton de razonar de la interfaz.
+      // Quien decide que id existe es el servicio que tiene las llaves; aqui solo
+      // se comprueba la FORMA, que no puede quedarse vieja.
+      proveedor: { type: 'string', minLength: 1, maxLength: 32, pattern: '^[a-z0-9_-]+$' },
       esfuerzo: { type: 'string', enum: ['bajo', 'medio', 'alto'] },
     },
   },

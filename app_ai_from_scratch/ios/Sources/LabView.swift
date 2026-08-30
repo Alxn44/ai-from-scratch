@@ -109,7 +109,7 @@ struct LabView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     HStack(spacing: 10) {
                         Text("Lab \(lab.id)").eyebrow()
-                        if let n = lab.level, !n.isEmpty { Text(n).label() }
+                        if let n = lab.level, !n.isEmpty { Text(nivelNombre(n)).label() }
                         Spacer()
                         if lab.solved {
                             Text(L.resuelto)

@@ -9,6 +9,8 @@ them echo the truncated key in the text of a 401.
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -129,13 +131,33 @@ def test_anthropic_alias_selects_sonnet_not_haiku(clean_env):
     assert pick_chain("sonnet")[0].id == "sonnet"
 
 
-def test_unknown_or_unlisted_pick_keeps_the_full_chain(clean_env):
+def test_any_provider_in_the_live_chain_is_selectable(clean_env):
+    """Selectable == in the catalog. Not "in a set someone typed once".
+
+    This test used to assert `pick_chain("grok") == full`, locking in the stale
+    hand-written SELECTABLE set: grok is the FIRST provider of the "razon" lane,
+    so an interface offering "reasoning" resolves it to grok, and pick_chain
+    threw the choice away and answered from a flash model without saying so.
+    """
     clean_env.setenv("DEEPSEEK_API_KEY", "x")
     clean_env.setenv("XAI_API_KEY", "x")
     full = providers()
-    assert pick_chain("opus") == full
-    assert pick_chain("grok") == full
+    assert pick_chain("grok")[0].id == "grok"
+    assert sorted(p.id for p in pick_chain("grok")) == sorted(p.id for p in full)
     assert pick_chain(None) == full
+
+
+def test_an_id_that_is_not_in_the_chain_is_ignored(clean_env):
+    """The fail-closed half: no key, no row, no selection — and the chain stands.
+
+    `opus` is not a lane (providers() says so) and a provider whose key is unset
+    never enters the chain, so neither can be picked by name.
+    """
+    clean_env.setenv("DEEPSEEK_API_KEY", "x")
+    full = providers()
+    assert pick_chain("opus") == full
+    assert pick_chain("grok") == full          # XAI_API_KEY unset -> not in chain
+    assert pick_chain("") == full
 
 
 def test_language_order_prefers_the_measured_language_provider(clean_env):
@@ -191,6 +213,39 @@ async def test_a_real_4xx_raises_without_the_body(clean_env, fmt, pid):
                        catalog=[])
     assert str(box.value) == f"{pid} 401"
     assert "FUGA" not in str(box.value)
+
+
+@pytest.mark.parametrize("lane_id,esfuerzo", [("sonnet", "alto"), ("sonnet", "bajo"),
+                                              ("anthropic", "alto")])
+async def test_the_anthropic_body_never_carries_an_effort_field(clean_env, lane_id, esfuerzo):
+    """The whole «razon» lane was dead and nobody could tell.
+
+    `turn` used to add `body["effort"]` for the reasoning lane. The Messages API
+    has no such parameter and does not ignore it — it rejects the request:
+
+        400 {"type":"error","error":{"type":"invalid_request_error",
+             "message":"effort: Extra inputs are not permitted"}}
+
+    So every «Razona» press 400ed, the loop fell through to the next provider,
+    and Haiku answered while the screen said otherwise. This asserts on the body
+    that actually goes out, because that is the thing that was wrong.
+    """
+    clean_env.setenv("ANTHROPIC_API_KEY", "x")
+    prov = next(p for p in providers() if p.id == lane_id)
+    assert prov.fmt == "anthropic"
+    visto: dict[str, object] = {}
+
+    def answer(req: httpx.Request) -> httpx.Response:
+        visto.update(json.loads(req.content))
+        return httpx.Response(200, json={"content": [{"type": "text", "text": "ok"}]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as cl:
+        await turn(cl, prov, system="s", messages=[{"role": "user", "content": "x"}],
+                   catalog=[], effort=esfuerzo)
+
+    assert "effort" not in visto, f"la API lo rechaza con 400: {sorted(visto)}"
+    # Y el esfuerzo SÍ tiene que seguir haciendo algo: es max_tokens.
+    assert visto["max_tokens"] == effort_budget(esfuerzo)[0]
 
 
 async def test_the_full_body_does_stay_in_the_log(clean_env, caplog):

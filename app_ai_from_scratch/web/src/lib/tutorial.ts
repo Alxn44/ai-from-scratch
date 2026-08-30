@@ -7,7 +7,7 @@
 // Reduced motion: no walk, the hole just appears.
 import { gsap } from 'gsap';
 import { cookies } from './prefs';
-import { montarActor, trazoCSS, trazoGlow, trazoMira, trazoQuieto } from './trazo';
+import { montarActor, trazoCSS, trazoMira, trazoQuieto } from './trazo';
 
 export const COOKIE_TUTORIAL = 'tutorial_v1';
 const MAX_AGE = 60 * 60 * 24 * 365;
@@ -171,13 +171,9 @@ export function abrirTutorial(page: string, pasos: PasoTut[], copy: TutorialCopy
   document.documentElement.style.overflow = 'hidden';
 
   const size = Math.min(96, Math.round(window.innerWidth * 0.18));
-  const cat = montarActor(size, 'anda');
+  const cat = montarActor(size);
   cat.style.zIndex = '212';
   const stopMira = trazoMira(cat, true);
-  const stopGlow = trazoGlow(cat, () => {
-    const r = cat.getBoundingClientRect();
-    return { x: r.left + r.width * 0.4, y: r.bottom - 6 };
-  });
   const gs = (window as any).gsap ?? gsap;
   gs.set(cat, { x: -size - 24, y: window.innerHeight - size - 16 });
 
@@ -191,7 +187,7 @@ export function abrirTutorial(page: string, pasos: PasoTut[], copy: TutorialCopy
     writeTutorialHecho(page);
     document.documentElement.style.overflow = '';
     anim?.kill();
-    stopMira(); stopGlow();
+    stopMira();
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('resize', colocar);
     gs.to(root, { opacity: 0, duration: quieto ? 0 : 0.28, onComplete: () => { root.remove(); cat.remove(); } });

@@ -13,22 +13,30 @@ const L = t(lang);
 const C = L.chat;
 
 type Fila = { n: number; total: number; solved: number };
-type Lec = { n: number; title: string; solved: number; total: number; locked: boolean };
-const [prog, lecs, logros, rank, estado] = await Promise.all([
+type LabIdx = { id: string; idx: number; level: string; kind: string; draft: boolean; solved: boolean };
+type Lec = { n: number; title: string; solved: number; total: number; locked: boolean; labs: LabIdx[] };
+// La racha viene de /api/coach, que ya la calcula (api/src/coach.ts). No se
+// recalcula aquí: es la misma cifra que usa el sistema de avisos, así que el
+// rail y los avisos no pueden decir dos cosas distintas.
+const [prog, lecs, logros, rank, estado, coach] = await Promise.all([
   apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number; perLesson: Fila[] }>('/api/progress', Astro.request),
   apiFetch<{ lessons: Lec[] }>(`/api/lessons?lang=${lang}`, Astro.request),
   apiFetch<{ nivel: number; logros: unknown[] }>('/api/logros', Astro.request),
   apiFetch<{ tabla: { alias: string }[]; yo: { alias: string | null; puesto: number | null } }>('/api/ranking', Astro.request),
-  apiFetch<{ disponible: boolean; proveedores: { id: string; modelo: string }[]; herramientas: string[];
+  apiFetch<{ disponible: boolean;
+             proveedores: { id: string; modelo: string | null; carril: string | null }[];
+             herramientas: string[];
              familias: Record<string, string[]> }>('/api/chat/estado', Astro.request),
+  apiFetch<{ racha: number }>('/api/coach', Astro.request),
 ]);
 
 // The chat is always AI-backed. These facts provide the agent with the learner's
 // current context; there is no second, local-response mode to choose first.
+const lecciones = lecs?.lessons ?? [];
 const datos = {
   nombre: user!.name.split(' ')[0],
   progreso: prog ?? { solvedLabs: 0, totalLabs: 36, lessonsDone: 0, totalLessons: 12, perLesson: [] },
-  lecciones: (lecs?.lessons ?? []).map((l) => ({ n: l.n, title: l.title, solved: l.solved, total: l.total, locked: l.locked })),
+  lecciones: lecciones.map((l) => ({ n: l.n, title: l.title, solved: l.solved, total: l.total, locked: l.locked })),
   logros: { nivel: logros?.nivel ?? 0, total: logros?.logros?.length ?? 0 },
   ranking: { alias: rank?.yo.alias ?? null, puesto: rank?.yo.puesto ?? null, cuantos: rank?.tabla.length ?? 0 },
   txt: { ...C, rangos: L.logros.rangos, sinRango: L.logros.sinRango },
@@ -46,81 +54,280 @@ const grupos = FAMILIAS
   .map(([clave, titulo]) => ({ titulo, nombres: estado?.familias?.[clave] ?? [] }))
   .filter((g) => g.nombres.length);
 
+// EL SIGUIENTE LAB sale del dato, no de una suposición: primera lección
+// desbloqueada con labs pendientes y, de ella, el primer lab sin resolver que no
+// sea borrador. Un borrador la API lo rechaza, así que ofrecerlo como
+// «siguiente» manda a la persona contra una pared.
+const lecActual = lecciones.find((l) => !l.locked && l.solved < l.total);
+const labSig = lecActual?.labs?.find((x) => !x.solved && !x.draft) ?? null;
+const NIVEL: Record<string, string> = { facil: L.curso.nFacil, medio: L.curso.nMedio, dificil: L.curso.nDuro };
+const COLOR: Record<string, string> = { facil: 'var(--ok)', medio: 'var(--or)', dificil: 'var(--rd)' };
+
+const p = datos.progreso;
+const pct = p.totalLabs ? Math.round((p.solvedLabs / p.totalLabs) * 100) : 0;
+const racha = coach?.racha ?? 0;
+const rachaTxt = racha === 0 ? C.rachaCero
+  : racha === 1 ? C.rachaUno : C.racha.replace('{n}', String(racha));
+const leccionAhora = Math.min(p.lessonsDone + 1, p.totalLessons);
+
+// Los mismos ocho atajos de siempre: uno sube a las pills de bienvenida y los
+// otros siete quedan en el rail. Ninguno se pierde — aPagar es la ruta de compra.
+const ATAJOS = [C.aLeccion, C.aSiguiente, C.aProgreso, C.aLogros, C.aTutorial, C.aPagar, C.aAyuda];
+const SUGERENCIAS = [C.sugFallo, C.sugSimple, C.sugPrueba];
+
 // The JSON blob below carries `datos`, which includes the viewer's own display
 // name, so it goes through the shared serializer in lib/json-safe.ts.
 ---
-<App user={user!} title={C.titulo} crumb={C.crumb} active={L.nav.chat}>
-  <div id="lienzo-chat" class="chat-split" style="position:relative;padding:26px 28px 30px;max-width:1180px">
-    <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px;min-height:calc(100dvh - 190px)">
-      <div id="hilo" style="display:flex;flex-direction:column;gap:14px;flex:1">
-        <div class="card" style="border-left:2px solid var(--ac);display:flex;flex-direction:column;gap:8px">
-          <p class="eb">{C.eb}</p>
-          <div class="h2">{C.hola.replace('{n}', datos.nombre)}</div>
-          <p class="p" style="font-size:14px">{C.holaB}</p>
+<App user={user!} title={C.titulo} crumb={C.cabecera} active={L.nav.chat}>
+  <div id="lienzo-chat" class="chat-split ch-marco">
+
+    <!-- ── Columna de conversación ──────────────────────────────────────── -->
+    <div class="ch-col">
+      <div id="hilo" class="ch-hilo">
+        <div class="ch-turno">
+          <div class="ch-av" aria-hidden="true">IA</div>
+          <div class="pr">
+            <p class="pr-p">{C.hola.replace('{n}', datos.nombre)}</p>
+            <p class="pr-p">{C.holaB}</p>
+            <div class="ch-pills">
+              {[C.aEmpezar, C.aSiguiente, C.aAyuda].map((a) => (
+                <button class="ch-pill" data-atajo={a} type="button">{a}</button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style="position:sticky;bottom:0;background:linear-gradient(to top, var(--bg) 0, var(--bg) 58%, transparent 100%);padding-top:22px;display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;gap:10px">
-          <input class="input" id="q" data-tut="chat-2" placeholder={C.phIA} autocomplete="off" style="flex:1">
-          <button class="btn" id="go">{C.enviar}</button>
+      <!-- Composer de DOS filas. Arriba el texto, que crece; abajo los mandos.
+           Una sola fila no admite entrada multilínea y no cabe en móvil. -->
+      <div class="ch-comp">
+        <div class="ch-caja">
+          <textarea id="q" class="ch-ta" data-tut="chat-2" rows="1"
+            placeholder={C.phIA} autocomplete="off" aria-label={C.phIA}></textarea>
+          <div class="ch-ctl">
+            <div id="ch-pick"></div>
+            <button class="btn ch-go" id="go" type="button">{C.enviar}</button>
+          </div>
         </div>
-        <p class="s" id="aviso">{C.privAviso}</p>
+        <p class="ch-priv" id="aviso">{C.privAviso}</p>
       </div>
     </div>
 
-    <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px">
-      <div class="card" data-tut="chat-1" style="display:flex;flex-direction:column;gap:9px">
-        <p class="lbl">{C.atajos}</p>
-        {[C.aEmpezar, C.aLeccion, C.aPagar, C.aTutorial, C.aProgreso, C.aSiguiente, C.aLogros, C.aAyuda].map((a) => (
-          <button class="btn ghost" data-atajo={a} style="justify-content:flex-start;height:36px;font-size:10px">{a}</button>
-        ))}
+    <!-- ── Rail del curso ───────────────────────────────────────────────── -->
+    <aside class="ch-rail" data-tut="chat-1">
+      <div class="ch-bloque">
+        <p class="lbl">{C.tuProgreso}</p>
+        <div class="ch-prog">
+          <span class="ch-big">{p.solvedLabs}</span>
+          <span class="ch-de">{C.deLabs.replace('{n}', String(p.totalLabs))}</span>
+          <span class="ch-racha">{rachaTxt}</span>
+        </div>
+        <div class="ch-pista"><div class="ch-fill" style={`width:${pct}%`}></div></div>
+        <div class="ch-pie">
+          <span>{C.leccionDe.replace('{n}', String(leccionAhora)).replace('{m}', String(p.totalLessons))}</span>
+          <span>{pct}%</span>
+        </div>
       </div>
 
-      <div class="card" style="display:flex;flex-direction:column;gap:10px;border-color:var(--hair2)">
+      {labSig && lecActual ? (
+        <div class="ch-bloque">
+          <p class="lbl">{C.siguienteLab}</p>
+          <div class="ch-lab">
+            <div class="ch-lab-t">{lecActual.n}.{labSig.idx} · {lecActual.title}</div>
+            <div class="ch-tags">
+              <span class="ch-tag" style={`border-color:${COLOR[labSig.level] ?? 'var(--hair)'};color:${COLOR[labSig.level] ?? 'var(--l2)'}`}>{NIVEL[labSig.level] ?? labSig.level}</span>
+              <span class="ch-tag">{labSig.kind}</span>
+            </div>
+            <a class="btn ch-cta" href={`/leccion/${lecActual.n}`}>{C.empezarLab}</a>
+          </div>
+        </div>
+      ) : (
+        <div class="ch-bloque">
+          <p class="lbl">{C.cursoHecho}</p>
+          <div class="ch-lab"><p class="ch-lab-s">{C.cursoHechoB}</p></div>
+        </div>
+      )}
+
+      <div class="ch-bloque">
+        <p class="lbl">{C.atajosCurso}</p>
+        <div class="ch-atajos">
+          {ATAJOS.map((a) => (
+            <button class="ch-fila" data-atajo={a} type="button">
+              <span class="ch-mark" aria-hidden="true"></span>{a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div class="ch-bloque">
+        <p class="lbl">{C.preguntaEsto}</p>
+        <div class="ch-pills">
+          {SUGERENCIAS.map((s) => (
+            <button class="ch-pill" data-atajo={s} type="button">{s}</button>
+          ))}
+        </div>
+      </div>
+
+      {!hayIA && (
+        <div class="ch-bloque">
+          <p class="lbl" style="color:var(--or)">{C.sinProveedor}</p>
+          <div class="ch-lab" style="border-left:2px solid var(--or)">
+            <p class="ch-lab-s">{C.sinProveedorB}</p>
+          </div>
+        </div>
+      )}
+
+      <div class="ch-bloque">
         <p class="lbl">{C.soloTuyo}</p>
-        <p class="s" style="color:var(--l2)">{C.soloTuyoB}</p>
-        <p class="lbl" style="margin-top:2px">{C.toolsTitulo.replace('{n}', String(tools.length))}</p>
-        <div style="display:flex;flex-direction:column;gap:5px">
+        <p class="ch-lab-s">{C.soloTuyoB}</p>
+        <div class="ch-fam">
           {grupos.map((g) => (
-            <div style="display:flex;gap:8px;align-items:baseline">
-              <span class="num" style="font:600 12px/1 var(--m);width:22px;flex:none">{g.nombres.length}</span>
-              <span class="s" style="color:var(--l2)">{g.titulo}</span>
+            <div class="ch-fam-f">
+              <span class="ch-fam-n">{g.nombres.length}</span>
+              <span>{g.titulo}</span>
             </div>
           ))}
         </div>
-        <details style="margin-top:2px">
-          <summary class="lbl" style="cursor:pointer">{C.toolsVer}</summary>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
-            {tools.map((h) => (
-              <span class="num" style="display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--hair2);font:500 10px/1 var(--m);color:var(--l3)">{h}</span>
-            ))}
+        <details>
+          <summary class="lbl ch-sum">{C.toolsVer}</summary>
+          <div class="ch-tools">
+            {tools.map((h) => <span class="ch-tool">{h}</span>)}
           </div>
         </details>
       </div>
 
-      <div class="card" style={`display:flex;flex-direction:column;gap:8px;border-left:2px solid ${hayIA ? 'var(--ok)' : 'var(--or)'}`}>
-        <p class="lbl">{C.modoIA}</p>
-        {hayIA
-          ? <div id="ia-pick-chat"></div>
-          : <Fragment>
-              <div class="h3" style="color:var(--or)">{C.sinProveedor}</div>
-              <p class="s" style="color:var(--l2)">{C.sinProveedorB}</p>
-            </Fragment>}
-      </div>
-    </div>
+      <p class="ch-rail-pie">{C.railPie.replace('{n}', String(tools.length))}</p>
+    </aside>
   </div>
 
   <script type="application/json" id="chat-datos" is:inline set:html={jsonSafe({
     datos, hayIA, lang,
-    proveedores: provs.map((p) => p.id),
+    proveedores: provs.map((pv) => ({ id: pv.id, modelo: pv.modelo, carril: pv.carril })),
     flujo: L.flujo,
     tutorial: { ...L.tutorial, ...L.tutorial.chat },
   })}></script>
 
+  <style is:global>
+    /* La maqueta 1a del handoff con los tokens del producto. El rail ya existía
+       como columna de 300 px (App.astro:209 .chat-split); lo que cambia es lo que
+       lleva dentro y que el hilo deja de ser una pila de tarjetas. */
+    .ch-marco{position:relative;padding:0;max-width:none;gap:0!important;
+      align-items:stretch!important}
+    .ch-col{position:relative;z-index:1;display:flex;flex-direction:column;
+      min-height:calc(100dvh - 64px)}
+    /* Medida fija: 660 px dan ~72 caracteres por línea a 15 px, que es donde el
+       ojo deja de perder el renglón. Sin esto la respuesta se estira hasta el
+       ancho del monitor y se lee PEOR cuanto más grande la pantalla. */
+    .ch-hilo{flex:1;display:flex;flex-direction:column;gap:32px;
+      width:100%;max-width:660px;margin:0 auto;padding:30px 24px 0}
+    .ch-turno{display:flex;gap:15px}
+    .ch-av{flex:none;width:27px;height:27px;display:flex;align-items:center;
+      justify-content:center;background:var(--fill);border:1px solid var(--ac);
+      color:var(--ac);font:600 10px/1 var(--m)}
+    /* El mensaje propio SÍ va en caja: es lo único que separa lo que escribiste
+       de lo que te contestaron cuando ninguno de los dos lleva marco. */
+    .ch-yo{display:flex;justify-content:flex-end}
+    .ch-yo > div{max-width:68%;padding:11px 17px;background:var(--fill);
+      border:1px solid var(--ac);color:var(--l1);font:400 15px/1.55 var(--f);
+      white-space:pre-wrap}
+    .ch-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:3px}
+    .ch-pill{padding:9px 14px;min-height:44px;border:1px solid var(--hair2);
+      background:transparent;color:var(--l2);font:500 11px/1.3 var(--m);
+      letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:left;
+      transition:border-color .15s,color .15s}
+    .ch-pill:hover{border-color:var(--ac);color:var(--l1)}
+
+    .ch-comp{position:sticky;bottom:0;width:100%;max-width:660px;margin:0 auto;
+      padding:20px 24px 22px;
+      background:linear-gradient(to top,var(--bg) 0,var(--bg) 62%,transparent 100%)}
+    .ch-caja{border:1px solid var(--hair);background:var(--panel)}
+    .ch-ta{display:block;width:100%;resize:none;border:0;outline:none;
+      background:transparent;color:var(--l1);font:400 15px/1.5 var(--f);
+      padding:14px 16px;max-height:180px}
+    .ch-ta::placeholder{color:var(--l3)}
+    .ch-ta:focus-visible{outline:none}
+    .ch-caja:focus-within{border-color:var(--ac)}
+    .ch-ctl{display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;
+      border-top:1px solid var(--hair2)}
+    .ch-go{height:36px;padding:0 22px;margin-left:auto;flex:none}
+    .ch-priv{margin:11px 0 0;font:400 11.5px/1.5 var(--f);color:var(--l3)}
+
+    .ch-pick{display:flex;align-items:center;gap:14px;min-width:0}
+    .ch-eff{display:flex;align-items:center;gap:9px;width:104px;flex:none}
+    /* La pista: el relleno se pinta con un degradado duro sobre la propia pista,
+       así el tirador nativo sigue siendo el tirador y el control sigue
+       funcionando con teclado. */
+    .ch-eff input[type=range]{-webkit-appearance:none;appearance:none;flex:1;
+      height:3px;min-width:0;background:linear-gradient(to right,
+      var(--ac) 0,var(--ac) var(--pc,50%),var(--fill) var(--pc,50%),var(--fill) 100%);
+      cursor:pointer;outline:none}
+    .ch-eff input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;
+      width:11px;height:11px;background:var(--ac);border:2px solid var(--panel);
+      border-radius:50%}
+    .ch-eff input[type=range]::-moz-range-thumb{width:11px;height:11px;
+      background:var(--ac);border:2px solid var(--panel);border-radius:50%}
+    .ch-eff input[type=range]:focus-visible{outline:2px solid var(--ac);outline-offset:5px}
+    .ch-eff-t{flex:none;width:42px;font:600 9.5px/1 var(--m);letter-spacing:.08em;
+      text-transform:uppercase;color:var(--ac)}
+
+    /* El rail es opaco a propósito: en la maqueta es un panel aparte, y así el
+       campo de partículas queda donde tiene sentido, detrás de la conversación. */
+    .ch-rail{position:relative;z-index:1;display:flex;flex-direction:column;
+      gap:22px;padding:26px 20px 30px;background:var(--bg);
+      border-left:1px solid var(--hair2)}
+    .ch-bloque{display:flex;flex-direction:column;gap:11px}
+    .ch-prog{display:flex;align-items:baseline;gap:8px}
+    .ch-big{font:600 30px/1 var(--f);color:var(--l1);font-variant-numeric:tabular-nums}
+    .ch-de{font-size:13px;color:var(--l2)}
+    .ch-racha{margin-left:auto;font:600 10.5px/1 var(--m);letter-spacing:.1em;
+      text-transform:uppercase;color:var(--ac)}
+    .ch-pista{height:3px;background:var(--fill)}
+    .ch-fill{height:100%;background:var(--ac)}
+    .ch-pie{display:flex;justify-content:space-between;gap:10px;
+      font:500 10.5px/1 var(--m);letter-spacing:.08em;text-transform:uppercase;
+      color:var(--l3)}
+    .ch-lab{display:flex;flex-direction:column;gap:9px;padding:15px 16px;
+      border:1px solid var(--hair2);background:var(--panel)}
+    .ch-lab-t{font:600 15px/1.35 var(--f);color:var(--l1)}
+    .ch-lab-s{margin:0;font:400 13px/1.5 var(--f);color:var(--l2)}
+    .ch-tags{display:flex;flex-wrap:wrap;gap:7px}
+    .ch-tag{padding:3px 7px;border:1px solid var(--hair);color:var(--l2);
+      font:500 9.5px/1.4 var(--m);letter-spacing:.1em;text-transform:uppercase}
+    .ch-cta{width:100%;height:38px;text-decoration:none}
+    .ch-atajos{display:flex;flex-direction:column;gap:1px}
+    .ch-fila{display:flex;align-items:center;gap:11px;min-height:44px;
+      padding:10px 12px;border:0;background:var(--panel);color:var(--l2);
+      font:400 13.5px/1.3 var(--f);text-align:left;cursor:pointer;
+      transition:color .15s,background .15s}
+    .ch-fila:hover{color:var(--l1);background:var(--fill)}
+    .ch-mark{flex:none;width:14px;height:14px;border:1px solid var(--hair)}
+    .ch-fila:hover .ch-mark{border-color:var(--ac)}
+    .ch-fam{display:flex;flex-direction:column;gap:5px;font:400 13px/1.4 var(--f);
+      color:var(--l2)}
+    .ch-fam-f{display:flex;gap:8px;align-items:baseline}
+    .ch-fam-n{width:22px;flex:none;font:600 12px/1 var(--m);color:var(--l1)}
+    .ch-sum{cursor:pointer}
+    .ch-tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .ch-tool{display:inline-flex;align-items:center;height:22px;padding:0 8px;
+      border:1px solid var(--hair2);font:500 10px/1 var(--m);color:var(--l3)}
+    .ch-rail-pie{margin:auto 0 0;font:500 10.5px/1.6 var(--m);letter-spacing:.06em;
+      text-transform:uppercase;color:var(--l3)}
+
+    /* Por debajo de 900 px App.astro:346 ya colapsa la rejilla: el rail cae bajo
+       la conversación y el hilo deja de ir centrado a 660. */
+    @media (max-width:900px){
+      .ch-col{min-height:auto}
+      .ch-rail{border-left:0;border-top:1px solid var(--hair2);padding:22px 18px 30px}
+      .ch-hilo,.ch-comp{max-width:none;padding-left:18px;padding-right:18px}
+      .ch-rail-pie{margin-top:14px}
+    }
+  </style>
+
   <script>
     import { preguntarIA, cargarHistorial, type Traza } from '../lib/chat-client';
-    import { montarPick } from '../lib/ai-pick';
+    import { montarPickCompacto } from '../lib/ai-pick';
+    // La hoja de .pr la inyecta AiPanel, que se monta en todas las paginas.
+    import { prosa } from '../lib/prosa';
     import { montarCampo } from '../lib/field';
     import { armarFlujo, pintarFlujo, flujoDe } from '../lib/workflows';
     import { abrirTutorial, pasosDe, tutorialHecho } from '../lib/tutorial';
@@ -128,35 +335,45 @@ const grupos = FAMILIAS
     const cfg = JSON.parse(document.getElementById('chat-datos')!.textContent!);
     const T = cfg.datos.txt;
     const hilo = document.getElementById('hilo')!;
-    const q = document.getElementById('q') as HTMLInputElement;
+    const q = document.getElementById('q') as HTMLTextAreaElement;
     const go = document.getElementById('go') as HTMLButtonElement;
     const historial: { role: 'user' | 'assistant'; content: string }[] = [];
-    const pickHost = document.getElementById('ia-pick-chat');
+    const pickHost = document.getElementById('ch-pick');
     let leerPick = (): { proveedor: string | null; esfuerzo: string } => ({ proveedor: null, esfuerzo: 'medio' });
-    if (pickHost) {
-      leerPick = montarPick(pickHost, {
+    if (pickHost && cfg.hayIA) {
+      leerPick = montarPickCompacto(pickHost, {
         modelo: T.modelo, esfuerzo: T.esfuerzo, bajo: T.bajo, medio: T.medio, alto: T.alto,
+        carrilFlash: T.carrilFlash, carrilRazon: T.carrilRazon,
       }, Array.isArray(cfg.proveedores) ? cfg.proveedores : []);
     }
 
-    // Campo de partículas de fondo. Protege el texto de toda tarjeta visible,
-    // incluidas las burbujas que se añaden después: el módulo remide solo.
+    // Campo de partículas de fondo. Protege el texto de todo bloque transparente
+    // que quede sobre él; el rail y la caja del composer son opacos y no cuentan.
     const lienzo = document.getElementById('lienzo-chat')!;
     montarCampo(lienzo, {
       densidad: 900,
-      protegidos: () => [...lienzo.querySelectorAll('.card'), ...lienzo.querySelectorAll('.input')],
+      protegidos: () => [...lienzo.querySelectorAll('.pr'), ...lienzo.querySelectorAll('.ch-yo > div')],
     });
 
-    const burbuja = (quien: 'yo' | 'bot', html: string) => {
+    /** Un turno de la IA: avatar + prosa. Devuelve el hueco del cuerpo. */
+    const turnoIA = (html: string) => {
       const d = document.createElement('div');
-      d.className = 'card';
-      d.setAttribute('style', quien === 'yo'
-        ? 'align-self:flex-end;max-width:76%;border-color:var(--ac);background:var(--fill)'
-        : 'align-self:flex-start;max-width:88%;border-color:var(--hair)');
-      d.innerHTML = html;
+      d.className = 'ch-turno';
+      d.innerHTML = '<div class="ch-av" aria-hidden="true">IA</div><div class="pr"></div>';
+      (d.lastElementChild as HTMLElement).innerHTML = html;
       hilo.append(d);
       d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      return d;
+      return d.lastElementChild as HTMLElement;
+    };
+
+    const turnoYo = (texto: string) => {
+      const d = document.createElement('div');
+      d.className = 'ch-yo';
+      const b = document.createElement('div');
+      b.textContent = texto;   // textContent, no innerHTML: esto lo escribió una persona
+      d.append(b);
+      hilo.append(d);
+      d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     };
 
     const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
@@ -165,13 +382,13 @@ const grupos = FAMILIAS
       const filas = traza.map((t) => {
         // Every field below is model output (tool names it emitted, provider and
         // model ids it echoed back), so it goes through esc() like t.error does.
-        if (t.paso === 'modelo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none">${T.trazaModelo}</span><span class="s">${esc(String(t.proveedor ?? ''))} · ${esc(String(t.modelo ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.herramientas?.length ? ` → ${esc(t.herramientas.join(', '))}` : ''}</span></div>`;
-        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="s">${esc(String(t.nombre ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.memo ? ` · ${T.trazaMemo}` : ''}</span></div>`;
-        if (t.paso === 'fallo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:var(--rd)">${T.trazaFallo}</span><span class="s">${esc(String(t.error ?? ''))}</span></div>`;
+        if (t.paso === 'modelo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none">${T.trazaModelo}</span><span class="ch-lab-s">${esc(String(t.proveedor ?? ''))} · ${esc(String(t.modelo ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.herramientas?.length ? ` → ${esc(t.herramientas.join(', '))}` : ''}</span></div>`;
+        if (t.paso === 'herramienta') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:${t.ok ? 'var(--ok)' : 'var(--rd)'}">${T.trazaTool}</span><span class="ch-lab-s">${esc(String(t.nombre ?? ''))} · ${esc(String(t.ms ?? ''))}ms${t.memo ? ` · ${T.trazaMemo}` : ''}</span></div>`;
+        if (t.paso === 'fallo') return `<div style="display:flex;gap:9px"><span class="lbl" style="width:78px;flex:none;color:var(--rd)">${T.trazaFallo}</span><span class="ch-lab-s">${esc(String(t.error ?? ''))}</span></div>`;
         return '';
       }).join('');
-      return `<details style="margin-top:12px;border-top:1px solid var(--hair2);padding-top:10px">
-        <summary class="lbl" style="cursor:pointer">${T.traza}</summary>
+      return `<details style="border-top:1px solid var(--hair2);padding-top:10px">
+        <summary class="lbl ch-sum">${T.traza}</summary>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:9px">${filas}</div></details>`;
     };
 
@@ -186,21 +403,27 @@ const grupos = FAMILIAS
       pintarFlujo(f, host, true);
     };
 
+    // El textarea crece con lo escrito hasta el tope de la hoja. Sin esto, una
+    // caja de una fila esconde lo que ya escribiste en cuanto pasa de línea.
+    const crece = () => { q.style.height = 'auto'; q.style.height = `${Math.min(q.scrollHeight, 180)}px`; };
+    q.addEventListener('input', crece);
+
     const enviar = async (texto: string) => {
       const t = texto.trim();
       if (!t) return;
-      burbuja('yo', `<p class="p" style="font-size:14px">${esc(t)}</p>`);
-      q.value = '';
+      turnoYo(t);
+      q.value = ''; crece();
 
       historial.push({ role: 'user', content: t });
       go.disabled = true; go.textContent = T.pensando;
-      const espera = burbuja('bot', `<p class="s">${T.pensando}</p>`);
+      const espera = turnoIA(`<p class="pr-p" style="color:var(--l3)">${T.pensando}</p>`);
+      const turno = espera.parentElement!;
       try {
         const d = await preguntarIA(historial, cfg.lang, 'chat', leerPick());
-        espera.remove();
+        turno.remove();
         if (!d.ok || !d.respuesta) {
           window.toast('bad', d.status === 501 ? T.sinProveedor : T.falloIA, d.msg ?? T.falloIAB);
-          burbuja('bot', `<p class="p" style="font-size:14px;color:var(--rd)">${esc(d.msg ?? T.falloIAB)}</p>${d.traza ? pintaTraza(d.traza) : ''}`);
+          turnoIA(`<p class="pr-p" style="color:var(--rd)">${esc(d.msg ?? T.falloIAB)}</p>${d.traza ? pintaTraza(d.traza) : ''}`);
           return;
         }
         historial.push({ role: 'assistant', content: d.respuesta });
@@ -208,14 +431,17 @@ const grupos = FAMILIAS
         // every field in pintaTraza: they go through esc(). The replacements use
         // a function so a value containing `$&` is inserted verbatim instead of
         // being read as a replacement pattern.
-        const pie = `<p class="s" style="margin-top:10px">${T.proveedorPie
+        //
+        // ESTE PIE NO SE QUITA. La política de privacidad publicada dice «te
+        // diremos en la misma pantalla qué proveedor atiende tu mensaje».
+        const pie = `<p class="ch-priv" style="margin-top:0">${T.proveedorPie
           .replace('{p}', () => esc(String(d.proveedor ?? '')))
           .replace('{m}', () => esc(String(d.modelo ?? '')))}</p>`;
-        const box = burbuja('bot', `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(d.respuesta)}</p>${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
+        const cuerpo = turnoIA(`${prosa(d.respuesta)}${pie}${d.traza ? pintaTraza(d.traza) : ''}`);
         const fid = flujoDe(t);
-        if (fid) pintaFlujo(box, fid);
+        if (fid) pintaFlujo(cuerpo, fid);
       } catch {
-        espera.remove();
+        turno.remove();
         window.toast('bad', T.falloIA, T.falloIAB);
       } finally {
         go.disabled = false; go.textContent = T.enviar;
@@ -223,15 +449,19 @@ const grupos = FAMILIAS
     };
 
     go.addEventListener('click', () => enviar(q.value));
-    q.addEventListener('keydown', (e) => { if (e.key === 'Enter') enviar(q.value); });
+    // Enter envía, Shift+Enter parte la línea. Ahora que el campo es multilínea
+    // hay que distinguirlos: antes era un <input> y no había salto posible.
+    q.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void enviar(q.value); }
+    });
     document.querySelectorAll<HTMLElement>('[data-atajo]').forEach((b) =>
       b.addEventListener('click', () => enviar(b.dataset.atajo!)));
 
     void cargarHistorial('chat').then((hist) => {
       if (!hist.turns.length) return;
       for (const t of hist.turns) {
-        burbuja(t.role === 'user' ? 'yo' : 'bot',
-          `<p class="p" style="font-size:14px;white-space:pre-wrap">${esc(t.content)}</p>`);
+        if (t.role === 'user') turnoYo(t.content);
+        else turnoIA(prosa(t.content));
         historial.push(t);
       }
     });

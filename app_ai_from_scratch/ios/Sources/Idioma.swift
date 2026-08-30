@@ -38,6 +38,28 @@ struct Txt {
     // chat
     let elTutor: String, chatVacio: String, chatVacioB: String
     let escribePregunta: String, pensando: String, chatFreno: String, chatSinIa: String
+    // El composer: se elige un CARRIL, no una marca. Quien respondio de hecho lo
+    // dice `proveedorPie` debajo de cada respuesta — la politica de privacidad
+    // promete eso mismo con estas palabras: «te diremos en la misma pantalla que
+    // proveedor atiende tu mensaje».
+    let carrilFlash: String, carrilRazon: String, esfuerzo: String
+    let bajo: String, medio: String, alto: String
+    let proveedorPie: String, enviar: String, privAviso: String
+    // El rail del curso, que en movil es una hoja. Copia identica a la de la web
+    // (web/src/lib/i18n.ts, chat.*): las dos pantallas dicen lo MISMO.
+    let elRail: String, tuProgreso: String, deLabs: String
+    let racha: String, rachaUno: String, rachaCero: String, leccionDe: String
+    let siguienteLab: String, empezarLab: String, cursoHecho: String, cursoHechoB: String
+    let atajosCurso: String, preguntaEsto: String, railPie: String
+    // Los tres niveles de lab. La app los venia enseñando CRUDOS, o sea "DIFICIL"
+    // en la version inglesa, mientras la web dice "Hard" (i18n.ts curso.nDuro).
+    let nFacil: String, nMedio: String, nDuro: String
+    let sugFallo: String, sugSimple: String, sugPrueba: String
+    let soloTuyo: String, soloTuyoB: String
+    // Los atajos son PROMPTS: se mandan tal cual al tutor. Por eso son la misma
+    // cadena que la web manda, no una parafrasis.
+    let aEmpezar: String, aLeccion: String, aProgreso: String, aSiguiente: String
+    let aLogros: String, aRanking: String, aPagar: String, aTutorial: String, aAyuda: String
 
     // camino
     let elCamino: String, nivelDe: String, porLeccion: String
@@ -107,6 +129,23 @@ let ES = Txt(
     escribePregunta: "Escribe tu pregunta", pensando: "Pensando…",
     chatFreno: "Vas muy seguido. Espera unos segundos y vuelve a preguntar.",
     chatSinIa: "El chat no está configurado en el servidor.",
+    carrilFlash: "Rápido", carrilRazon: "Razona", esfuerzo: "Esfuerzo",
+    bajo: "Bajo", medio: "Medio", alto: "Alto",
+    proveedorPie: "Responde {p} · modelo {m}", enviar: "Enviar",
+    privAviso: "Lo que escribas en modo IA viaja al proveedor del modelo para poder responderte. No se usa para entrenar.",
+    elRail: "Tu curso", tuProgreso: "Tu progreso", deLabs: "/ {n} labs",
+    racha: "Racha {n} días", rachaUno: "Racha 1 día", rachaCero: "Sin racha",
+    leccionDe: "Lección {n} de {m}",
+    siguienteLab: "Siguiente lab", empezarLab: "Empezar lab",
+    cursoHecho: "Curso completo", cursoHechoB: "Las 12 lecciones cerradas. Pregunta lo que quieras repasar.",
+    atajosCurso: "Atajos del curso", preguntaEsto: "Pregúntale esto",
+    railPie: "{n} herramientas · solo ven tu cuenta",
+    nFacil: "Fácil", nMedio: "Medio", nDuro: "Difícil",
+    sugFallo: "¿Por qué falló mi último lab?", sugSimple: "Dame un ejemplo más simple", sugPrueba: "Ponme a prueba",
+    soloTuyo: "Solo veo tu cuenta",
+    soloTuyoB: "Las herramientas del agente no aceptan el identificador de otra persona: el servidor pone el tuyo.",
+    aEmpezar: "Empezar", aLeccion: "Hacer una lección", aProgreso: "Mi progreso", aSiguiente: "Qué sigue",
+    aLogros: "Mis logros", aRanking: "Mi puesto", aPagar: "Pagar", aTutorial: "Tutorial", aAyuda: "Qué puedes hacer",
 
     elCamino: "El camino", nivelDe: "Nivel {n} de {t} · {l} logros", porLeccion: "Por lección",
 
@@ -193,6 +232,23 @@ let EN = Txt(
     escribePregunta: "Type your question", pensando: "Thinking…",
     chatFreno: "That was quick. Wait a few seconds and ask again.",
     chatSinIa: "The chat is not configured on the server.",
+    carrilFlash: "Fast", carrilRazon: "Reasoning", esfuerzo: "Effort",
+    bajo: "Low", medio: "Medium", alto: "High",
+    proveedorPie: "Answered by {p} · model {m}", enviar: "Send",
+    privAviso: "What you type in AI mode travels to the model provider so it can answer you. It is not used for training.",
+    elRail: "Your course", tuProgreso: "Your progress", deLabs: "/ {n} labs",
+    racha: "{n} day streak", rachaUno: "1 day streak", rachaCero: "No streak",
+    leccionDe: "Lesson {n} of {m}",
+    siguienteLab: "Next lab", empezarLab: "Start lab",
+    cursoHecho: "Course complete", cursoHechoB: "All 12 lessons closed. Ask about anything you want to review.",
+    atajosCurso: "Course shortcuts", preguntaEsto: "Ask it this",
+    railPie: "{n} tools · they only see your account",
+    nFacil: "Easy", nMedio: "Medium", nDuro: "Hard",
+    sugFallo: "Why did my last lab fail?", sugSimple: "Give me a simpler example", sugPrueba: "Quiz me",
+    soloTuyo: "I only see your account",
+    soloTuyoB: "The agent tools do not accept anyone else\u{2019}s id: the server injects yours.",
+    aEmpezar: "Get started", aLeccion: "Do a lesson", aProgreso: "My progress", aSiguiente: "What is next",
+    aLogros: "My achievements", aRanking: "My position", aPagar: "Pay", aTutorial: "Tutorial", aAyuda: "What you can do",
 
     elCamino: "The path", nivelDe: "Level {n} of {t} · {l} achievements", porLeccion: "By lesson",
 
@@ -280,6 +336,29 @@ var L: Txt { Idioma.compartido.t }
 /// Rellena `{clave}` como hace `fill()` en web/src/lib/labs-client.ts.
 func rellena(_ s: String, _ v: [String: Any]) -> String {
     v.reduce(s) { $0.replacingOccurrences(of: "{\($1.key)}", with: String(describing: $1.value)) }
+}
+
+/// El nombre del nivel de un lab. El valor del cable es `facil|medio|dificil`
+/// (ai/src/course_ai/ontology/data.py) y no es texto para enseñar: uno
+/// desconocido se devuelve tal cual en vez de desaparecer, que es la regla 1 —
+/// fallar a la vista y no en silencio.
+func nivelNombre(_ level: String?) -> String {
+    switch level {
+    case "facil":   return L.nFacil
+    case "medio":   return L.nMedio
+    case "dificil": return L.nDuro
+    default:        return level ?? ""
+    }
+}
+
+/// El color del nivel. Los mismos tres del CSS (--ok / --or / --rd).
+func nivelColor(_ level: String?) -> Color {
+    switch level {
+    case "facil":   return T.ok
+    case "medio":   return T.or
+    case "dificil": return T.rd
+    default:        return T.hair
+    }
 }
 
 /// Los doce rangos. En ingles salen de web/src/lib/i18n.ts (logros.rangos), no
