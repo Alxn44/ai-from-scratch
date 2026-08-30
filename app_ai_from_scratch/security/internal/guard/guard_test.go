@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"course/defense/internal/policy"
+	"course/security/internal/policy"
 )
 
 // THE INVARIANT THIS WHOLE PACKAGE EXISTS FOR.

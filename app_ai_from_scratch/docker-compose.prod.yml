@@ -97,17 +97,17 @@ services:
   # from the environment on the box -- putting `enforce` in a committed file is
   # how a fortress starts closing its gate on its own residents.
   morpheus:
-    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/security:${TAG:?set TAG to a commit sha, not latest}
     pull_policy: always
   trinity:
-    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/security:${TAG:?set TAG to a commit sha, not latest}
     pull_policy: always
   smith:
-    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/security:${TAG:?set TAG to a commit sha, not latest}
     pull_policy: always
   oracle:
-    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/security:${TAG:?set TAG to a commit sha, not latest}
     pull_policy: always
   neo:
-    image: ${IMAGE_REPO:?set IMAGE_REPO}/defense:${TAG:?set TAG to a commit sha, not latest}
+    image: ${IMAGE_REPO:?set IMAGE_REPO}/security:${TAG:?set TAG to a commit sha, not latest}
     pull_policy: always

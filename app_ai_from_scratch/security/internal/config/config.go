@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"course/defense/internal/policy"
 	qbus "course/queue/bus"
+	"course/security/internal/policy"
 )
 
 // Config is the whole configuration of any defense agent.

@@ -1,4 +1,4 @@
-module course/defense
+module course/security
 
 go 1.26.2
 

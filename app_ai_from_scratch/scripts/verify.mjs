@@ -161,24 +161,24 @@ const GATES = [
     cmd: ['node', ['web/scripts/scenes-check.mjs']] },
 
   // The five lines of defence. Two gates rather than one, deliberately:
-  // `defense-build` is the ordinary Go suite, and `defense-policy` is the leash.
+  // `security-build` is the ordinary Go suite, and `security-policy` is the leash.
   // Separating them means an operator can see at a glance whether the tests are
   // red or whether the SAFETY invariants are -- "every action expires", "an
   // irreversible action needs a human", "exactly one agent may act", "the
   // detector cannot emit actions". Those are the ones where a green tick over a
   // broken table would be worst.
-  { id: 'defense-build', what: 'go build + vet + gofmt + test -race',
-    absentIf: () => !existsSync(resolve(ROOT, 'defense/go.mod')),
-    absentNote: 'no defense/go.mod yet',
+  { id: 'security-build', what: 'go build + vet + gofmt + test -race',
+    absentIf: () => !existsSync(resolve(ROOT, 'security/go.mod')),
+    absentNote: 'no security/go.mod yet',
     cmd: ['sh', ['-c',
-      'cd defense && go build ./... && go vet ./... '
+      'cd security && go build ./... && go vet ./... '
       + '&& { test -z "$(gofmt -l .)" || { echo "gofmt would change:"; gofmt -l .; exit 1; }; } '
       + '&& go test ./... -race']] },
 
-  { id: 'defense-policy', what: 'every action expires, one agent may act, the detector cannot',
-    absentIf: () => !existsSync(resolve(ROOT, 'defense/go.mod')),
-    absentNote: 'no defense/go.mod yet',
-    cmd: ['sh', ['-c', 'cd defense && go run ./cmd/defense verify']] },
+  { id: 'security-policy', what: 'every action expires, one agent may act, the detector cannot',
+    absentIf: () => !existsSync(resolve(ROOT, 'security/go.mod')),
+    absentNote: 'no security/go.mod yet',
+    cmd: ['sh', ['-c', 'cd security && go run ./cmd/security verify']] },
 
   { id: 'queue-build', what: 'go build + vet + gofmt + test -race',
     absentIf: () => !existsSync(resolve(ROOT, 'queue/go.mod')),
@@ -209,7 +209,7 @@ const GATES = [
   // no agent operation reaches a jamas column, every scoped read filters on the
   // actor, no assembled statement contains a star, and every operation declares
   // which side of the paywall it is on. Separate from data-build for the same
-  // reason defense-policy is separate from defense-build: this is the one whose
+  // reason security-policy is separate from security-build: this is the one whose
   // green tick over a broken table would be worst.
   { id: 'data-catalog', what: 'the closed catalogue: P1, P3 and the paywall axis',
     absentIf: () => !existsSync(resolve(ROOT, 'data/go.mod')),

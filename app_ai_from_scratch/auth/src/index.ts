@@ -289,7 +289,7 @@ export function createAuth(deps: AuthDependencies) {
     if (action.kind === 'throttle_identity') {
       const ttl = Math.min(6 * 60 * 60, Math.max(60, Math.floor(action.ttlSeconds || 900)));
       const changed = await deps.write('auth.throttle_upsert', {
-        seconds: ttl, reason: String(action.why ?? 'defense containment').slice(0, 500),
+        seconds: ttl, reason: String(action.why ?? 'security containment').slice(0, 500),
       }, userId);
       return { applied: changed > 0 };
     }

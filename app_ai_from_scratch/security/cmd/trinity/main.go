@@ -16,9 +16,9 @@ import (
 	"os"
 	"strings"
 
-	"course/defense/internal/agent"
-	"course/defense/internal/finding"
-	"course/defense/internal/probe"
+	"course/security/internal/agent"
+	"course/security/internal/finding"
+	"course/security/internal/probe"
 )
 
 func main() {

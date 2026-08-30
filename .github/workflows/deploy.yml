@@ -70,7 +70,7 @@ jobs:
       # at the last possible moment.
       #
       # The cost is honest and unequal:
-      #   - queue and defense are Go and CROSS-compile (see their Dockerfiles),
+      #   - queue and security are Go and CROSS-compile (see their Dockerfiles),
       #     so arm64 costs them almost nothing.
       #   - api, ai and web install dependencies for the target architecture, so
       #     their arm64 halves run under QEMU and take materially longer. The gha
@@ -168,33 +168,33 @@ jobs:
           cache-from: type=gha,scope=queue
           cache-to: type=gha,scope=queue,mode=max
 
-      - name: Is there a defense service yet?
-        id: defense
+      - name: Is there a security service yet?
+        id: security
         run: |
-          if [ -f app_ai_from_scratch/defense/Dockerfile ]; then
+          if [ -f app_ai_from_scratch/security/Dockerfile ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
       # ONE image, five agents. The context is app_ai_from_scratch and not
-      # app_ai_from_scratch/defense, because defense imports the bus envelope and
+      # app_ai_from_scratch/security, because security imports the bus envelope and
       # the broker from queue through a replace directive and Docker cannot COPY
       # from outside its context. app_ai_from_scratch/.dockerignore is an
       # allowlist that keeps that context to the four directories involved.
-      - name: defense
-        if: steps.defense.outputs.found == 'true'
+      - name: security
+        if: steps.security.outputs.found == 'true'
         uses: docker/build-push-action@v6
         with:
           context: app_ai_from_scratch
-          file: app_ai_from_scratch/defense/Dockerfile
+          file: app_ai_from_scratch/security/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ steps.meta.outputs.repo }}/defense:${{ steps.meta.outputs.tag }}
-            ghcr.io/${{ steps.meta.outputs.repo }}/defense:latest
-          cache-from: type=gha,scope=defense
-          cache-to: type=gha,scope=defense,mode=max
+            ghcr.io/${{ steps.meta.outputs.repo }}/security:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.repo }}/security:latest
+          cache-from: type=gha,scope=security
+          cache-to: type=gha,scope=security,mode=max
 
       - name: Is there a data service yet?
         id: data
@@ -236,7 +236,7 @@ jobs:
       # ghcr.io/<repo>/payments -- after CI went green and after the other seven
       # images had already been published.
       #
-      # Context is the service directory, unlike data and defense above: both
+      # Context is the service directory, unlike data and security above: both
       # Dockerfiles COPY only from their own tree, which is also what compose
       # declares (`build: ./payments`). A wider context here would upload the
       # monorepo to the daemon for nothing.

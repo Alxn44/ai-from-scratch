@@ -35,14 +35,14 @@ import (
 	"syscall"
 	"time"
 
-	"course/defense/binding"
-	"course/defense/internal/audit"
-	"course/defense/internal/config"
-	"course/defense/internal/guard"
-	"course/defense/internal/policy"
-	"course/defense/internal/report"
 	qbroker "course/queue/broker"
 	qbus "course/queue/bus"
+	"course/security/binding"
+	"course/security/internal/audit"
+	"course/security/internal/config"
+	"course/security/internal/guard"
+	"course/security/internal/policy"
+	"course/security/internal/report"
 )
 
 func main() {

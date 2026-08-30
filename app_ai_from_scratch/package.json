@@ -41,11 +41,11 @@
     "seed": "pnpm --dir api seed",
     "reset": "docker compose down -v && docker compose up -d --wait db && pnpm --dir api db:deploy && pnpm --dir api seed",
     "leagues:close": "pnpm --dir api leagues:close",
-    "test:defense": "cd defense && go test ./... -race",
-    "defense:verify": "cd defense && go run ./cmd/defense verify",
-    "defense:topology": "cd defense && go run ./cmd/defense topology",
-    "defense:audit": "cd defense && go run ./cmd/defense audit verify",
-    "defense:nft": "cd defense && go run ./cmd/trinity nft",
-    "defense:scan": "cd defense && DEFENSE_AUDIT=/tmp/defense-audit.jsonl APP_ENV=development go run ./cmd/smith --once"
+    "test:security": "cd security && go test ./... -race",
+    "security:verify": "cd security && go run ./cmd/security verify",
+    "security:topology": "cd security && go run ./cmd/security topology",
+    "security:audit": "cd security && go run ./cmd/security audit verify",
+    "security:nft": "cd security && go run ./cmd/trinity nft",
+    "security:scan": "cd security && DEFENSE_AUDIT=/tmp/defense-audit.jsonl APP_ENV=development go run ./cmd/smith --once"
   }
 }

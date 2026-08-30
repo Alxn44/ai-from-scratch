@@ -1,5 +1,5 @@
-# The build context for defense/Dockerfile is this directory, not defense/,
-# because that image compiles two module trees: defense imports the bus envelope
+# The build context for security/Dockerfile is this directory, not security/,
+# because that image compiles two module trees: security imports the bus envelope
 # and the broker from queue through a replace directive, and Docker cannot COPY
 # from outside its context.
 #
@@ -16,11 +16,11 @@
 # build.
 *
 
-!defense/go.mod
-!defense/go.sum
-!defense/binding/
-!defense/internal/
-!defense/cmd/
+!security/go.mod
+!security/go.sum
+!security/binding/
+!security/internal/
+!security/cmd/
 
 !queue/go.mod
 !queue/go.sum

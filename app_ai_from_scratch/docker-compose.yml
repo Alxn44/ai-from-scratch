@@ -248,7 +248,7 @@ services:
   #
   # The build context is the whole app directory, not ./data: the image bakes in
   # api/src/ontologia.json (the generated forbidden-column list) and Docker
-  # cannot COPY from outside its context. Same reason defense/ builds from `.`.
+  # cannot COPY from outside its context. Same reason security/ builds from `.`.
   data:
     build:
       context: .
@@ -476,7 +476,7 @@ services:
   # -------------------------------------------------------------------------
   # THE FIVE LINES OF DEFENCE
   #
-  # One image, five commands. They share `defense/Dockerfile` because they share
+  # One image, five commands. They share `security/Dockerfile` because they share
   # every package; the binary is chosen per service, which is why that image has
   # no ENTRYPOINT.
   #
@@ -503,7 +503,7 @@ services:
   morpheus:
     build:
       context: .
-      dockerfile: defense/Dockerfile
+      dockerfile: security/Dockerfile
     command: ["/morpheus"]
     network_mode: host
     environment:
@@ -526,11 +526,11 @@ services:
 
   # Line 2 -- the walls. Reads sshd_config and /proc from the host, READ ONLY. It
   # never applies anything: `docker compose run --rm --entrypoint /trinity
-  # defense-trinity nft` prints the ruleset for a human to review and apply.
+  # trinity nft` prints the ruleset for a human to review and apply.
   trinity:
     build:
       context: .
-      dockerfile: defense/Dockerfile
+      dockerfile: security/Dockerfile
     command: ["/trinity"]
     environment:
       APP_ENV: production
@@ -558,7 +558,7 @@ services:
   smith:
     build:
       context: .
-      dockerfile: defense/Dockerfile
+      dockerfile: security/Dockerfile
     command: ["/smith"]
     environment:
       APP_ENV: production
@@ -582,7 +582,7 @@ services:
   oracle:
     build:
       context: .
-      dockerfile: defense/Dockerfile
+      dockerfile: security/Dockerfile
     command: ["/oracle"]
     environment:
       APP_ENV: production
@@ -604,13 +604,13 @@ services:
   #
   # DEFENSE_MODE stays `propose` until the thresholds in cmd/oracle have been
   # watched against real traffic. Flipping it to `enforce` is a deliberate,
-  # documented act: see defense/README.md. Even then the ceiling is ten
+  # documented act: see security/cmd/neo. Even then the ceiling is ten
   # reversible, self-expiring actions per ten minutes, from a closed
   # allowlist, none of which can touch cloudflared, db, broker or mosquitto.
   neo:
     build:
       context: .
-      dockerfile: defense/Dockerfile
+      dockerfile: security/Dockerfile
     command: ["/neo"]
     environment:
       APP_ENV: production

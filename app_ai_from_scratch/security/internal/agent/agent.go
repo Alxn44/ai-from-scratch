@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	"course/defense/internal/config"
-	"course/defense/internal/finding"
-	"course/defense/internal/report"
+	"course/security/internal/config"
+	"course/security/internal/finding"
+	"course/security/internal/report"
 )
 
 // Pass is one sweep of an agent's checks. It returns what it found; reporting is
