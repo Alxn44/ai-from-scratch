@@ -88,7 +88,17 @@ struct LoginView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(T.bg)
-        .onAppear { foco = .correo }
+        .onAppear {
+            foco = .correo
+            #if DEBUG
+            // QA sin teclado: si el entorno trae credenciales, entra solo.
+            if let c = QA.valor("IA_QA_CORREO"), let k = QA.valor("IA_QA_CLAVE") {
+                email = c
+                clave = k
+                Task { await entrar() }
+            }
+            #endif
+        }
     }
 
     private func entrar() async {
