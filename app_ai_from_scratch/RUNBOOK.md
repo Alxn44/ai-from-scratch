@@ -134,7 +134,7 @@ running version silently stops matching the repository.
    | `POSTGRES_PASSWORD` `RABBITMQ_PASSWORD` `JWT_SECRET` `IA_SECRETO` `QUEUE_SECRETO` `DATA_SECRETO` | Same secrets compose already demands. Generate with `pnpm keys`. |
    | `PAYMENTS_SECRET` `PAYMENTS_DB_PASSWORD` | Service-to-service authentication and the separate payments database. |
    | `MP_ACCESS_TOKEN` `MP_WEBHOOK_SECRET` | Required to sell. `MP_PUBLIC_KEY` remains optional. |
-   | At least one of `ANTHROPIC_API_KEY` `OPENROUTER_API_KEY` `DEEPSEEK_API_KEY` `KIMI_API_KEY` `HF_TOKEN` `OPENCODE_API_KEY` | Required for the AI assistant; `PROVEEDOR_ORDEN` is optional. |
+   | At least one of `ANTHROPIC_API_KEY` `OPENROUTER_API_KEY` `DEEPSEEK_API_KEY` `KIMI_API_KEY` `HF_TOKEN` `OPENCODE_API_KEY` | Required for the AI assistant; `PROVEEDOR_ORDEN` is optional. Set `PROVEEDOR_ORDEN_ES` and `PROVEEDOR_ORDEN_EN` after measuring the configured models if the first provider should differ by lesson language. |
 
    All of them are checked before the first SSH, and named one at a time in the
    log, so a missing secret cannot leave the host half-restarted.

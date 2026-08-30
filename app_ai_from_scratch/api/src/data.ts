@@ -278,6 +278,14 @@ export async function many<T = Record<string, unknown>>(
   return (await op<T>(name, args, actor)).rows;
 }
 
+/** A read of one target account that also requires a separately verified
+ * administrative authority. The target travels as the injected actor, never
+ * as request input. */
+export async function manyAuthorized<T = Record<string, unknown>>(
+  name: string, args: Record<string, unknown>, actor: number, authority: number): Promise<T[]> {
+  return (await opAuthorized<T>(name, args, actor, authority)).rows;
+}
+
 /** A write. Returns rows affected. */
 export async function write(
   name: string, args: Record<string, unknown> = {}, actor?: number): Promise<number> {

@@ -36,7 +36,7 @@ MODEL_VARS = ("ANTHROPIC_MODEL", "ANTHROPIC_SONNET_MODEL", "OPENROUTER_MODEL",
 @pytest.fixture
 def clean_env(monkeypatch):
     for k in (*KEYS, *MODEL_VARS, "PROVEEDOR_ORDEN", "OPENCODE_BASE_URL",
-              "XAI_BASE_URL", "OMNIROUTE_BASE_URL"):
+              "PROVEEDOR_ORDEN_ES", "PROVEEDOR_ORDEN_EN", "XAI_BASE_URL", "OMNIROUTE_BASE_URL"):
         monkeypatch.delenv(k, raising=False)
     return monkeypatch
 
@@ -136,6 +136,22 @@ def test_unknown_or_unlisted_pick_keeps_the_full_chain(clean_env):
     assert pick_chain("opus") == full
     assert pick_chain("grok") == full
     assert pick_chain(None) == full
+
+
+def test_language_order_prefers_the_measured_language_provider(clean_env):
+    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY"):
+        clean_env.setenv(k, "x")
+    clean_env.setenv("PROVEEDOR_ORDEN_EN", "sonnet,kimi,deepseek")
+    clean_env.setenv("PROVEEDOR_ORDEN_ES", "kimi,sonnet,deepseek")
+    assert [p.id for p in pick_chain(None, lang="en")] == ["sonnet", "kimi", "deepseek", "anthropic"]
+    assert [p.id for p in pick_chain(None, lang="es")] == ["kimi", "sonnet", "deepseek", "anthropic"]
+
+
+def test_explicit_provider_overrides_language_order(clean_env):
+    for k in ("DEEPSEEK_API_KEY", "KIMI_API_KEY", "ANTHROPIC_API_KEY"):
+        clean_env.setenv(k, "x")
+    clean_env.setenv("PROVEEDOR_ORDEN_EN", "sonnet,kimi,deepseek")
+    assert pick_chain("deepseek", lang="en")[0].id == "deepseek"
 
 
 def test_effort_budget_maps_the_three_levels():

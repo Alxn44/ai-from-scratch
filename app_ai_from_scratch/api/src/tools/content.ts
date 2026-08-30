@@ -11,6 +11,7 @@ import { many, one } from '../data.ts';
 import type { LessonRow } from '../db.ts';
 import { assertNoForbidden } from '../ontology.ts';
 import { GLOSSARY, glossaryFor } from '../product.ts';
+import { localizeLesson } from '../lesson-meta.ts';
 import { bus, push } from '../agent-bus.ts';
 import {
   LAB_ID, TOTAL_LESSONS, hasAccess, language, lessonText, lockedByPaywall,
@@ -55,7 +56,7 @@ export const CONTENT_TOOLS: Registry = {
       if (!lesson) return { error: 'no_existe' };
       const labs = await many<SafeLab>('lab.list_for_lesson', { lesson_n: num });
       labs.forEach((l) => assertNoForbidden('labs', l));
-      return { leccion: lesson, labs };
+      return { leccion: localizeLesson(lesson, language(ctx, null)), labs };
     },
   },
 
@@ -71,9 +72,10 @@ export const CONTENT_TOOLS: Registry = {
       const head = await one<LessonRow>('lesson.card', { n: num });
       if (!head) return { error: 'no_existe' };
       const { texto, escritoEn } = await lessonText(num, lang);
-      if (!texto) return { leccion: head, texto: null, nota: 'Esta lección todavía no tiene texto escrito: no lo inventes.' };
+      const localized = localizeLesson(head, lang);
+      if (!texto) return { leccion: localized, texto: null, nota: 'Esta lección todavía no tiene texto escrito: no lo inventes.' };
       return {
-        leccion: head, idioma: escritoEn, pedido: lang,
+        leccion: localized, idioma: escritoEn, pedido: lang,
         tecnica: texto.technical, analogia: texto.analogy, ejemplos: texto.examples,
         nota: escritoEn === lang ? undefined : `No hay texto en «${lang}»: va el español. Puedes traducirlo al responder.`,
       };
@@ -275,8 +277,9 @@ export const CONTENT_TOOLS: Registry = {
         : null;
       const current = await one<Pick<LessonRow, 'n' | 'eyebrow' | 'title' | 'summary'>>(
         'lesson.card', { n: num });
+      const lang = language(ctx, null);
       return {
-        leccion: current, anterior: previous, abierta: hasAccess(u, num),
+        leccion: current && localizeLesson(current, lang), anterior: previous && localizeLesson(previous, lang), abierta: hasAccess(u, num),
         libres: FREE_LESSONS,
         previasSinCerrar: weak,
         veredicto: !hasAccess(u, num) ? 'cerrada_por_compra'

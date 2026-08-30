@@ -2,9 +2,10 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
-import { many, one, write, writeMany, writeAuthorized } from './data.ts';
+import { many, manyAuthorized, one, write, writeMany, writeAuthorized } from './data.ts';
 import type { LabRow, LessonRow } from './db.ts';
 import { COOKIE, mandaPlataforma } from '../../auth/src/core.ts';
+import { localizeLesson } from './lesson-meta.ts';
 import { createAuth } from '../../auth/src/index.ts';
 import type { AuthUser } from '../../auth/src/index.ts';
 import { grade, hint, publicLab } from './grading.ts';
@@ -144,8 +145,10 @@ const hasAccess = (u: Pick<AuthUser, 'paid' | 'role'>, n: unknown): boolean =>
 type LessonCard = Pick<LessonRow, 'n' | 'eyebrow' | 'title' | 'summary' | 'math' | 'math_cap'>;
 type LabIndex = Pick<LabRow, 'id' | 'lesson_n' | 'idx' | 'level' | 'kind' | 'draft'>;
 
-app.get('/api/lessons', async (req, reply) => {
+app.get<{ Querystring: { lang?: string } }>('/api/lessons', async (req, reply) => {
   const u = await requireUser(req, reply); if (!u) return;
+  const asked = req.query?.lang;
+  const lang = asked && LANGS.includes(asked) && asked !== 'auto' ? asked : (u.lang === 'auto' ? 'es' : u.lang);
   const [bestRows, lessons, labs] = await Promise.all([
     many<BestAttempt>('attempt.best_by_lab', {}, u.id),
     many<LessonCard>('lesson.list'),
@@ -157,7 +160,7 @@ app.get('/api/lessons', async (req, reply) => {
       const own = labs.filter((x) => x.lesson_n === l.n);
       const solved = own.filter((x) => best.get(x.id)?.solved === 1).length;
       const locked = !hasAccess(u, l.n);
-      return { ...l, locked, labs: own.map((x) => ({ ...x, draft: !!x.draft, solved: best.get(x.id)?.solved === 1 })), solved, total: own.length };
+      return { ...localizeLesson(l, lang), locked, labs: own.map((x) => ({ ...x, draft: !!x.draft, solved: best.get(x.id)?.solved === 1 })), solved, total: own.length };
     }),
   };
 });
@@ -166,13 +169,15 @@ app.get<{ Params: { n: string }; Querystring: { lang?: string } }>('/api/lessons
   const u = await requireUser(req, reply); if (!u) return;
   const n = Number(req.params.n);
   if (!Number.isInteger(n) || n < 1) return reply.code(404).send({ error: 'no_existe' });
+  const asked = req.query?.lang;
+  const lang = asked && LANGS.includes(asked) && asked !== 'auto' ? asked : (u.lang === 'auto' ? 'es' : u.lang);
   const card = await one<LessonCard>('lesson.card', { n });
   if (!card) return reply.code(404).send({ error: 'no_existe' });
   // The 402 carries the lesson's public card (without labs): a locked page is a
   // shop window, not a dead end.
   if (!hasAccess(u, n)) return reply.code(402).send({
     error: 'requiere_compra', libres: FREE_LESSONS,
-    lesson: card,
+    lesson: localizeLesson(card, lang),
     labs: await many<Pick<LabRow, 'id' | 'idx' | 'level'>>('lab.list_for_lesson_locked', { lesson_n: n }),
   });
   const [lesson, bestRows, paidLabs] = await Promise.all([
@@ -185,8 +190,6 @@ app.get<{ Params: { n: string }; Querystring: { lang?: string } }>('/api/lessons
   const labs = paidLabs
     .map((l) => publicLab(l, best.get(l.id)?.solved === 1 ? best.get(l.id) : null));
   // Technical explanation + analogy + examples: without this the lab cannot be solved.
-  const asked = req.query?.lang;
-  const lang = asked && LANGS.includes(asked) && asked !== 'auto' ? asked : (u.lang === 'auto' ? 'es' : u.lang);
   type TextRow = { technical: string; analogy: string; examples: unknown };
   let texto = await one<TextRow>('lesson_text.get', { lesson_n: n, lang });
   let textoIdioma = texto ? lang : null;
@@ -203,7 +206,7 @@ app.get<{ Params: { n: string }; Querystring: { lang?: string } }>('/api/lessons
   const qBest = new Map(quizBest.map((b) => [b.question_id, b]));
   const quiz = quizRows.map((r) => publicQuestion(r, lang, qBest.get(r.id)));
   const quizScore = packScore(quizBest, quizRows.length);
-  return { lesson, labs, texto, textoIdioma, quiz, quizScore };
+  return { lesson: localizeLesson(lesson, lang), labs, texto, textoIdioma, quiz, quizScore };
 });
 
 // ---------- Achievements ----------
@@ -830,6 +833,21 @@ app.get('/api/tutor/cohort', async (req, reply) => {
         'tutor.stuck_cohort', { cohort: u.cohort })
     : await many<{ lab_id: string; tries: number; wins: number }>('tutor.stuck_all');
   return { alcance: scope, cohort: scope === 'cohorte' ? u.cohort : null, students, stuck };
+});
+
+// Individual history is deliberately narrower than the cohort endpoint. Only a
+// platform administrator may ask for it, and the data service receives both the
+// student identity and the administrator identity through trusted headers. The
+// response has milestones only, never a student's submitted answer.
+app.get<{ Params: { id: string } }>('/api/admin/students/:id/timeline', async (req, reply) => {
+  const admin = await requireRole(req, reply, ['admin']); if (!admin) return;
+  const studentId = Number(req.params.id);
+  if (!Number.isInteger(studentId) || studentId < 1) {
+    return reply.code(404).send({ error: 'no_existe' });
+  }
+  const events = await manyAuthorized<{ lab_id: string; correct: number; at: string }>(
+    'admin.student_timeline', {}, studentId, admin.id);
+  return { events };
 });
 
 

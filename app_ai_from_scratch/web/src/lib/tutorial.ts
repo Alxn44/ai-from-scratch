@@ -128,8 +128,8 @@ export function abrirTutorial(page: string, pasos: PasoTut[], copy: TutorialCopy
   if (document.getElementById('tutorial-root')) return () => {};
   // Por VISIBILIDAD y no por existencia: querySelector encuentra igual un
   // elemento con display:none, y entonces getBoundingClientRect devuelve ceros y
-  // el foco se planta en la esquina 0,0. Le pasaba ya al paso chat-2, cuyo .seg
-  // vivia dentro de .app-head-tools{display:none} por debajo de 900 px.
+  // el foco se planta en la esquina 0,0. Esto ya ocurrió con un control de chat
+  // oculto en la cabecera por debajo de 900 px.
   const vivos = pasos.filter((p) => {
     const el = target(p.sel);
     return !!el && (el as HTMLElement).getClientRects().length > 0;
@@ -247,7 +247,7 @@ export function abrirTutorial(page: string, pasos: PasoTut[], copy: TutorialCopy
 const FORMAS: Record<string, Forma[]> = {
   panel: ['click', 'mira', 'click', 'toggle'],
   leccion: ['mira', 'mira', 'click', 'click'],
-  chat: ['click', 'toggle', 'type'],
+  chat: ['click', 'type'],
   pago: ['click', 'click', 'click'],
 };
 

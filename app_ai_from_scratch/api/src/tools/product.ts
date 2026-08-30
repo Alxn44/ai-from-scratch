@@ -93,7 +93,7 @@ export const PRODUCT_TOOLS: Registry = {
         loQuePuedeVerOtraPersona: alias?.alias
           ? ['tu alias y tu avance en el ranking y la liga']
           : ['nada: no estás apuntado al ranking'],
-        chat: 'El texto de esta conversación se manda al proveedor de IA que atiende el modo IA. El modo normal no sale del servidor.',
+        chat: 'El texto de esta conversación se manda al proveedor de IA que atiende el asistente. El chat usa IA desde que se abre.',
         borrado: { ruta: '/perfil', comoEs: 'Pide tu contraseña. El correo queda libre y tus intentos se conservan sin nombre.' },
         rutas: ['/privacidad', '/perfil'],
       };

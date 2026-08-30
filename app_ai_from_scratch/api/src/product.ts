@@ -90,7 +90,7 @@ export const ROUTES: RouteEntry[] = [
   { ruta: '/leccion/{n}', busca: ['leccion', 'lección', 'lesson', 'lab', 'ejercicio', 'exercise'],
     que: { es: 'Una lección: técnica, analogía, dos ejemplos y sus tres labs.', en: 'One lesson: technical text, analogy, two examples and its three labs.' } },
   { ruta: '/chat', busca: ['chat', 'asistente', 'assistant', 'ayuda ia', 'ai help', 'tutorial'],
-    que: { es: 'Esta conversación. Modo normal sin costo y modo IA con traza. Desde aquí también se hace el curso.', en: 'This conversation. Free normal mode and AI mode with a visible trace. You can also do the course from here.' } },
+    que: { es: 'Esta conversación usa IA con una traza visible. Desde aquí también se hace el curso.', en: 'This conversation uses AI with a visible trace. You can also do the course from here.' } },
   { ruta: '/panel?tutorial=1', busca: ['tutorial', 'tour', 'como se usa', 'how to use', 'recorrido'],
     que: { es: 'El tutorial: Trazo señala cada control y enseña el gesto (clic, escribir, interruptor).', en: 'The tutorial: Trazo points at each control and shows the gesture (click, type, toggle).' } },
   { ruta: '/logros', busca: ['logros', 'rango', 'insignias', 'achievements', 'rank', 'badges'],

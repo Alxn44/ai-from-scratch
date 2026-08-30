@@ -62,11 +62,11 @@ const cobrado = [...porMoneda.entries()]
            contenedor, que es el trato correcto para una tabla densa, y asi el
            body nunca desborda. -->
       <div class="tblwrap"><div style="display:flex;flex-direction:column;gap:14px">
-      <div class="tbl-admin" style="padding-bottom:10px;border-bottom:1px solid var(--hair)">
-        <div class="tblhead">Nombre</div><div class="tblhead">Correo</div><div class="tblhead">Rol</div><div class="tblhead">Alta</div><div class="tblhead">Compra</div>
+        <div class="tbl-admin" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 150px 110px 90px 110px;padding-bottom:10px;border-bottom:1px solid var(--hair)">
+          <div class="tblhead">Nombre</div><div class="tblhead">Correo</div><div class="tblhead">Rol</div><div class="tblhead">Alta</div><div class="tblhead">Compra</div><div class="tblhead">Historia</div>
       </div>
       {users.map((u) => (
-        <div class="tbl-admin" style="align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
+          <div class="tbl-admin" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 150px 110px 90px 110px;align-items:center;height:56px;border-bottom:1px solid var(--hair2)">
           <span style="font:600 14px/1.2 var(--f)">{u.name}</span>
           <span class="s" style="color:var(--l2)">{u.email}</span>
           <!-- 16px y 44 de alto: el estilo en linea le ganaba a .input{font-size:16px}
@@ -77,6 +77,7 @@ const cobrado = [...porMoneda.entries()]
           </select>
           <span class="num s">{u.created_at.slice(0, 10)}</span>
           <span class="s" style={`color:${u.paid ? 'var(--ok)' : 'var(--l3)'}`}>{u.paid ? 'Sí' : 'No'}</span>
+          {u.role === 'student' ? <a class="s" href={`/admin/progreso?student=${u.id}`}>Ver progreso</a> : <span class="s" style="color:var(--l3)">-</span>}
         </div>
       ))}
       </div></div><!-- /.tblwrap: el aviso de abajo NO debe scrollear -->

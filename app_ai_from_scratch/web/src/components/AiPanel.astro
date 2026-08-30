@@ -18,9 +18,8 @@
  *
  * TWO SWITCHES, NOT ONE, and this is the decision most worth understanding:
  *
- *   AI MODE   (sidebar toggle)  · shows the panel and its launcher. Default OFF:
- *                                opening a chat window for somebody who never
- *                                asked is what this feature is meant to beat.
+ *   ASSISTANT (sidebar toggle)  · opens or closes the panel. There is no second
+ *                                floating launcher competing with the sidebar.
  *   NUDGES    (switch inside the panel, or /silencio in its input) · lets the
  *                                assistant speak first. Default ON, and it works
  *                                even with AI mode off — a proactive assistant
@@ -103,12 +102,6 @@ const open = flags.mode && flags.open;
     </div>
   </section>
 
-  <button id="ia-lanzador" class="btn ia-launch" type="button"
-          aria-expanded={open ? 'true' : 'false'} aria-controls="ia-panel"
-          hidden={!(flags.mode && !flags.open)}>
-    <Fragment set:html={icon('spark', 16)} />
-    <span>{I.abrir}</span>
-  </button>
 </div>
 
 <style is:global>
@@ -164,8 +157,6 @@ const open = flags.mode && flags.open;
   .ia-priv{font-size:11px}
   .ia-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
     border-top:1px solid var(--hair2);padding-top:10px}
-  .ia-launch{align-self:flex-start;height:40px;font-size:10px}
-  .ia-launch[hidden]{display:none}
   /* The nudge switch and the sidebar toggle are real buttons with role=switch, so
      they are reachable and announced instead of being styled divs. */
   .ia-switch{display:inline-flex;align-items:center;gap:9px;background:none;border:0;padding:0;
@@ -225,7 +216,6 @@ const open = flags.mode && flags.open;
 
   const capa = document.getElementById('ia-capa') as HTMLElement;
   const panel = document.getElementById('ia-panel') as HTMLElement;
-  const lanzador = document.getElementById('ia-lanzador') as HTMLButtonElement;
   const hilo = document.getElementById('ia-hilo') as HTMLElement;
   const campo = document.getElementById('ia-q') as HTMLInputElement;
   const enviarBtn = document.getElementById('ia-go') as HTMLButtonElement;
@@ -353,14 +343,12 @@ const open = flags.mode && flags.open;
   };
 
   // ---------------------------------------------------------------------------
-  // STATE → SCREEN. One function, so the panel, the launcher and the two
-  // switches can never disagree about which of them is showing.
+  // STATE → SCREEN. The sidebar is the only launcher, so it and the panel must
+  // always agree about whether the assistant is open.
   // ---------------------------------------------------------------------------
   const pintar = (): void => {
     const abierto = flags.mode && flags.open;
     panel.hidden = !abierto;
-    lanzador.hidden = !(flags.mode && !flags.open);
-    lanzador.setAttribute('aria-expanded', abierto ? 'true' : 'false');
     toggle?.setAttribute('aria-checked', flags.mode ? 'true' : 'false');
     swAvisos.setAttribute('aria-checked', flags.nudges ? 'true' : 'false');
   };
@@ -414,15 +402,10 @@ const open = flags.mode && flags.open;
     campo.focus();
   };
   const cerrar = (): void => {
+    bandera(COOKIE_MODE, false);
     bandera(COOKIE_OPEN, false);
     pintar();
-    lanzador.focus();
-  };
-  const ponerModo = (on: boolean): void => {
-    bandera(COOKIE_MODE, on);
-    pintar();
-    if (!on) { aviso('info', T.apagado, T.apagadoB); return; }
-    if (flags.open) { void saludar(); campo.focus(); } else lanzador.focus();
+    toggle?.focus();
   };
   const ponerAvisos = (on: boolean): void => {
     bandera(COOKIE_NUDGES, on);
@@ -538,8 +521,10 @@ const open = flags.mode && flags.open;
   // ---------------------------------------------------------------------------
   // WIRING
   // ---------------------------------------------------------------------------
-  toggle?.addEventListener('click', () => ponerModo(toggle.getAttribute('aria-checked') !== 'true'));
-  lanzador.addEventListener('click', () => abrir());
+  toggle?.addEventListener('click', () => {
+    if (flags.mode && flags.open) cerrar();
+    else abrir();
+  });
   document.getElementById('ia-cerrar')!.addEventListener('click', cerrar);
   enviarBtn.addEventListener('click', () => void enviar(campo.value));
   campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') void enviar(campo.value); });

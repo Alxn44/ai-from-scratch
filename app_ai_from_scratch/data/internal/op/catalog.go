@@ -685,6 +685,19 @@ var catalog = []Operation{
 		Why: "bound completed broker idempotency leases to thirty days",
 	},
 	// ----------------------------------------------------------- tutor console
+	// The target identity and the viewing authority are both trusted headers.
+	// Answers are omitted: staff can support a learning path without receiving
+	// the student's free-form work.
+	{
+		Name: "admin.student_timeline", Table: "attempts", Scope: Own, Audience: Agent, Muro: Gratis,
+		Raw: "SELECT a.lab_id AS lab_id, a.correct AS correct, a.at AS at " +
+			"FROM attempts a WHERE a.user_id = $1 AND EXISTS (SELECT 1 FROM users operator " +
+			"WHERE operator.id = $2 AND operator.role IN ('admin', 'root') AND operator.deleted_at IS NULL) " +
+			"ORDER BY a.at ASC LIMIT 500",
+		Returns: []string{"lab_id", "correct", "at"},
+		Params:  []Param{{Name: "actor", Kind: Actor}, {Name: "authority", Kind: Authority}},
+		Why:     "a student's chronological lab-attempt milestones for a verified administrator",
+	},
 	{
 		Name: "tutor.students_all", Table: "users", Scope: Public, Audience: Internal, Muro: Gratis,
 		Raw: "SELECT us.id AS id, us.name AS name, us.email AS email, COALESCE(a.solved, 0) AS solved, a.last_seen AS last_seen " +

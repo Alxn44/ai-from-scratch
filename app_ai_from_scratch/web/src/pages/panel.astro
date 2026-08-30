@@ -13,7 +13,8 @@ if (redirect) return Astro.redirect(redirect);
 
 type Lab = { id: string; idx: number; level: string; kind: string; draft: boolean; solved: boolean };
 type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string; labs: Lab[]; solved: number; total: number };
-const data = await apiFetch<{ lessons: Lesson[] }>('/api/lessons', Astro.request);
+const lang = resolveLang(user!.lang, Astro.request);
+const data = await apiFetch<{ lessons: Lesson[] }>(`/api/lessons?lang=${lang}`, Astro.request);
 const prog = await apiFetch<{ solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number }>('/api/progress', Astro.request);
 // El ascenso de liga se pide AQUI, no solo en /ligas: si solo se anuncia en la
 // pagina de ligas, quien no entra nunca no se entera de que subio. La llamada va
@@ -22,7 +23,6 @@ type Subida = { de: string; a: string; semana: string };
 const liga = await apiFetch<{ yo: { subida: Subida | null } | null; semana: { lunes: string } | null }>(
   '/api/ligas', Astro.request).catch(() => null);
 const subida = liga?.yo?.subida ?? null;
-const lang = resolveLang(user!.lang, Astro.request);
 const L = t(lang);
 const rolTxt = user!.role === 'tutor' ? L.ui.rolTutor : user!.role === 'admin' ? L.ui.rolAdmin : L.ui.rolStudent;
 const lessons = data?.lessons ?? [];

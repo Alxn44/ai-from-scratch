@@ -161,7 +161,11 @@ func smoke(lg *slog.Logger) error {
 		if o.ActorIndex() > 0 {
 			actor = a.actor
 		}
-		res, err := st.Call(ctx, o.Name, actor, 0, a.args)
+		authority := int64(0)
+		if o.AuthorityIndex() > 0 {
+			authority = a.authority
+		}
+		res, err := st.Call(ctx, o.Name, actor, authority, a.args)
 		if err != nil {
 			fmt.Printf("  FAIL  %-32s %v\n", o.Name, err)
 			failed++
@@ -218,8 +222,9 @@ func smoke(lg *slog.Logger) error {
 }
 
 type probe struct {
-	args  map[string]any
-	actor int64
+	args      map[string]any
+	actor     int64
+	authority int64
 }
 
 // probeArgs reads real values out of the database so the gate does not depend on
@@ -313,6 +318,7 @@ func probeArgs(ctx context.Context, dsn string) (map[string]probe, error) {
 		"tutor.students_cohort":          {args: map[string]any{"cohort": "smoke-never"}},
 		"tutor.stuck_all":                {args: map[string]any{}},
 		"tutor.stuck_cohort":             {args: map[string]any{"cohort": "smoke-never"}},
+		"admin.student_timeline":         {args: map[string]any{}, actor: actor, authority: actor},
 		"auth.user":                      {args: map[string]any{}, actor: actor},
 		"auth.user_by_email":             {args: map[string]any{"login": email}},
 		"auth.throttle":                  {args: map[string]any{}, actor: actor},

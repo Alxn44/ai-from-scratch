@@ -148,21 +148,38 @@ def has_provider() -> bool:
     return len(providers()) > 0
 
 
-def pick_chain(wanted: str | None, active: Sequence[Provider] | None = None) -> tuple[Provider, ...]:
-    """Put the requested provider first. Unknown names are ignored: the full
-    chain stays. `anthropic` means the sonnet lane (claude-sonnet-5)."""
+def _language_order(lang: str | None) -> tuple[str, ...]:
+    """Configured quality order for a language, never a request-controlled model.
+
+    Operators measure provider quality for their own configured models and set
+    `PROVEEDOR_ORDEN_ES` and/or `PROVEEDOR_ORDEN_EN`. The global
+    `PROVEEDOR_ORDEN` remains the fallback order for languages without a
+    measured ranking. Empty means the product's established cost/latency order
+    is retained.
+    """
+    key = "PROVEEDOR_ORDEN_EN" if lang == "en" else "PROVEEDOR_ORDEN_ES" if lang == "es" else ""
+    return tuple(s.strip() for s in (_env(key) or "").split(",") if s.strip()) if key else ()
+
+
+def pick_chain(wanted: str | None, active: Sequence[Provider] | None = None,
+               lang: str | None = None) -> tuple[Provider, ...]:
+    """Put a student-selected provider first; otherwise prefer the configured
+    best provider order for the session language. Unknown names are ignored and
+    the complete fallback chain stays. `anthropic` means the Sonnet lane."""
     chain = tuple(active) if active is not None else providers()
-    if not wanted:
+    if wanted:
+        name = wanted.strip().lower()
+        if name in SELECTABLE:
+            if name == "anthropic":
+                name = "sonnet"
+            chosen = next((p for p in chain if p.id == name), None)
+            if chosen is not None:
+                return (chosen, *tuple(p for p in chain if p.id != chosen.id))
+    ranked = _language_order(lang)
+    if not ranked:
         return chain
-    name = wanted.strip().lower()
-    if name not in SELECTABLE:
-        return chain
-    if name == "anthropic":
-        name = "sonnet"
-    chosen = next((p for p in chain if p.id == name), None)
-    if chosen is None:
-        return chain
-    return (chosen, *tuple(p for p in chain if p.id != chosen.id))
+    order = {provider: i for i, provider in enumerate(ranked)}
+    return tuple(sorted(chain, key=lambda p: order.get(p.id, len(order))))
 
 
 def effort_budget(effort: str | None) -> tuple[int, float, str]:

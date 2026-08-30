@@ -149,8 +149,8 @@ const actionHtml = hasAction ? await Astro.slots.render('action') : '';
        con flex-wrap sobre .app-head, porque <slot name="topbar"/> solo puede
        existir una vez (examen/[n].astro:25 lleva id="exam-score" y chat.astro:53
        un data-tut; dos copias romperian getElementById y el tutorial). Antes ese
-       slot se borraba en movil con .app-head-tools{display:none} y con el se iban
-       el conmutador Normal/IA de /chat y el marcador en vivo de /examen. */
+       slot se borraba en movil con .app-head-tools{display:none} y con el se iba
+       el marcador en vivo de /examen. */
     /* Con barra de accion las tres capas fijas de abajo suben por encima de
        ella. 68px = 44 del boton + 12+12 de padding. El gato lleva el estilo en
        linea desde cat.ts:167, asi que ahi hace falta !important. */

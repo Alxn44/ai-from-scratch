@@ -1,0 +1,70 @@
+---
+export const prerender = false;
+import App from '../../layouts/App.astro';
+import { gate, apiFetch } from '../../lib/session';
+import { icon } from '../../lib/icons';
+import { resolveLang } from '../../lib/i18n';
+
+const { user, redirect } = await gate(Astro.request, ['admin']);
+if (redirect) return Astro.redirect(redirect);
+
+type Student = { id: number; email: string; name: string; role: string; paid: number; cohort: string | null; created_at: string };
+type Event = { lab_id: string; correct: number; at: string };
+const id = Number(new URL(Astro.request.url).searchParams.get('student'));
+if (!Number.isInteger(id) || id < 1) return Astro.redirect('/admin');
+const users = (await apiFetch<{ users: Student[] }>('/api/admin/users', Astro.request))?.users ?? [];
+const student = users.find((candidate) => candidate.id === id && candidate.role === 'student');
+if (!student) return Astro.redirect('/admin');
+const events = (await apiFetch<{ events: Event[] }>(`/api/admin/students/${id}/timeline`, Astro.request))?.events ?? [];
+const lang = resolveLang(user!.lang, Astro.request);
+const copy = lang === 'en'
+  ? { eyebrow: 'Student history', title: 'Learning timeline', back: 'Back to admin', attempts: 'Attempts', solved: 'Solved labs', first: 'First activity', empty: 'This student has not attempted a lab yet.', wrong: 'Attempt', win: 'Solved', history: 'Activity', privacy: 'This view shows learning milestones only. Submitted answers are not available here.' }
+  : { eyebrow: 'Historia del estudiante', title: 'Línea de aprendizaje', back: 'Volver a admin', attempts: 'Intentos', solved: 'Labs resueltos', first: 'Primera actividad', empty: 'Este estudiante todavía no ha intentado un lab.', wrong: 'Intento', win: 'Resuelto', history: 'Actividad', privacy: 'Esta vista muestra solo hitos de aprendizaje. Las respuestas enviadas no están disponibles aquí.' };
+const solved = new Set(events.filter((event) => event.correct === 1).map((event) => event.lab_id));
+const first = events[0]?.at ? new Intl.DateTimeFormat(lang === 'en' ? 'en' : 'es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(events[0].at)) : null;
+const stamp = (at: string) => new Intl.DateTimeFormat(lang === 'en' ? 'en' : 'es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(at));
+---
+<App user={user!} title={copy.title} crumb={`ADMIN / ${copy.title.toUpperCase()}`} active="Admin">
+  <div class="app-pad" style="display:flex;flex-direction:column;gap:26px;max-width:980px">
+    <a class="btn ghost" style="align-self:flex-start;text-decoration:none" href="/admin">{copy.back}</a>
+    <header style="display:flex;flex-direction:column;gap:10px">
+      <p class="eb">{copy.eyebrow}</p>
+      <h1 class="h1">{student.name}</h1>
+      <p class="p">{student.email}</p>
+    </header>
+
+    <section class="timeline-stats" aria-label={copy.title}>
+      <div class="card"><p class="lbl">{copy.attempts}</p><p class="num metric">{events.length}</p></div>
+      <div class="card"><p class="lbl">{copy.solved}</p><p class="num metric" style="color:var(--ok)">{solved.size} / 36</p></div>
+      <div class="card"><p class="lbl">{copy.first}</p><p class="s" style="color:var(--l2);margin-top:12px">{first ?? '-'}</p></div>
+    </section>
+
+    <section class="card" style="display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:center;gap:10px"><Fragment set:html={icon('chart', 18, 'var(--ac)')} /><h2 class="h2">{copy.history}</h2></div>
+      {events.length ? <ol class="timeline">
+        {events.map((event) => <li class:list={['timeline-event', { 'timeline-win': event.correct === 1 }]}>
+          <span class="timeline-mark" aria-hidden="true"></span>
+          <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 18px">
+            <strong>{event.correct === 1 ? copy.win : copy.wrong} - Lab {event.lab_id}</strong>
+            <time class="s" datetime={event.at}>{stamp(event.at)}</time>
+          </div>
+        </li>)}
+      </ol> : <p class="s">{copy.empty}</p>}
+    </section>
+
+    <p class="s" style="border-left:2px solid var(--ac);padding-left:12px">{copy.privacy}</p>
+  </div>
+
+  <style>
+    .timeline-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .metric{font:700 32px/1 var(--f);letter-spacing:-.04em;margin:12px 0 0}
+    .timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+    .timeline-event{position:relative;padding:0 0 24px 30px;min-height:48px}
+    .timeline-event::before{content:'';position:absolute;left:7px;top:12px;bottom:-1px;width:1px;background:var(--hair2)}
+    .timeline-event:last-child{padding-bottom:0}
+    .timeline-event:last-child::before{display:none}
+    .timeline-mark{position:absolute;left:0;top:6px;width:15px;height:15px;border:2px solid var(--rd);background:var(--bg);border-radius:50%}
+    .timeline-win .timeline-mark{border-color:var(--ok);background:var(--ok)}
+    @media (max-width:700px){.timeline-stats{grid-template-columns:1fr;gap:12px}}
+  </style>
+</App>

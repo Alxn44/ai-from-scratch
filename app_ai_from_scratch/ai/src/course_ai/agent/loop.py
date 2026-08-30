@@ -110,7 +110,7 @@ async def run(*, session: str, messages: Sequence[Mapping[str, Any]], lang: str 
               client: httpx.AsyncClient | None = None,
               native: Mapping[str, Handler] | None = None,
               provider_id: str | None = None, effort: str | None = None) -> Result:
-    chain = pick_chain(provider_id, active)
+    chain = pick_chain(provider_id, active, lang)
     if not chain:
         return Result(error="sin_proveedor",
                       trace=[{"paso": "proveedor", "detalle": "ninguna llave configurada"}])

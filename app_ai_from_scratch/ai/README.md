@@ -89,6 +89,7 @@ things are deliberately NOT: the route paths (`/salud`, `/ontologia/*`,
 | `PORT` | 8799 |
 | `ANTHROPIC_API_KEY` and friends | one is enough. With none, `/agente/turno` answers `sin_proveedor` instead of pretending. |
 | `PROVEEDOR_ORDEN` | priority, e.g. `anthropic,deepseek,grok,sonnet`. Default: Haiku (flash), then cheap fallbacks, then Grok and Sonnet for reasoning. Opus is refused. |
+| `PROVEEDOR_ORDEN_ES` / `PROVEEDOR_ORDEN_EN` | measured quality order for Spanish or English. It takes precedence for that language; the remaining configured providers remain failover. |
 
 `scripts/keys.sh` generates them (the model keys have to be pasted by hand:
 each provider issues them and they belong to your account).

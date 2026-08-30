@@ -10,13 +10,13 @@ if (redirect) return Astro.redirect(redirect);
 
 type Lab = { id: string; idx: number; level: string; kind: string; draft: boolean; solved: boolean };
 type Lesson = { n: number; eyebrow: string; title: string; summary: string; math: string; math_cap: string; labs: Lab[]; solved: number; total: number; locked: boolean };
-const data = await apiFetch<{ lessons: Lesson[] }>('/api/lessons', Astro.request);
+const lang = resolveLang(user!.lang, Astro.request);
+const data = await apiFetch<{ lessons: Lesson[] }>(`/api/lessons?lang=${lang}`, Astro.request);
 type ExamRow = { n: number; from: number; to: number; locked: boolean; correct: number; total: number; passed: boolean; passAt: number };
 const prog = await apiFetch<{
   solvedLabs: number; totalLabs: number; lessonsDone: number; totalLessons: number;
   quizzesDone?: number; quizzesTotal?: number; examsPassed?: number; exams?: ExamRow[];
 }>('/api/progress', Astro.request);
-const lang = resolveLang(user!.lang, Astro.request);
 const L = t(lang);
 const C = L.curso;
 const lessons = data?.lessons ?? [];
