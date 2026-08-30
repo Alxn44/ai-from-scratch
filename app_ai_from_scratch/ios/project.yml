@@ -32,6 +32,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.alpadev.iadesdecero
+        # El icono es la marca del loader: cuadro blanco, IA en mono negra.
+        # Generado en Sources/Assets.xcassets desde scripts (Swift/AppKit),
+        # 1024x1024 sin alfa, que es lo que exige App Store.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: IA desde cero
         # La app es negra fija, igual que la landing. No hay tema claro que

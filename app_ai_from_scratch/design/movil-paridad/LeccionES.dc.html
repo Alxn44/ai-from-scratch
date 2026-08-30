@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root{
+      --f:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+      --m:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+      --bg:#000;--panel:#0B0B0C;
+      --l1:#fff;--l2:rgba(235,235,245,.62);--l3:rgba(235,235,245,.50);
+      --hair:rgba(84,84,88,.46);--hair2:rgba(84,84,88,.16);--fill:rgba(120,120,128,.22);
+      --ac:#0A84FF;--ac-solid:#0A6CFF;--ok:#30D158;--or:#FF9F0A;--rd:#FF453A;
+      --btn-bg:#fff;--btn-fg:#000;--on-ac:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:var(--f);color:var(--l1);-webkit-font-smoothing:antialiased}
+    a{color:var(--ac);text-decoration:none}a:hover{color:#409CFF}
+    .lbl{font:500 10px/1 var(--m);letter-spacing:.18em;text-transform:uppercase;color:var(--l3);margin:0}
+    .eb{font:600 10px/1 var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin:0}
+    .h1{font:700 34px/1.06 var(--f);letter-spacing:-.035em;margin:0}
+    .h2{font:700 21px/1.16 var(--f);letter-spacing:-.028em;margin:0}
+    .h3{font:600 15px/1.3 var(--f);letter-spacing:-.01em;margin:0}
+    .p{font:400 16px/1.5 var(--f);color:var(--l2);margin:0}
+    .s{font:400 13px/1.45 var(--f);color:var(--l3);margin:0}
+    .num{font-variant-numeric:tabular-nums}
+    .card{border:1px solid var(--hair2);padding:22px;display:flex;flex-direction:column;gap:12px}
+    .btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:0;border-radius:6px;background:var(--btn-bg);color:var(--btn-fg);font:600 11px/1 var(--m);letter-spacing:.1em;text-transform:uppercase}
+    .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--l1)}
+    .chip{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--hair);background:transparent;color:var(--l1);font:500 14px/1.2 var(--m)}
+    .input{height:44px;width:100%;padding:0 14px;background:var(--fill);border:1px solid var(--hair2);color:var(--l1);font:400 15px/1 var(--f);display:flex;align-items:center}
+    .ph{color:var(--l3)}
+    .bar{height:4px;background:rgba(120,120,128,.20)}
+    .barfill{height:4px;background:var(--l1)}
+    .head{border-bottom:1px solid var(--hair2);background:var(--bg)}
+    .head-r1{height:56px;display:flex;align-items:center;gap:10px;padding:0 14px}
+    .head-r2{min-height:52px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--hair2)}
+    .mark{width:30px;height:30px;background:var(--btn-bg);color:var(--btn-fg);display:flex;align-items:center;justify-content:center;font:700 13px/1 var(--m);flex:none}
+    .pad{padding:18px 14px 32px;display:flex;flex-direction:column;gap:22px}
+    .row-m{display:grid;grid-template-columns:32px 1fr auto;gap:8px 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--hair2)}
+    .est{display:inline-flex;align-items:center;height:26px;padding:0 10px;font:500 10px/1 var(--m);letter-spacing:.12em;text-transform:uppercase}
+    .segb{min-height:44px;padding:0 16px;background:transparent;border:1px solid var(--hair2);border-right:0;color:var(--l3);font:600 11px/1 var(--m);letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center}
+    .segb:last-child{border-right:1px solid var(--hair2)}
+    .segb.on{background:var(--ac-solid);color:var(--on-ac);border-color:var(--ac-solid)}
+    .seg{display:flex}
+    .rail{display:flex;gap:8px;overflow-x:hidden;padding-bottom:2px}
+    .rail .btn{flex:none;min-height:38px;padding:0 14px;font-size:10px}
+    .m{max-width:86%;padding:12px 14px;font:400 15px/1.45 var(--f)}
+    .m.u{align-self:flex-end;background:var(--ac-solid);color:#fff}
+    .m.a{align-self:flex-start;background:var(--panel);border:1px solid var(--hair2);color:var(--l1)}
+    .math{background:var(--panel);border-left:2px solid var(--ac);padding:18px;display:flex;flex-direction:column;gap:8px}
+</style>
+</helmet>
+<div style="width:390px;background:var(--bg);min-height:100%;display:flex;flex-direction:column">
+<div class="head">
+  <div class="head-r1"><div class="mark">IA</div><span style="font:600 13px/1.2 var(--f)">IA desde cero</span></div>
+  <div class="head-r2"><span class="lbl">Curso / Lección 04</span></div>
+</div>
+<div class="pad">
+  <div><p class="eb">04 · Tokens</p>
+  <h1 class="h1" style="font-size:32px;margin-top:8px">Los tokens: cómo lee la máquina</h1></div>
+  <div style="border:1px solid var(--hair2);background:var(--panel);height:220px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
+    <span class="lbl">Escena animada</span>
+    <p class="s" style="max-width:280px;text-align:center">La escena de la web es DOM animado. En nativo: puerto a SwiftUI/Compose o fotograma estático + audio.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <p class="lbl">Cómo funciona de verdad</p>
+    <p class="p">La máquina no lee palabras. Parte el texto en trozos y a cada trozo le da un número. «Cartagena es hermosa» son cinco trozos, no tres palabras.</p>
+  </div>
+  <div class="math">
+    <p class="lbl">La matemática</p>
+    <span class="num" style="font:700 30px/1.1 var(--f);letter-spacing:-.03em">3 palabras = 5 tokens</span>
+    <p class="s">En español, un token es media palabra larga.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><p class="lbl">Labs</p><span class="num" style="font:500 10px/1 var(--m);letter-spacing:.18em;color:var(--l1)">1/3</span></div>
+    <div class="row-m"><span class="num" style="font:500 11px/1 var(--m);color:var(--l3)">4.1</span>
+      <div><p class="h3">Cuenta los trozos</p><p class="lbl" style="margin-top:4px">Fácil</p></div>
+      <span class="est" style="color:var(--ok)">Resuelto</span></div>
+    <div class="row-m"><span class="num" style="font:500 11px/1 var(--m);color:var(--l3)">4.2</span>
+      <div><p class="h3">Ordena la frase partida</p><p class="lbl" style="margin-top:4px">Medio</p></div>
+      <span class="est" style="color:var(--l3)">Pendiente</span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="btn ghost">← 03 · El error que enseña</div>
+    <div class="btn ghost">05 · Temperatura →</div>
+  </div>
+</div>
+</div>
+</x-dc>
+</body>
+</html>

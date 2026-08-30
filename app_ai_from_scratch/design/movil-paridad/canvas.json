@@ -1,0 +1,187 @@
+{
+  "pages": [
+    {
+      "id": "page-es",
+      "name": "Móvil ES"
+    },
+    {
+      "id": "page-en",
+      "name": "Mobile EN"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "page": "page-es",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 1150,
+      "title": "Panel · 390 ES"
+    },
+    {
+      "file": "LeccionES.dc.html",
+      "page": "page-es",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 1560,
+      "title": "Lección completa · 390"
+    },
+    {
+      "file": "ChatES.dc.html",
+      "page": "page-es",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "Chat IA · 390"
+    },
+    {
+      "file": "ExamenES.dc.html",
+      "page": "page-es",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 1020,
+      "title": "Exámenes · 390"
+    },
+    {
+      "file": "CaminoES.dc.html",
+      "page": "page-es",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 1060,
+      "title": "Tu camino · 390"
+    },
+    {
+      "file": "LigasES.dc.html",
+      "page": "page-es",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 1080,
+      "title": "Ligas · 390"
+    },
+    {
+      "file": "RankingES.dc.html",
+      "page": "page-es",
+      "x": 0,
+      "y": 1720,
+      "w": 390,
+      "h": 1000,
+      "title": "Ranking · 390"
+    },
+    {
+      "file": "AjustesES.dc.html",
+      "page": "page-es",
+      "x": 470,
+      "y": 1720,
+      "w": 390,
+      "h": 1330,
+      "title": "Ajustes · 390"
+    },
+    {
+      "file": "PagoES.dc.html",
+      "page": "page-es",
+      "x": 940,
+      "y": 1720,
+      "w": 390,
+      "h": 1000,
+      "title": "Pago · 390"
+    },
+    {
+      "file": "RegistroES.dc.html",
+      "page": "page-es",
+      "x": 1410,
+      "y": 1720,
+      "w": 390,
+      "h": 900,
+      "title": "Registro · 390"
+    },
+    {
+      "file": "RecuperarES.dc.html",
+      "page": "page-es",
+      "x": 1880,
+      "y": 1720,
+      "w": 390,
+      "h": 640,
+      "title": "Recuperar · 390"
+    },
+    {
+      "file": "DashboardEN.dc.html",
+      "page": "page-en",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 1100,
+      "title": "Dashboard · 390 EN"
+    },
+    {
+      "file": "ChatEN.dc.html",
+      "page": "page-en",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 900,
+      "title": "Chat · 390 EN"
+    },
+    {
+      "file": "SettingsEN.dc.html",
+      "page": "page-en",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 1150,
+      "title": "Settings · 390 EN"
+    },
+    {
+      "file": "PathEN.dc.html",
+      "page": "page-en",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 900,
+      "title": "Path · 390 EN"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "auditoria",
+      "page": "page-es",
+      "x": 0,
+      "y": -560,
+      "w": 560,
+      "text": "PARIDAD WEB ↔ APP NATIVA — auditoria 2026-08-29\nLA APP HOY: login, lista de lecciones, detalle (matematica + labs + muro). 3 pantallas de ~14 funciones de la web.\n\nFALTA (esta pagina lo diseña):\n· Panel con continuar + progreso\n· Leccion COMPLETA (hoy solo la ficha): escenas, prosa, quiz, labs interactivos → /api/labs/:id/attempt\n· Chat IA → /api/chat + /api/chat/history\n· Examenes → /api/exams/:n + /api/questions/:id/attempt\n· Camino/logros, Ligas, Ranking (optin POST/DELETE /api/ranking/optin)\n· Perfil+Ajustes → /api/settings, /api/account/delete\n· Pago → /api/payments/mercadopago/preference\n· Registro y Recuperar (hoy la app manda a la web)\n· PDF → /api/pdf/:lang\n\nNO SE DISEÑA: admin/tutor/soporte — roles de escritorio, no de movil. Decision, no olvido."
+    },
+    {
+      "id": "saas",
+      "page": "page-es",
+      "x": 640,
+      "y": -560,
+      "w": 560,
+      "text": "SAAS FUNCIONAL — lo que exige la tienda, no opinion:\n1. BORRAR CUENTA dentro de la app: App Store 5.1.1(v) lo exige desde 2022. Ya existe /api/account/delete (ajustes.astro lo llama). Va en Ajustes.\n2. PAGO: guideline 3.1.1 — un boton que abre Mercado Pago fuera puede ser motivo de rechazo en iOS. Opciones: IAP de Apple (30/15%), entitlement de enlace externo, o app de solo-lectura del contenido comprado en web. En Android, Google exige Play Billing con excepciones parecidas. DECISION DE NEGOCIO ANTES DE CODIFICAR EL PAGO.\n3. REGISTRO en la app: sin el, Apple tambien objeta (4.8 si hay login de terceros; aqui es propio, pero una app que solo permite entrar y no crear cuenta es friccion absurda).\n4. RECUPERAR contraseña: existe en web (recuperar.astro), la app debe enlazarlo o implementarlo."
+    },
+    {
+      "id": "escenas",
+      "page": "page-es",
+      "x": 1280,
+      "y": -560,
+      "w": 520,
+      "text": "ESCENAS — el hueco tecnico mas caro.\nLas 12 escenas animadas de las lecciones son DOM+CSS de la web (web/src/…scenes). En nativo: (a) portarlas a SwiftUI/Compose una a una — caro, fiel; (b) WKWebView/WebView embebida — barato, y en iOS es contenido web dentro de app nativa, aceptable si no es la app entera; (c) fotograma estatico + audio de la narracion — el diseño de LeccionES asume (c) como minimo viable."
+    },
+    {
+      "id": "idiomas",
+      "page": "page-en",
+      "x": 0,
+      "y": -320,
+      "w": 560,
+      "text": "IDIOMAS — los dos ya existen completos.\nToda la copy de estas pantallas es LITERAL de web/src/lib/i18n.ts (es: linea 11, en: linea 591). La app debe leer user.lang de la sesion (auth ya lo devuelve en shapeUser) y elegir diccionario. No hay que traducir nada nuevo: hay que PORTAR el diccionario o servirlo por API.\nEl logo es la marca IA del loader (cuadro blanco, IA en mono negra) — ya usada en el login nativo."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-es"
+  }
+}
