@@ -45,6 +45,7 @@
 !api/tsconfig.json
 !api/prisma.config.ts
 !api/prisma/
+!api/init/
 !api/src/
 !auth/
 

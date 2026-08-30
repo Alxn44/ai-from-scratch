@@ -1,13 +1,14 @@
 // One-time production root provisioning.
 //
-// This belongs to the one-shot `init` service, immediately after `prisma migrate
-// deploy`, rather than to a SQL migration.  A migration is checked into Git and
-// therefore cannot safely contain a reusable password (nor its offline-crackable
-// hash).  The password reaches this process only through the deployment secret,
-// is turned into the same scrypt representation used by normal registration,
-// and is never printed.
-import { get, pool, run } from './db.ts';
-import { hashPassword } from './auth.ts';
+// This is an init-only program, immediately after `prisma migrate deploy`, and
+// deliberately lives outside `src/`: runtime API code has no database
+// credential or SQL access. A migration is checked into Git and therefore
+// cannot safely contain a reusable password (nor its offline-crackable hash).
+// The password reaches this process only through the deployment secret, is
+// turned into the same scrypt representation used by normal registration, and
+// is never printed.
+import { get, pool, run } from '../src/db.ts';
+import { hashPassword } from '../src/auth.ts';
 
 const login = String(process.env.BOOTSTRAP_ROOT_USER ?? '').trim().toLowerCase();
 const password = process.env.BOOTSTRAP_ROOT_PASSWORD ?? '';
@@ -40,7 +41,7 @@ const existing = await get<{ id: number; role: string }>(
   'SELECT id, role FROM users WHERE email = ?', [login]);
 
 if (existing) {
-  // Never reset a password on a later deployment.  The secret can be removed
+  // Never reset a password on a later deployment. The secret can be removed
   // after this first successful release without locking the account out.
   if (existing.role !== 'root') {
     await run('UPDATE users SET role = ?, paid = ?, deleted_at = NULL WHERE id = ?',

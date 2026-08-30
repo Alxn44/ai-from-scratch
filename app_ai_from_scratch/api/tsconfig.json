@@ -32,6 +32,6 @@
     "useUnknownInCatchVariables": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "test/**/*.mts", "scripts/**/*.mjs", "../auth/src/**/*.ts"],
+  "include": ["src/**/*.ts", "init/**/*.ts", "test/**/*.mts", "scripts/**/*.mjs", "../auth/src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -25,6 +25,7 @@ COPY api/package.json api/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY api/tsconfig.json ./
 COPY api/src ./src
+COPY api/init ./init
 COPY auth /app/auth
 RUN pnpm build
 
@@ -52,7 +53,7 @@ COPY --from=build /app/api/dist ./dist
 # by that account rather than failing on a fresh arm64 host.
 RUN chown -R node:node /app/api
 USER node
-CMD ["sh", "-c", "pnpm db:deploy && node dist/api/src/bootstrap-root.js && node dist/api/src/seed.js"]
+CMD ["sh", "-c", "pnpm db:deploy && node dist/api/init/bootstrap-root.js && node dist/api/src/seed.js"]
 
 # ---------------------------------------------------------------------------
 # runtime
