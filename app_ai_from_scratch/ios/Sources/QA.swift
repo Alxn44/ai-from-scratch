@@ -10,6 +10,7 @@ import SwiftUI
 //     → abre directamente la mecanica `cut` con datos de muestra, sin red.
 //   SIMCTL_CHILD_IA_QA_CORREO=... SIMCTL_CHILD_IA_QA_CLAVE=... → login solo.
 //   SIMCTL_CHILD_IA_QA_ORIGEN=http://127.0.0.1:4321 → apunta a `pnpm dev`.
+//   SIMCTL_CHILD_IA_QA_RAIL=1 → abre la hoja del rail del tutor al entrar.
 #if DEBUG
 
 enum QA {

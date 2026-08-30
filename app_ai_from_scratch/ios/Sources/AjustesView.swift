@@ -248,6 +248,11 @@ struct Segmentado: View {
                 }
             }
         }
+        // ALTURA FIJA. El separador es un Rectangle sin alto declarado, o sea
+        // que se come todo el vertical que le den: dentro de una fila que no
+        // acota (el composer del chat) estiraba el grupo entero a 400 pt de
+        // alto. En Ajustes no se veia porque el contenedor ya lo acotaba.
+        .frame(height: compacto ? 32 : T.tap)
         .overlay(RoundedRectangle(cornerRadius: T.radius).strokeBorder(T.hair, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: T.radius))
     }

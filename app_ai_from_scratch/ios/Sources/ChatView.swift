@@ -66,6 +66,16 @@ struct ChatView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
         }
+        // Sin Accesibilidad no se puede tocar el simulador desde esta maquina, asi
+        // que la hoja del rail no habia forma de verla. Va en .task y NO en el
+        // estado inicial: TabView construye las cuatro pestañas de golpe, y una
+        // hoja pedida desde una vista que todavia no esta en pantalla no se
+        // presenta ni se reintenta. .task corre cuando esta pestaña aparece.
+        .task {
+            #if DEBUG
+            if QA.valor("IA_QA_RAIL") != nil { railAbierto = true }
+            #endif
+        }
         .sheet(isPresented: $railAbierto) {
             RailCurso(estado: estado) { atajo in
                 railAbierto = false
@@ -197,6 +207,12 @@ struct ChatView: View {
 
                 Rectangle().fill(T.hair2).frame(height: 1)
 
+                // DOS filas de mandos, no una. En la web caben en una porque hay
+                // 660 pt; aqui hay ~354, y con el carril, la pista, su etiqueta
+                // y el envio en fila la pista se quedaba en 58 pt — menos del
+                // doble del pulgar nativo, o sea 30 pt de recorrido para tres
+                // posiciones. Un control que no se puede acertar no es un
+                // control. La pista se lleva su propia fila y el ancho entero.
                 HStack(spacing: 12) {
                     Segmentado(
                         opciones: [("flash", L.carrilFlash), ("razon", L.carrilRazon)],
@@ -205,11 +221,13 @@ struct ChatView: View {
                         deshabilitadas: carrilesMuertos
                     ) { carril = $0 }
 
-                    esfuerzoControl
                     Spacer(minLength: 4)
                     botonEnviar
                 }
-                .padding(.horizontal, 10).padding(.vertical, 8)
+                .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
+
+                esfuerzoControl
+                    .padding(.horizontal, 10).padding(.bottom, 8)
             }
             .background(T.panel)
             .overlay(Rectangle().strokeBorder(T.hair, lineWidth: 1))
@@ -241,15 +259,17 @@ struct ChatView: View {
             get: { Double(Self.ESFUERZOS.firstIndex(of: esfuerzo) ?? 1) },
             set: { esfuerzo = Self.ESFUERZOS[min(2, max(0, Int($0.rounded())))] }
         )
-        return HStack(spacing: 9) {
+        return HStack(spacing: 11) {
+            Text(L.esfuerzo)
+                .font(T.mono(9.5, .medium)).tracking(9.5 * 0.08).textCase(.uppercase)
+                .foregroundStyle(T.l3)
             Slider(value: indice, in: 0...2, step: 1)
                 .tint(T.ac)
-                .frame(width: 58)
                 .accessibilityLabel(L.esfuerzo)
             Text(nombreEsfuerzo)
                 .font(T.mono(9.5, .semibold)).tracking(9.5 * 0.08).textCase(.uppercase)
                 .foregroundStyle(T.ac)
-                .frame(width: 40, alignment: .leading)
+                .frame(width: 46, alignment: .trailing)
         }
     }
 
