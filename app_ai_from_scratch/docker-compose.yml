@@ -221,6 +221,13 @@ services:
       # committed to the repository, on every single start.
       SEED_DEMO_USERS: ${SEED_DEMO_USERS:-0}
       SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
+      # One-time production root provisioning. These are deliberately optional:
+      # a static credential or hash in a migration would remain readable from
+      # Git forever. The release workflow copies them only when both protected
+      # Environment secrets exist; the init program then creates the account
+      # once and never resets its password on a later deploy.
+      BOOTSTRAP_ROOT_USER: ${BOOTSTRAP_ROOT_USER:-}
+      BOOTSTRAP_ROOT_PASSWORD: ${BOOTSTRAP_ROOT_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

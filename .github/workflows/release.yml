@@ -80,6 +80,8 @@ jobs:
           PAYMENTS_DB_PASSWORD: ${{ secrets.PAYMENTS_DB_PASSWORD }}
           MESSAGES_SECRET: ${{ secrets.MESSAGES_SECRET }}
           MESSAGES_DB_PASSWORD: ${{ secrets.MESSAGES_DB_PASSWORD }}
+          BOOTSTRAP_ROOT_USER: ${{ secrets.BOOTSTRAP_ROOT_USER }}
+          BOOTSTRAP_ROOT_PASSWORD: ${{ secrets.BOOTSTRAP_ROOT_PASSWORD }}
         run: |
           # Checked here, before any ssh, and named one at a time so the log says
           # WHICH one is missing. Discovering a missing secret halfway through the
@@ -203,6 +205,16 @@ jobs:
             esac
           done
 
+          # The root bootstrap is intentionally outside the required Compose
+          # variables: it is a one-time credential, not a standing dependency.
+          # Still, never send a half-configuration to init.
+          if [ -n "${BOOTSTRAP_ROOT_USER}${BOOTSTRAP_ROOT_PASSWORD}" ]; then
+            for v in BOOTSTRAP_ROOT_USER BOOTSTRAP_ROOT_PASSWORD; do
+              [ -n "${!v-}" ] || { echo "::error::$v is required when bootstrapping root"; exit 1; }
+              case "${!v}" in *$'\n'*) echo "::error::secret $v contains a newline"; exit 1;; esac
+            done
+          fi
+
           # Written 600 by the umask on the remote side, and never echoed.
           {
             echo "IMAGE_REPO=$IMAGE_REPO"
@@ -215,6 +227,10 @@ jobs:
             echo "MP_PUBLIC_KEY=$MP_PUBLIC_KEY"
             # Never plant demo accounts on a host that sells.
             echo "SEED_DEMO_USERS=0"
+            if [ -n "${BOOTSTRAP_ROOT_USER}${BOOTSTRAP_ROOT_PASSWORD}" ]; then
+              printf 'BOOTSTRAP_ROOT_USER=%s\n' "$BOOTSTRAP_ROOT_USER"
+              printf 'BOOTSTRAP_ROOT_PASSWORD=%s\n' "$BOOTSTRAP_ROOT_PASSWORD"
+            fi
           } | ssh_run "umask 077 && cat > '$DEPLOY_PATH/.env'"
 
           echo "$REGISTRY_TOKEN" | ssh_run "docker login ghcr.io -u '$REGISTRY_USER' --password-stdin"
