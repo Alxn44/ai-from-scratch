@@ -38,6 +38,10 @@ struct LessonDetail: Codable {
     let lesson: LessonFull
     var labs: [LabFull]
     let texto: LessonTexto?
+    // El servidor los manda desde siempre (server.ts:209) y la app los tiraba:
+    // el quiz de la leccion simplemente no existia en movil.
+    var quiz: [Pregunta]?
+    var quizScore: Puntaje?
 }
 
 struct AttemptHint: Codable, Equatable {
@@ -168,9 +172,3 @@ extension API {
     }
 }
 
-/// Los doce rangos, copiados de web/src/lib/i18n.ts (logros.rangos). Copy de
-/// producto en español a propósito: la UI nativa hoy es ES; el puerto EN va con
-/// el diccionario completo, no rango a rango.
-let RANGOS = ["Sin iniciar", "Iniciado", "Lector de Señales", "Contador de Trozos", "Guardián de Perillas",
-              "Domador de Temperatura", "Cazador de Espejismos", "Custodio del Contexto", "Tejedor de Cadenas",
-              "Alquimista de Datos", "Oráculo de Probabilidades", "Arquitecto de Agentes", "Mano Firme"]

@@ -124,9 +124,9 @@ private struct TarjetaDesbloqueo: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(hito.tipo == .rango ? "Rango nuevo" :
-                         hito.tipo == .grado ? "Grado nuevo" :
-                         hito.tipo == .liga ? "Liga" : "Lab resuelto")
+                    Text(hito.tipo == .rango ? L.rangoNuevo :
+                         hito.tipo == .grado ? L.gradoNuevo :
+                         hito.tipo == .liga ? L.liga : L.resuelto)
                         .font(T.mono(10, .semibold)).tracking(10 * 0.16).textCase(.uppercase)
                         .foregroundStyle(hito.tinta)
                     Text(hito.titulo)

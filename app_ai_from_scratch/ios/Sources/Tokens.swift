@@ -1,6 +1,49 @@
 import SwiftUI
 
-/// Los tokens de `web/src/lib/theme-css.ts`, copiados sin redondear.
+/// El tema vigente. Tres modos, los mismos que el servidor acepta
+/// (auth/src/index.ts:44 `THEMES = ['dark','paper','auto']`), y la misma
+/// preferencia viaja al servidor con PATCH /api/settings, asi que el tema que
+/// eliges en el movil es el que te encuentras en la web.
+///
+/// Es `@Observable` y ademas se guarda en UserDefaults: el arranque pinta el
+/// tema correcto ANTES de que llegue /api/me, que es lo que evita el fogonazo
+/// blanco-negro de medio segundo en cada lanzamiento.
+@Observable
+final class Tema {
+    static let compartido = Tema()
+
+    enum Modo: String, CaseIterable { case dark, paper, auto }
+
+    static let CLAVE = "curso.tema"
+
+    var modo: Modo {
+        didSet { UserDefaults.standard.set(modo.rawValue, forKey: Self.CLAVE) }
+    }
+
+    /// Lo pone la raiz desde `@Environment(\.colorScheme)`: en modo `auto` el
+    /// tema es el del equipo, y esto es lo unico que lo sabe.
+    var sistemaClaro = false
+
+    var claro: Bool { modo == .paper || (modo == .auto && sistemaClaro) }
+
+    /// Lo que `preferredColorScheme` debe forzar. En `auto` es nil: se deja
+    /// mandar al sistema, que es exactamente lo que significa auto.
+    var esquema: ColorScheme? {
+        switch modo {
+        case .dark:  return .dark
+        case .paper: return .light
+        case .auto:  return nil
+        }
+    }
+
+    private init() {
+        let guardado = UserDefaults.standard.string(forKey: Self.CLAVE) ?? ""
+        modo = Modo(rawValue: guardado) ?? .dark
+    }
+}
+
+/// Los tokens de `web/src/lib/theme-css.ts`, copiados sin redondear, en sus DOS
+/// temas.
 ///
 /// La regla que trae el handoff (`design/movil/_base.css`, primera linea) es que
 /// el artboard tiene que ser indistinguible de la app. Aqui vale igual: si un
@@ -8,30 +51,38 @@ import SwiftUI
 /// producto y nadie sabe decir cuando dejo de serlo. Los alfa van tal cual
 /// salen del CSS, no convertidos a un opaco equivalente sobre negro, porque
 /// sobre `panel` (#0B0B0C) no dan el mismo resultado.
+///
+/// El tema claro esta calibrado a mano sobre #F2F2F2 (>=4.5:1 medido en texto
+/// de 10px en la web), NO es un invertido automatico: el azul baja de #0A84FF a
+/// #0A5AD6 y el verde de #30D158 a #0C6B3E justo por eso. Mantenerlo asi.
 enum T {
+
+    private static var claro: Bool { Tema.compartido.claro }
 
     // MARK: Color
 
-    static let bg      = Color(hex: 0x000000)
-    static let panel   = Color(hex: 0x0B0B0C)
+    static var bg: Color      { claro ? Color(hex: 0xF2F2F2) : Color(hex: 0x000000) }
+    static var panel: Color   { claro ? Color(hex: 0xFFFFFF) : Color(hex: 0x0B0B0C) }
 
-    static let l1      = Color(hex: 0xFFFFFF)
-    static let l2      = Color(hex: 0xEBEBF5, alpha: 0.62)
-    static let l3      = Color(hex: 0xEBEBF5, alpha: 0.50)
+    static var l1: Color      { claro ? Color(hex: 0x000000) : Color(hex: 0xFFFFFF) }
+    static var l2: Color      { claro ? Color(hex: 0x000000, alpha: 0.66) : Color(hex: 0xEBEBF5, alpha: 0.62) }
+    static var l3: Color      { claro ? Color(hex: 0x000000, alpha: 0.58) : Color(hex: 0xEBEBF5, alpha: 0.50) }
 
-    static let hair    = Color(hex: 0x545458, alpha: 0.46)
-    static let hair2   = Color(hex: 0x545458, alpha: 0.16)
-    static let fill    = Color(hex: 0x787880, alpha: 0.22)
+    static var hair: Color    { claro ? Color(hex: 0x000000, alpha: 0.22) : Color(hex: 0x545458, alpha: 0.46) }
+    static var hair2: Color   { claro ? Color(hex: 0x000000, alpha: 0.08) : Color(hex: 0x545458, alpha: 0.16) }
+    static var fill: Color    { claro ? Color(hex: 0x787880, alpha: 0.20) : Color(hex: 0x787880, alpha: 0.22) }
 
-    static let ac      = Color(hex: 0x0A84FF)
-    static let acSolid = Color(hex: 0x0A6CFF)
-    static let ok      = Color(hex: 0x30D158)
-    static let or      = Color(hex: 0xFF9F0A)
-    static let rd      = Color(hex: 0xFF453A)
+    static var ac: Color      { claro ? Color(hex: 0x0A5AD6) : Color(hex: 0x0A84FF) }
+    static var acSolid: Color { claro ? Color(hex: 0x0A5AD6) : Color(hex: 0x0A6CFF) }
+    static var ok: Color      { claro ? Color(hex: 0x0C6B3E) : Color(hex: 0x30D158) }
+    static var or: Color      { claro ? Color(hex: 0x8A5000) : Color(hex: 0xFF9F0A) }
+    static var rd: Color      { claro ? Color(hex: 0xC21B12) : Color(hex: 0xFF453A) }
 
-    static let btnBg   = Color(hex: 0xFFFFFF)
-    static let btnFg   = Color(hex: 0x000000)
-    static let onAc    = Color(hex: 0xFFFFFF)
+    static var btnBg: Color   { claro ? Color(hex: 0x000000) : Color(hex: 0xFFFFFF) }
+    static var btnFg: Color   { claro ? Color(hex: 0xFFFFFF) : Color(hex: 0x000000) }
+    /// Texto sobre relleno de acento. Blanco en LOS DOS temas — `btnFg` no
+    /// sirve de sustituto, ese es negro en oscuro.
+    static let onAc = Color(hex: 0xFFFFFF)
 
     // MARK: Tipografia
     //

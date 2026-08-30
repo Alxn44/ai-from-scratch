@@ -112,7 +112,7 @@ struct LabView: View {
                         if let n = lab.level, !n.isEmpty { Text(n).label() }
                         Spacer()
                         if lab.solved {
-                            Text("Resuelto")
+                            Text(L.resuelto)
                                 .font(T.mono(10, .medium)).tracking(10 * 0.12).textCase(.uppercase)
                                 .foregroundStyle(T.ok)
                         }
@@ -139,7 +139,7 @@ struct LabView: View {
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cerrar") { cerrar() }
+                    Button(L.cerrar) { cerrar() }
                         .font(T.lbl).tracking(T.lblTrack).textCase(.uppercase)
                         .foregroundStyle(T.l3)
                         .frame(minWidth: T.tap, minHeight: T.tap, alignment: .trailing)
@@ -209,7 +209,7 @@ struct LabView: View {
         case "hotcold": FrioCalienteView(minimo: hcMin, maximo: hcMax) { answer = $0 }
         default:
             // Un kind que esta app no conoce: decirlo es mejor que un hueco.
-            Aviso(texto: "Este tipo de lab aún no se puede hacer en la app. Está disponible en la web.")
+            Aviso(texto: L.kindDesconocido)
         }
     }
 
@@ -226,7 +226,7 @@ struct LabView: View {
                     answer = nil
                     resultado = nil
                 } label: {
-                    Text("Reiniciar")
+                    Text(L.reiniciar)
                         .font(T.btn).tracking(T.btnTrack).textCase(.uppercase)
                         .foregroundStyle(T.l2)
                         .frame(minWidth: 110, minHeight: T.tap)
@@ -234,7 +234,7 @@ struct LabView: View {
                 }
             }
             BotonPrimario(
-                titulo: lab.kind == "hotcold" ? "Probar" : "Comprobar",
+                titulo: lab.kind == "hotcold" ? L.probar : L.comprobar,
                 cargando: enviando,
                 habilitado: answer != nil,
                 accion: enviar
@@ -287,7 +287,7 @@ struct LabView: View {
                 chispasEn = CGPoint(x: marcoBoton.midX, y: marcoBoton.minY + marcoBoton.height * 0.3)
             }
             Desbloqueos.shared.mostrar(HitoDesbloqueo(
-                tipo: .lab, titulo: "Lab \(lab.id) resuelto", cuerpo: nil, meta: nil))
+                tipo: .lab, titulo: rellena(L.labResuelto, ["id": lab.id]), cuerpo: nil, meta: nil))
         } else {
             Racha.n = 0
             Sonido.sonar(.fallo)
@@ -301,7 +301,7 @@ struct LabView: View {
                 let idx = max(0, min(RANGOS.count - 1, n))
                 Desbloqueos.shared.mostrar(HitoDesbloqueo(
                     tipo: .rango, titulo: RANGOS[idx], cuerpo: nil,
-                    meta: .init(lbl: "Rango", num: "\(n) / \(RANGOS.count - 1)",
+                    meta: .init(lbl: L.tuRango, num: "\(n) / \(RANGOS.count - 1)",
                                 pct: Double(n) / Double(RANGOS.count - 1) * 100)))
                 Sonido.sonar(.rango, paso: max(1, min(12, n)))
             case "leccion":
@@ -311,9 +311,9 @@ struct LabView: View {
                 let nl = nuevo.lesson_n ?? lab.lesson
                 Desbloqueos.shared.mostrar(HitoDesbloqueo(
                     tipo: .grado,
-                    titulo: "\(clave.capitalized) · Lección \(String(format: "%02d", nl))",
+                    titulo: "\(clave.capitalized) · \(L.laMatematica == "The math" ? "Lesson" : "Lección") \(String(format: "%02d", nl))",
                     cuerpo: nil,
-                    meta: k > 0 ? .init(lbl: "Grados de la lección", num: "\(k) / 3",
+                    meta: k > 0 ? .init(lbl: L.gradosDeLaLeccion, num: "\(k) / 3",
                                         pct: Double(k) / 3 * 100) : nil))
                 Sonido.sonar(.estrella, paso: max(1, min(12, nl)))
             default:
@@ -329,7 +329,7 @@ struct LabView: View {
     /// acierto Y en fallo, igual que alli.
     private func banner(_ r: AttemptResult) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(r.correct ? "Correcto" : "Todavía no")
+            Text(r.correct ? L.correcto : L.todaviaNo)
                 .font(T.h3).tracking(T.h3Track)
                 .foregroundStyle(r.correct ? T.ok : T.rd)
             Text(r.explanation + extra(r))
@@ -344,9 +344,9 @@ struct LabView: View {
 
     private func extra(_ r: AttemptResult) -> String {
         guard let h = r.hint else { return "" }
-        if let e = h.err, let w = h.word { return " Tu error fue de \(Int(e)) (\(w))." }
+        if let e = h.err, let w = h.word { return " " + rellena(L.errDe, ["err": Int(e), "word": w]) }
         if let rango = h.range, rango.count == 2, let a = rango[0], let b = rango[1] {
-            return " El rango que cuenta como repetible es \(Int(a))–\(Int(b))."
+            return " " + rellena(L.rangoRep, ["a": Int(a), "b": Int(b)])
         }
         return ""
     }
@@ -355,7 +355,7 @@ struct LabView: View {
     /// la web: 0 exacto, ≤5 caliente, ≤20 tibio, resto frio.
     private var historial: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Tus intentos · error").label()
+            Text(L.tusIntentos).label()
             ForEach(Array(cerca.enumerated()), id: \.offset) { i, x in
                 HStack(spacing: 12) {
                     Text("\(i + 1)").font(T.mono(13)).monospacedDigit().foregroundStyle(T.l3)
@@ -451,7 +451,7 @@ private struct CortaView: View {
                     }
                 }
             }
-            Text("\(cortes.count) cortes puestos")
+            Text(rellena(L.cortesPuestos, ["n": cortes.count]))
                 .font(T.s).foregroundStyle(T.l3).monospacedDigit()
         }
     }
@@ -467,7 +467,7 @@ private struct OrdenaView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 9) {
-                Text("Pasos disponibles").label()
+                Text(L.pasosDisponibles).label()
                 ForEach(pasos.filter { !seq.contains($0.id) }) { p in
                     Button {
                         seq.append(p.id)
@@ -485,9 +485,9 @@ private struct OrdenaView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 9) {
-                Text("Tu orden").label()
+                Text(L.tuOrden).label()
                 if seq.isEmpty {
-                    Text("Toca un paso para empezar.")
+                    Text(L.tocaPaso)
                         .font(T.s).foregroundStyle(T.l3)
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .overlay(RoundedRectangle(cornerRadius: T.radius)
@@ -532,7 +532,7 @@ private struct ArmaView: View {
                 HStack(alignment: .center, spacing: 12) {
                     Text(etiqueta).label()
                         .frame(width: 92, alignment: .leading)
-                    Text(relleno[i] ?? "vacío")
+                    Text(relleno[i] ?? L.vacio)
                         .font(.system(size: 15))
                         .foregroundStyle(relleno[i] == nil ? T.l3 : T.l1)
                         .frame(maxWidth: .infinity, minHeight: T.tap, alignment: .leading)
@@ -592,17 +592,17 @@ private struct PerillaView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 16) {
-                Text("FRÍA").font(T.mono(13, .semibold)).foregroundStyle(T.l3)
+                Text(L.fria).font(T.mono(13, .semibold)).foregroundStyle(T.l3)
                 Slider(value: $t, in: 0...100, step: 1)
                     .onChange(of: t) { onCambia(.number(t)) }
-                Text("CREATIVA").font(T.mono(13, .semibold)).foregroundStyle(T.l3)
+                Text(L.creativa).font(T.mono(13, .semibold)).foregroundStyle(T.l3)
             }
             if let top = probs.indices.max(by: { probs[$0] < probs[$1] }) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text("T = \(String(format: "%.2f", temperatura))")
                         .font(.system(size: 26, weight: .bold)).tracking(26 * -0.03)
                         .monospacedDigit().foregroundStyle(T.l1)
-                    Text("gana \(cands[top].name) con \(Int((probs[top] * 100).rounded())) de 100")
+                    Text(rellena(L.gana, ["q": cands[top].name, "n": Int((probs[top] * 100).rounded())]))
                         .font(T.s).foregroundStyle(T.l3)
                 }
                 VStack(alignment: .leading, spacing: 9) {

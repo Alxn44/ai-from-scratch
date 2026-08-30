@@ -17,7 +17,7 @@ struct ChatView: View {
                 ScrollViewReader { lector in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 12) {
-                            Text("El tutor").label(T.l1)
+                            Text(L.elTutor).label(T.l1)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.bottom, 6)
                             if mensajes.isEmpty { vacio }
@@ -25,7 +25,7 @@ struct ChatView: View {
                             if enviando {
                                 HStack(spacing: 8) {
                                     ProgressView().controlSize(.small).tint(T.l3)
-                                    Text("Pensando…").font(T.s).foregroundStyle(T.l3)
+                                    Text(L.pensando).font(T.s).foregroundStyle(T.l3)
                                 }
                                 .padding(.horizontal, 4)
                             }
@@ -44,12 +44,20 @@ struct ChatView: View {
             .background(T.bg)
             .toolbar(.hidden, for: .navigationBar)
         }
+        .task {
+            // El hilo vive en el servidor (messages/). Sin esto la app abria el
+            // chat en blanco en cada lanzamiento mientras la web enseñaba la
+            // conversacion entera: la misma cuenta con dos memorias distintas.
+            guard mensajes.isEmpty else { return }
+            do { mensajes = try await API.shared.historialChat() }
+            catch { /* sin historial se empieza en blanco, que es lo que habia */ }
+        }
     }
 
     private var vacio: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Pregunta lo que quieras del curso").font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
-            Text("El tutor solo puede ver tus propios datos: tu avance, tus intentos y las lecciones. Nada de nadie más.")
+            Text(L.chatVacio).font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
+            Text(L.chatVacioB)
                 .font(T.s).lineSpacing(T.sLine).foregroundStyle(T.l3)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -74,7 +82,7 @@ struct ChatView: View {
 
     private var compositor: some View {
         HStack(spacing: 10) {
-            TextField("Escribe tu pregunta", text: $texto, axis: .vertical)
+            TextField(L.escribePregunta, text: $texto, axis: .vertical)
                 .font(.system(size: 15))
                 .foregroundStyle(T.l1)
                 .lineLimit(1...4)
@@ -119,9 +127,9 @@ struct ChatView: View {
             } catch let APIFailure.servidor(codigo, _) where codigo == 429 {
                 // El freno de ritmo del servidor. Decir "espera" es la respuesta
                 // correcta; reintentar solo lo alargaria.
-                error = "Vas muy seguido. Espera unos segundos y vuelve a preguntar."
+                error = L.chatFreno
             } catch let APIFailure.servidor(codigo, _) where codigo == 501 {
-                error = "El chat no está configurado en el servidor."
+                error = L.chatSinIa
             } catch let f as APIFailure {
                 error = f.errorDescription
             } catch let otro {

@@ -12,6 +12,8 @@ struct LoginView: View {
     @State private var clave = ""
     @State private var cargando = false
     @State private var error: String?
+    @State private var verRegistro = false
+    @State private var verRecuperar = false
 
     private var completo: Bool {
         !email.trimmingCharacters(in: .whitespaces).isEmpty && !clave.isEmpty
@@ -35,24 +37,24 @@ struct LoginView: View {
                 }
                 .padding(.bottom, 40)
 
-                Text("Entrar").eyebrow()
+                Text(L.entrar).eyebrow()
                     .padding(.bottom, 8)
 
-                Text("Vuelve al curso")
+                Text(L.vuelveAlCurso)
                     .font(T.h1).tracking(T.h1Track)
                     .foregroundStyle(T.l1)
                     .padding(.bottom, 12)
 
-                Text("Doce lecciones, treinta y seis labs y un tutor que solo ve tus datos.")
+                Text(L.loginSub)
                     .font(T.p).lineSpacing(T.pLine)
                     .foregroundStyle(T.l2)
                     .padding(.bottom, 30)
 
                 VStack(spacing: 18) {
-                    CampoTexto(etiqueta: "Correo", valor: $email,
+                    CampoTexto(etiqueta: L.correo, valor: $email,
                                contentType: .username, keyboard: .emailAddress)
                         .focused($foco, equals: .correo)
-                    CampoTexto(etiqueta: "Contraseña", valor: $clave,
+                    CampoTexto(etiqueta: L.contrasena, valor: $clave,
                                seguro: true, contentType: .password)
                         .focused($foco, equals: .clave)
                 }
@@ -71,14 +73,23 @@ struct LoginView: View {
                     Aviso(texto: error).padding(.bottom, 18)
                 }
 
-                BotonPrimario(titulo: "Entrar", cargando: cargando, habilitado: completo) {
+                BotonPrimario(titulo: L.entrar, cargando: cargando, habilitado: completo) {
                     Task { await entrar() }
                 }
 
-                Text("¿No tienes cuenta? Créala en aifromscratch.shop")
-                    .font(T.s).lineSpacing(T.sLine)
-                    .foregroundStyle(T.l3)
-                    .padding(.top, 22)
+                VStack(alignment: .leading, spacing: 4) {
+                    Button { verRegistro = true } label: {
+                        Text(L.noTienesCuenta + " " + L.crearCuenta)
+                            .font(T.s).foregroundStyle(T.ac)
+                            .frame(minHeight: T.tap, alignment: .leading)
+                    }
+                    Button { verRecuperar = true } label: {
+                        Text(L.olvidasteClave)
+                            .font(T.s).foregroundStyle(T.l3)
+                            .frame(minHeight: T.tap, alignment: .leading)
+                    }
+                }
+                .padding(.top, 14)
             }
             .padding(.horizontal, 24)
             .padding(.top, 60)
@@ -88,6 +99,8 @@ struct LoginView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(T.bg)
+        .sheet(isPresented: $verRegistro) { RegistroView() }
+        .sheet(isPresented: $verRecuperar) { RecuperarView() }
         .onAppear {
             foco = .correo
             #if DEBUG

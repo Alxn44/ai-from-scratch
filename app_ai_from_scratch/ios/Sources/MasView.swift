@@ -1,25 +1,41 @@
 import SwiftUI
 
-/// «Más»: lo que en la web es el resto del menu lateral — Ranking, Ligas y la
-/// cuenta. La compra, el PDF y borrar la cuenta viven en la web y aqui se
-/// enlaza, no se imita.
+/// «Más»: lo que en la web es el resto del menu lateral — exámenes, ranking,
+/// ligas y los ajustes de la cuenta. Todo dentro de la app; lo unico que sigue
+/// enlazando a la web es lo que la web resuelve mejor o no puede vivir aqui
+/// (la compra, las paginas legales).
 struct MasView: View {
     @Environment(Sesion.self) private var sesion
     @State private var verRanking = false
     @State private var verLigas = false
+    @State private var verExamenes = false
+    @State private var verAjustes = false
     @State private var sonidoOn = Sonido.suena
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
-                    Text("Más").label(T.l1)
+                    Text(L.mas).label(T.l1)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    seccion("Comunidad") {
-                        fila("Ranking") { verRanking = true }
-                        fila("Ligas") { verLigas = true }
+
+                    seccion(L.curso) {
+                        fila(L.examenes) { verExamenes = true }
                     }
-                    cuenta
+                    seccion(L.comunidad) {
+                        fila(L.ranking) { verRanking = true }
+                        fila(L.ligas) { verLigas = true }
+                    }
+                    seccion(L.cuenta) {
+                        fila(L.ajustes) { verAjustes = true }
+                        Toggle(isOn: $sonidoOn) {
+                            Text(L.sonido).font(.system(size: 15)).foregroundStyle(T.l1)
+                        }
+                        .tint(T.ac)
+                        .frame(minHeight: T.tap)
+                        .onChange(of: sonidoOn) { Sonido.silenciar(!sonidoOn) }
+                        .overlay(alignment: .bottom) { Rectangle().fill(T.hair2).frame(height: 1) }
+                    }
                     enlaces
                 }
                 .padding(18)
@@ -29,11 +45,15 @@ struct MasView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $verRanking) { RankingView() }
             .navigationDestination(isPresented: $verLigas) { LigasView() }
+            .navigationDestination(isPresented: $verExamenes) { ExamenesView() }
+            .navigationDestination(isPresented: $verAjustes) { AjustesView() }
             .onAppear {
                 #if DEBUG
                 switch QA.valor("IA_QA_MAS") {
-                case "ranking": verRanking = true
-                case "ligas":   verLigas = true
+                case "ranking":  verRanking = true
+                case "ligas":    verLigas = true
+                case "examenes": verExamenes = true
+                case "ajustes":  verAjustes = true
                 default: break
                 }
                 #endif
@@ -62,53 +82,16 @@ struct MasView: View {
         .overlay(alignment: .bottom) { Rectangle().fill(T.hair2).frame(height: 1) }
     }
 
-    private var cuenta: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Cuenta").label().padding(.bottom, 10)
-            if case .dentro(let u) = sesion.estado, !u.email.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    if !u.name.isEmpty {
-                        Text(u.name).font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
-                    }
-                    Text(u.email).font(T.s).foregroundStyle(T.l3)
-                    Text(u.paid ? "Curso completo" : "Parte gratuita")
-                        .font(T.mono(10, .medium)).tracking(T.lblTrack).textCase(.uppercase)
-                        .foregroundStyle(u.paid ? T.ok : T.l3)
-                        .padding(.top, 4)
-                }
-                .padding(.bottom, 14)
-            }
-            Toggle(isOn: $sonidoOn) {
-                Text("Sonido").font(.system(size: 15)).foregroundStyle(T.l1)
-            }
-            .tint(T.ac)
-            .frame(minHeight: T.tap)
-            .onChange(of: sonidoOn) { Sonido.silenciar(!sonidoOn) }
-            .overlay(alignment: .bottom) { Rectangle().fill(T.hair2).frame(height: 1) }
-            .padding(.bottom, 12)
-
-            Button {
-                Task { await sesion.salir() }
-            } label: {
-                Text("Cerrar sesión")
-                    .font(T.btn).tracking(T.btnTrack).textCase(.uppercase)
-                    .foregroundStyle(T.rd)
-                    .frame(maxWidth: .infinity, minHeight: T.tap)
-                    .overlay(RoundedRectangle(cornerRadius: T.radius).strokeBorder(T.rd.opacity(0.4), lineWidth: 1))
-            }
-        }
-    }
-
-    /// Gestion que la web ya resuelve. Enlazar es honesto; duplicar el flujo de
-    /// pago o el borrado en la app v1 seria una segunda implementacion a mantener.
+    /// Lo que la web resuelve y aqui no se duplica: la compra (decision de
+    /// negocio pendiente sobre compras dentro de la app) y las paginas legales,
+    /// que son texto y deben poder cambiar sin publicar una version.
     private var enlaces: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("En la web").label().padding(.bottom, 10)
-            enlace("Ajustes de la cuenta", "https://aifromscratch.shop/ajustes")
-            enlace("Perfil y progreso", "https://aifromscratch.shop/perfil")
-            enlace("Soporte", "https://aifromscratch.shop/soporte")
-            enlace("Privacidad", "https://aifromscratch.shop/privacidad")
-            enlace("Términos", "https://aifromscratch.shop/terminos")
+            Text(L.enLaWeb).label().padding(.bottom, 10)
+            enlace(L.verPrecio, "https://aifromscratch.shop/pago")
+            enlace(L.soporte, "https://aifromscratch.shop/soporte")
+            enlace(L.privacidad, "https://aifromscratch.shop/privacidad")
+            enlace(L.terminos, "https://aifromscratch.shop/terminos")
         }
     }
 
@@ -133,21 +116,29 @@ struct RankingView: View {
     @State private var datos: RankingData?
     @State private var cargando = true
     @State private var error: String?
+    @State private var alias = ""
+    @State private var apuntando = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text("Ranking").label(T.l1)
+                Text(L.ranking).label(T.l1)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
                 if let d = datos {
-                    if let puesto = d.yo.puesto, d.yo.apuntado {
-                        Text("Vas de \(puesto)º como \(d.yo.alias ?? "")")
-                            .font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
-                    } else if !d.yo.apuntado {
-                        Text("Aún no estás apuntado. Se entra desde la web, en Ranking, eligiendo un alias.")
-                            .font(T.s).lineSpacing(T.sLine).foregroundStyle(T.l3)
-                            .fixedSize(horizontal: false, vertical: true)
+                    if d.yo.apuntado, let puesto = d.yo.puesto {
+                        HStack {
+                            Text(rellena(L.vasDe, ["p": puesto, "a": d.yo.alias ?? ""]))
+                                .font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
+                            Spacer()
+                            Button(L.salirRanking) { salir() }
+                                .font(T.s).foregroundStyle(T.l3)
+                                .frame(minHeight: T.tap)
+                        }
+                    } else {
+                        alta
                     }
+
                     VStack(spacing: 0) {
                         ForEach(Array(d.tabla.enumerated()), id: \.element.id) { i, fila in
                             HStack(spacing: 12) {
@@ -155,7 +146,7 @@ struct RankingView: View {
                                     .frame(width: 30, alignment: .leading)
                                 Text(fila.alias).font(.system(size: 15)).foregroundStyle(T.l1)
                                 Spacer()
-                                Text("\(fila.lecciones) lec · \(fila.labs) labs")
+                                Text("\(fila.lecciones) · \(fila.labs) \(L.labsMin)")
                                     .font(T.mono(11)).monospacedDigit().foregroundStyle(T.l3)
                             }
                             .frame(minHeight: 44)
@@ -163,7 +154,7 @@ struct RankingView: View {
                         }
                     }
                     if d.tabla.isEmpty {
-                        Text("Todavía no hay nadie en la tabla.").font(T.s).foregroundStyle(T.l3)
+                        Text(L.tablaVacia).font(T.s).foregroundStyle(T.l3)
                     }
                 } else if cargando {
                     ProgressView().tint(T.l3).frame(maxWidth: .infinity).padding(.top, 60)
@@ -175,13 +166,81 @@ struct RankingView: View {
         .background(T.bg)
         .toolbarBackground(T.bg, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .task {
-            do { datos = try await API.shared.ranking() }
-            catch APIFailure.sinSesion { await sesion.salir() }
+        .task { await cargar() }
+    }
+
+    /// Apuntarse con alias, DENTRO de la app. La web lo tiene y aqui solo se
+    /// podia mirar la tabla: el alias es lo unico publico — ni el nombre ni el
+    /// correo salen del servidor — y por eso se elige, no se deriva.
+    private var alta: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L.noApuntado)
+                .font(T.s).lineSpacing(T.sLine).foregroundStyle(T.l3)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 10) {
+                TextField(L.alias, text: $alias)
+                    .font(.system(size: 15))
+                    .foregroundStyle(T.l1)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .padding(.horizontal, 14)
+                    .frame(height: T.tap)
+                    .background(T.fill)
+                    .overlay(Rectangle().strokeBorder(T.hair2, lineWidth: 1))
+                Button(action: apuntarse) {
+                    ZStack {
+                        Text(L.apuntarme)
+                            .font(T.btn).tracking(T.btnTrack).textCase(.uppercase)
+                            .opacity(apuntando ? 0 : 1)
+                        if apuntando { ProgressView().controlSize(.small).tint(T.btnFg) }
+                    }
+                    .foregroundStyle(T.btnFg)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: T.tap)
+                    .background(T.btnBg.opacity(alias.count >= 3 ? 1 : 0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: T.radius))
+                }
+                .disabled(alias.count < 3 || apuntando)
+            }
+        }
+    }
+
+    private func apuntarse() {
+        apuntando = true
+        error = nil
+        Task {
+            do {
+                _ = try await API.shared.apuntarseRanking(alias: alias)
+                alias = ""
+                await cargar()
+            } catch let APIFailure.servidor(codigo, motivo) where codigo == 409 || motivo == "alias_tomado" {
+                error = L.aliasTomado
+            } catch let APIFailure.servidor(codigo, _) where codigo == 400 {
+                error = L.aliasMalo
+            } catch let f as APIFailure {
+                error = f.errorDescription
+            } catch let otro {
+                error = otro.localizedDescription
+            }
+            apuntando = false
+        }
+    }
+
+    private func salir() {
+        Task {
+            do { try await API.shared.salirRanking(); await cargar() }
             catch let f as APIFailure { error = f.errorDescription }
             catch let otro { error = otro.localizedDescription }
-            cargando = false
         }
+    }
+
+    private func cargar() async {
+        error = nil
+        do { datos = try await API.shared.ranking() }
+        catch APIFailure.sinSesion { await sesion.salir() }
+        catch let f as APIFailure { error = f.errorDescription }
+        catch let otro { error = otro.localizedDescription }
+        cargando = false
     }
 }
 
@@ -196,14 +255,15 @@ struct LigasView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text("Ligas").label(T.l1)
+                Text(L.ligas).label(T.l1)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
                 if let d = datos {
                     if !d.activa {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("La liga aún no arranca").font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
+                            Text(L.ligaNoArranca).font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
                             if let faltan = d.faltan, let minimo = d.minimo {
-                                Text("Faltan \(faltan) personas apuntadas: arranca con \(minimo).")
+                                Text(rellena(L.ligaFaltan, ["n": faltan, "m": minimo]))
                                     .font(T.s).lineSpacing(T.sLine).foregroundStyle(T.l3)
                             }
                         }
@@ -212,7 +272,7 @@ struct LigasView: View {
                         .overlay(Rectangle().strokeBorder(T.hair2, lineWidth: 1))
                     } else {
                         if let yo = d.yo {
-                            Text("Liga \(yo.metal) · vas de \(yo.puesto)º con \(yo.caudal)")
+                            Text("\(L.liga) \(yo.metal) · \(rellena(L.vasDe, ["p": yo.puesto, "a": yo.alias]))")
                                 .font(T.h3).tracking(T.h3Track).foregroundStyle(T.l1)
                         }
                         VStack(spacing: 0) {

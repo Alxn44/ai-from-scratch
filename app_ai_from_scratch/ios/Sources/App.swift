@@ -3,12 +3,39 @@ import SwiftUI
 @main
 struct IAdesdeCeroApp: App {
     @State private var sesion = Sesion()
+    @State private var tema = Tema.compartido
+    @State private var idioma = Idioma.compartido
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(sesion)
-                .preferredColorScheme(.dark)
+                .environment(tema)
+                .environment(idioma)
+                // NO se fuerza un `.id` para repintar. Se probo y es peor: rearma
+                // el arbol entero, con lo que cambiar el tema DESDE Ajustes te
+                // saca de Ajustes. Y no hace falta: `T.bg` lee
+                // `Tema.compartido.claro` y `L.x` lee `Idioma.compartido.codigo`,
+                // que son propiedades @Observable, asi que toda vista que las
+                // use durante su `body` queda suscrita sola y se repinta en el
+                // sitio, sin perder la navegacion.
+                #if DEBUG
+                .onAppear {
+                    // QA sin dedos: fija tema e idioma desde el entorno.
+                    if let t = QA.valor("IA_QA_TEMA"), let m = Tema.Modo(rawValue: t) { tema.modo = m }
+                    if let i = QA.valor("IA_QA_IDIOMA"), Idioma.VALIDOS.contains(i) { idioma.codigo = i }
+                    // Prueba del repintado sin `.id`: cambia el tema a los 3s.
+                    // Si la pantalla no cambia de color sola, la suscripcion via
+                    // tokens estaticos no funciona y hay que replantearla.
+                    if QA.valor("IA_QA_FLIP") != nil {
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
+                            tema.modo = tema.modo == .dark ? .paper : .dark
+                        }
+                    }
+                }
+                #endif
+                .preferredColorScheme(tema.esquema)
                 .tint(T.ac)
         }
     }
@@ -20,17 +47,33 @@ final class Sesion {
     enum Estado: Equatable { case comprobando, fuera, dentro(User) }
     var estado: Estado = .comprobando
 
-    /// Al arrancar no se pregunta al servidor todavia: si hay cookie guardada se
-    /// entra directo y la primera peticion real dira si sigue valida. Un
-    /// `/api/lessons` de tanteo antes de pintar nada añade un salto de red a cada
-    /// arranque para responder algo que la siguiente pantalla ya va a preguntar.
+    /// Al arrancar: si hay cookie se entra ya con lo que se sabe, y se pide
+    /// /api/me en paralelo para tener al usuario DE VERDAD.
+    ///
+    /// Antes esto metia un `User` de campos vacios y nunca lo reemplazaba, asi
+    /// que Ajustes decia «Parte gratuita» y correo en blanco a alguien que habia
+    /// pagado. Pintar primero y corregir despues evita el salto de red antes de
+    /// la primera pantalla sin mentir sobre los datos.
     func arrancar() async {
-        estado = await API.shared.haySesionGuardada()
-            ? .dentro(User(id: 0, email: "", name: "", role: "", lang: "", theme: "", paid: false, cohort: nil))
-            : .fuera
+        guard await API.shared.haySesionGuardada() else { estado = .fuera; return }
+        if case .dentro = estado {} else {
+            estado = .dentro(User(id: 0, email: "", name: "", role: "", lang: "", theme: "", paid: false, cohort: nil))
+        }
+        do { adopta(try await API.shared.yo()) }
+        catch APIFailure.sinSesion { estado = .fuera }
+        catch { /* red: se sigue con lo guardado; la siguiente peticion reintenta */ }
     }
 
-    func entrar(_ u: User) { estado = .dentro(u) }
+    func entrar(_ u: User) { adopta(u) }
+
+    /// El usuario manda sobre las preferencias locales: si la cuenta trae tema o
+    /// idioma, la app se pone en ese, que es lo que hace que cambiarlo en la web
+    /// se note aqui y al reves.
+    func adopta(_ u: User) {
+        estado = .dentro(u)
+        if let m = Tema.Modo(rawValue: u.theme) { Tema.compartido.modo = m }
+        if Idioma.VALIDOS.contains(u.lang) { Idioma.compartido.codigo = u.lang }
+    }
 
     func salir() async {
         await API.shared.logout()
@@ -79,13 +122,13 @@ struct RootView: View {
     private var pestanas: some View {
         TabView(selection: $pestana) {
             LessonsView()
-                .tabItem { Label("Curso", systemImage: "book") }.tag("curso")
+                .tabItem { Label(L.curso, systemImage: "book") }.tag("curso")
             ChatView()
-                .tabItem { Label("Tutor", systemImage: "bubble.left.and.bubble.right") }.tag("tutor")
+                .tabItem { Label(L.tutor, systemImage: "bubble.left.and.bubble.right") }.tag("tutor")
             CaminoView()
-                .tabItem { Label("Camino", systemImage: "chart.bar") }.tag("camino")
+                .tabItem { Label(L.camino, systemImage: "chart.bar") }.tag("camino")
             MasView()
-                .tabItem { Label("Más", systemImage: "ellipsis.circle") }.tag("mas")
+                .tabItem { Label(L.mas, systemImage: "ellipsis.circle") }.tag("mas")
         }
         .toolbarBackground(T.bg, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
