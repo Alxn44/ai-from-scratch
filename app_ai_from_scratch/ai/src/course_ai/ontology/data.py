@@ -308,7 +308,7 @@ TABLES: Mapping[str, Table] = {
         },
     ),
     "auth_throttles": Table(
-        purpose="Controles temporales que auth aplica tras una decision acotada de defense.",
+        purpose="Controles temporales que auth aplica tras una decision acotada de security.",
         per_user="Telemetria y contencion de seguridad; ninguna herramienta la expone.",
         joins_with=("users",),
         depends_on=("users",),

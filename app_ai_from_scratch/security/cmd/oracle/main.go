@@ -26,14 +26,14 @@ import (
 	"syscall"
 	"time"
 
-	"course/defense/binding"
-	"course/defense/internal/audit"
-	"course/defense/internal/config"
-	"course/defense/internal/finding"
-	"course/defense/internal/policy"
-	"course/defense/internal/report"
 	qbroker "course/queue/broker"
 	qbus "course/queue/bus"
+	"course/security/binding"
+	"course/security/internal/audit"
+	"course/security/internal/config"
+	"course/security/internal/finding"
+	"course/security/internal/policy"
+	"course/security/internal/report"
 )
 
 // threshold is "this many of this signal about one subject, inside the window,

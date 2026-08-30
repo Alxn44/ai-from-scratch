@@ -298,7 +298,7 @@ The bus is indexed by the session's `userId`, so one person's queue is not reach
 
 ### `auth_throttles`
 
-**Purpose:** Controles temporales que auth aplica tras una decision acotada de defense.
+**Purpose:** Controles temporales que auth aplica tras una decision acotada de security.
 
 **Per-user scope:** Telemetria y contencion de seguridad; ninguna herramienta la expone.
 

@@ -10,7 +10,7 @@ IA, defensa y un servicio independiente de pagos con Mercado Pago.
 - **auth/** — login, registro, recuperación, cookies/JWT, roles, sesiones y entitlements.
 - **payments/** — servicio TS7/`tsgo` extraíble a su propio repositorio, con base
   separada, checkout, suscripciones, webhooks verificados y reintentos.
-- **ai/**, **data/**, **queue/**, **defense/** — agente, acceso cerrado a datos,
+- **ai/**, **data/**, **queue/**, **security/** — agente, acceso cerrado a datos,
   coordinación durable y respuesta de seguridad.
 - **db** y **payments-db** — dos Postgres 17 con límites de persistencia separados.
 - **scripts/** — orquestación de dev (`dev.mjs`) y generación de ontología.
@@ -82,7 +82,7 @@ api/        Fastify API — contenido, grading y contratos entre servicios
 auth/       Autenticación, sesiones, roles y entitlements
 payments/   Pagos TS7/tsgo, suscripciones y webhooks Mercado Pago
 web/        Astro frontend
-ai/ data/ queue/ defense/ servicios internos
+ai/ data/ queue/ security/ servicios internos
 scripts/    dev.mjs (orquesta api+web), gen-ontologia.mjs
 docker-compose.yml   plataforma completa, un comando
 ```

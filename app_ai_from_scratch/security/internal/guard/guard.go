@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"course/defense/internal/policy"
+	"course/security/internal/policy"
 )
 
 // ErrNotPermitted is returned for a decision that is not an Act. It is a

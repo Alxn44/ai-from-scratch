@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"course/defense/internal/config"
-	"course/defense/internal/guard"
-	"course/defense/internal/policy"
-	"course/defense/internal/report"
 	qbus "course/queue/bus"
+	"course/security/internal/config"
+	"course/security/internal/guard"
+	"course/security/internal/policy"
+	"course/security/internal/report"
 )
 
 // countingRunner stands in for guard.Real. It counts what ACTUALLY ran, which is

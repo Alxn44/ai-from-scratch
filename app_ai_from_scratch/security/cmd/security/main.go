@@ -1,4 +1,4 @@
-// Command defense is the umbrella tool: the gate, the topology, and the
+// Command security is the umbrella tool: the gate, the topology, and the
 // container healthcheck.
 //
 // It also answers `healthcheck` because the images are built FROM scratch and a
@@ -16,15 +16,15 @@ import (
 	"os"
 	"time"
 
-	"course/defense/binding"
-	"course/defense/internal/audit"
-	"course/defense/internal/config"
-	"course/defense/internal/policy"
 	qbroker "course/queue/broker"
 	qbus "course/queue/bus"
+	"course/security/binding"
+	"course/security/internal/audit"
+	"course/security/internal/config"
+	"course/security/internal/policy"
 )
 
-const usage = `defense <command>
+const usage = `security <command>
 
   verify        every structural invariant of this module. Exits non-zero on any.
   topology      print | declare | verify   the defense queues on the broker
@@ -49,13 +49,13 @@ func main() {
 	case "healthcheck":
 		err = healthcheck()
 	case "version":
-		fmt.Println("defense 0.1.0 (morpheus trinity smith oracle neo)")
+		fmt.Println("security 0.1.0 (morpheus trinity smith oracle neo)")
 	default:
-		fmt.Fprintf(os.Stderr, "defense: unknown command %q\n\n%s", os.Args[1], usage)
+		fmt.Fprintf(os.Stderr, "security: unknown command %q\n\n%s", os.Args[1], usage)
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "defense: %v\n", err)
+		fmt.Fprintf(os.Stderr, "security: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -153,7 +153,7 @@ func topology(args []string) error {
 	if len(args) > 0 {
 		sub = args[0]
 	}
-	cfg, err := config.Load("defense")
+	cfg, err := config.Load("security")
 	if err != nil && sub != "print" {
 		return err
 	}
@@ -196,7 +196,7 @@ func topology(args []string) error {
 			for _, m := range missing {
 				fmt.Printf("  MISSING %s %s: %s\n", m.Kind, m.Name, m.Reason)
 			}
-			return fmt.Errorf("%d object(s) missing; run `defense topology declare`", len(missing))
+			return fmt.Errorf("%d object(s) missing; run `security topology declare`", len(missing))
 		}
 		fmt.Printf("verified %d object(s)\n", len(topo.Exchanges)+len(topo.Queues))
 		return nil

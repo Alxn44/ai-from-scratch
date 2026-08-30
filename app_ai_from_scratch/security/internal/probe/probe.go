@@ -47,7 +47,7 @@ import (
 	"strconv"
 	"strings"
 
-	"course/defense/internal/finding"
+	"course/security/internal/finding"
 )
 
 // dangerousCaps are the Linux capabilities that make a container escape routine

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"course/defense/internal/finding"
+	"course/security/internal/finding"
 )
 
 func rules(fs []finding.Finding) []string {

@@ -30,29 +30,29 @@ WORKDIR /src
 # things that can differ between build and run.
 ENV CGO_ENABLED=0
 
-# `defense` imports the bus envelope, the broker and the retry tiers from
+# `security` imports the bus envelope, the broker and the retry tiers from
 # `queue` through a replace directive, so the build context is the PARENT of both
 # and both module trees are copied. The alternative -- a second envelope
 # implementation in this module -- is the thing house rule 4 forbids: this fleet
 # has already lost a day to `typeof [] === 'object'` letting an array payload
 # through Node while Python and Go both refused it.
 COPY queue/go.mod queue/go.sum ./queue/
-COPY defense/go.mod defense/go.sum ./defense/
-WORKDIR /src/defense
+COPY security/go.mod security/go.sum ./security/
+WORKDIR /src/security
 RUN go mod download
 
 COPY queue/bus ../queue/bus
 COPY queue/broker ../queue/broker
-COPY defense/binding ./binding
-COPY defense/internal ./internal
-COPY defense/cmd ./cmd
+COPY security/binding ./binding
+COPY security/internal ./internal
+COPY security/cmd ./cmd
 
 # ---------------------------------------------------------------------------
 # test: on the BUILDER's architecture, because a cross-compiled test binary
 # cannot run. This is a separate stage so that a test failure fails the build --
 # the same gate ai/Dockerfile applies with ai-prove-isolation.
 #
-# `defense verify` is in here too, and it is the important one: it asserts that
+# `security verify` is in here too, and it is the important one: it asserts that
 # every action in the allowlist expires, that an irreversible action requires a
 # human, that exactly one agent may act, and that the detector cannot emit
 # actions. An image that violates any of those is not built.
@@ -60,7 +60,7 @@ COPY defense/cmd ./cmd
 FROM build AS test
 RUN go vet ./... \
  && go test ./... -count=1 \
- && go run ./cmd/defense verify
+ && go run ./cmd/security verify
 
 # ---------------------------------------------------------------------------
 # compile: only after the tests pass. `--from=test` is not a copy, it is an
@@ -74,7 +74,7 @@ ARG VERSION=dev
 # -w -s strip the DWARF and symbol tables: a smaller binary and one less thing
 # to hand whoever ends up reading this image.
 RUN set -eux; \
-    for a in morpheus trinity smith oracle neo defense; do \
+    for a in morpheus trinity smith oracle neo security; do \
       GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-arm64} \
       go build -trimpath -ldflags "-w -s -X main.version=${VERSION}" -o /out/$a ./cmd/$a; \
     done; \
@@ -106,7 +106,7 @@ COPY --from=compile /out/trinity  /trinity
 COPY --from=compile /out/smith    /smith
 COPY --from=compile /out/oracle   /oracle
 COPY --from=compile /out/neo      /neo
-COPY --from=compile /out/defense  /defense
+COPY --from=compile /out/security /security
 
 # Drop root. A numeric uid:gid needs no /etc/passwd entry, and 10001 is the same
 # fixed uid queue/ and ai/ pin so that a mounted volume has stable ownership.
@@ -131,7 +131,7 @@ VOLUME ["/var/lib/defense"]
 # a container that is never reported unhealthy. That exact mistake was already
 # made once in this repository against the queue image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["/defense", "healthcheck"]
+  CMD ["/security", "healthcheck"]
 
 # No ENTRYPOINT. Five agents share this image and compose picks one per service,
 # so a default here would silently be whichever agent was listed first.

@@ -347,40 +347,40 @@ jobs:
           AMQP_URL: amqp://app:ci-broker-password@127.0.0.1:5672/
         run: go run ./cmd/queue-verify --require-broker
 
-  defense:
-    name: defense
+  security:
+    name: security
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Is there a defense service yet?
+      - name: Is there a security service yet?
         id: exists
         run: |
-          if [ -f "${{ env.DIR }}/defense/go.mod" ]; then
+          if [ -f "${{ env.DIR }}/security/go.mod" ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No ${{ env.DIR }}/defense/go.mod -- skipping. Same single exception as the"
+            echo "No ${{ env.DIR }}/security/go.mod -- skipping. Same single exception as the"
             echo "queue job: the condition is the file's existence, not a failure to run."
           fi
 
       - uses: actions/setup-go@v5
         if: steps.exists.outputs.found == 'true'
         with:
-          go-version-file: ${{ env.DIR }}/defense/go.mod
-          cache-dependency-path: ${{ env.DIR }}/defense/go.sum
+          go-version-file: ${{ env.DIR }}/security/go.mod
+          cache-dependency-path: ${{ env.DIR }}/security/go.sum
 
       - name: Build, vet, format, test
         if: steps.exists.outputs.found == 'true'
-        working-directory: ${{ env.DIR }}/defense
+        working-directory: ${{ env.DIR }}/security
         run: |
           go build ./...
           go vet ./...
           test -z "$(gofmt -l .)" || { echo "gofmt would change:"; gofmt -l .; exit 1; }
           go test ./... -race
 
-      # THE GATE THAT MATTERS. `defense verify` asserts, over the real tables:
+      # THE GATE THAT MATTERS. `security verify` asserts, over the real tables:
       #   - every action in the allowlist expires (no permanent effects);
       #   - an irreversible action requires a human;
       #   - no action's argv is an interpreter;
@@ -392,10 +392,10 @@ jobs:
       # It runs SEPARATELY from `go test` even though the tests cover the same
       # tables, because this is the command an operator runs on the box and a gate
       # nobody can reproduce by hand is a gate nobody trusts.
-      - name: defense verify
+      - name: security verify
         if: steps.exists.outputs.found == 'true'
-        working-directory: ${{ env.DIR }}/defense
-        run: go run ./cmd/defense verify
+        working-directory: ${{ env.DIR }}/security
+        run: go run ./cmd/security verify
 
       # The audit log is the only record of what this system did to itself, and
       # its tamper-evidence is the thing most likely to rot silently: a reordered
@@ -403,7 +403,7 @@ jobs:
       # record. Proving it end to end here is cheap.
       - name: The audit chain is tamper-evident
         if: steps.exists.outputs.found == 'true'
-        working-directory: ${{ env.DIR }}/defense
+        working-directory: ${{ env.DIR }}/security
         run: go test ./internal/audit/ -run 'Caught|Truncating' -v -count=1
 
   images:

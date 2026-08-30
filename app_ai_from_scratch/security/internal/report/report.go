@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"course/defense/internal/audit"
-	"course/defense/internal/config"
-	"course/defense/internal/finding"
 	qbroker "course/queue/broker"
 	qbus "course/queue/bus"
+	"course/security/internal/audit"
+	"course/security/internal/config"
+	"course/security/internal/finding"
 )
 
 // Reporter publishes findings and events for one agent.

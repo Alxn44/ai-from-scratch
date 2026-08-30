@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"course/defense/internal/audit"
-	"course/defense/internal/config"
-	"course/defense/internal/finding"
+	"course/security/internal/audit"
+	"course/security/internal/config"
+	"course/security/internal/finding"
 )
 
 // quiet is a reporter with no broker and nothing to print: exactly the shape a
