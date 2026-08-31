@@ -9,7 +9,7 @@
     "keys": "bash scripts/keys.sh",
     "dev": "node scripts/dev.mjs",
     "docker": "docker compose up --build",
-    "stop": "pnpm run stop:web; docker compose down",
+    "stop": "node scripts/dev.mjs --stop; docker compose down",
     "stop:web": "pnpm --dir web exec astro dev stop || true",
     "verify": "node scripts/verify.mjs",
     "verify:fast": "node scripts/verify.mjs --fast",
