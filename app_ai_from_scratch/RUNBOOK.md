@@ -17,7 +17,7 @@ Everything runs from the repository working directory
 | "start it", "run it locally" | `pnpm dev` | Postgres + RabbitMQ in Docker, then ai, api and web local with hot reload. Fails loudly and says why. |
 | "start it on another port" | `API_PORT=8791 pnpm dev` | Also `WEB_PORT`, `IA_PORT`. The web is told where the api landed, so they cannot disagree. |
 | "run it all in Docker" | `pnpm docker` | Every service containerised, including the workers. Closer to production, no hot reload. |
-| "stop it" | `pnpm stop` | Kills the Astro daemon (it survives a closed terminal) and brings the containers down. |
+| "stop it" | `pnpm stop` | Signals the `pnpm dev` orchestrator so it closes its own children, sweeps whatever it left behind on the three ports, and brings the containers down. Same ownership rule as `pnpm dev`: it never touches a process from another project. |
 | "just the database" | `pnpm db` | Postgres alone, waits for its healthcheck. |
 | "the AI chat log" | `pnpm --dir messages dev` | Document store on 8786. Needs `messages-db` (compose, port 5436). |
 

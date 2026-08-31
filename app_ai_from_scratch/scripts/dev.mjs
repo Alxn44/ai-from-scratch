@@ -79,6 +79,70 @@ function esNuestro(pid) {
   return !!cwd && (cwd === RAIZ || cwd.startsWith(`${RAIZ}/`));
 }
 
+/** Espera síncrona sin lanzar un proceso por cada vuelta. */
+const dormir = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
+const vivo = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+// ---------- `pnpm stop`, de verdad ----------
+//
+// `pnpm stop` era esto:
+//     "stop": "pnpm run stop:web; docker compose down"
+// o sea: mataba el daemon de Astro, bajaba los contenedores, y NUNCA le mandaba
+// una señal a este proceso. El apagado bueno ya estaba escrito -- cerrar(), más
+// abajo: mata a los hijos, para Astro y barre los tres puertos respetando lo
+// ajeno -- y ya estaba enganchado a SIGINT y SIGTERM. No lo llamaba nadie.
+//
+// Medido en esta máquina DESPUÉS de un `pnpm stop` que salió 0:
+//     76126 node scripts/dev.mjs
+//     77115 uv --directory ai run python -m uvicorn course_ai.app:app ... --port 8799
+//     77124 .../ai/.venv/bin/python3 -m uvicorn ... --env-file .../ai/.env
+// El servicio de IA seguía escuchando en 8799, indefinidamente, con las claves
+// de los modelos cargadas desde ai/.env.
+//
+// Se le manda SIGTERM al orquestador y se le deja cerrar SOLO, en vez de barrer
+// puertos desde fuera: cerrar() conoce a sus hijos -- `messages` entre ellos, que
+// no escucha en ninguno de los tres puertos -- y un barrido por puerto no.
+if (process.argv.includes('--stop')) {
+  const pidsDev = (spawnSync('pgrep', ['-f', 'scripts/dev.mjs'], { encoding: 'utf8' }).stdout ?? '')
+    .split('\n').map((s) => Number(s.trim())).filter(Boolean)
+    // Ni yo mismo, ni el shell que me lanzó: su línea de comando también lleva
+    // `scripts/dev.mjs`, y matarlo sería matar este apagado a mitad.
+    .filter((pid) => pid !== process.pid && !cmdDe(pid).includes('--stop'))
+    .filter(esNuestro);
+
+  for (const pid of pidsDev) {
+    paso(`Parando el orquestador (PID ${pid})`);
+    try { process.kill(pid, 'SIGTERM'); } catch {}
+  }
+
+  // Esperar a que cerrar() acabe. Sin esta espera el barrido de abajo corre
+  // mientras los hijos siguen vivos, no ve nada, y los deja puestos.
+  const limite = Date.now() + 10_000;
+  while (Date.now() < limite && pidsDev.some(vivo)) dormir(200);
+  for (const pid of pidsDev.filter(vivo)) {
+    aviso(`El PID ${pid} no cerró en 10 s — SIGKILL`);
+    try { process.kill(pid, 'SIGKILL'); } catch {}
+  }
+
+  // Huérfanos: si el orquestador murió de golpe (kill -9, terminal cerrada), sus
+  // hijos quedan sueltos y ya no hay quien les mande nada. Mismo criterio de
+  // siempre, y por eso este barrido vive aquí y no en un script aparte: solo se
+  // toca lo que `esNuestro` confirma que es de este repositorio.
+  correr('pnpm', ['exec', 'astro', 'dev', 'stop'], { stdio: 'ignore', cwd: resolve(RAIZ, 'web') });
+  let sueltos = 0;
+  for (const puerto of [API, WEB, IA]) {
+    for (const pid of ocupando(puerto)) {
+      if (!esNuestro(pid)) continue;
+      aviso(`Puerto ${puerto} seguía ocupado por un huérfano de este repo (PID ${pid}) — lo paro`);
+      try { process.kill(pid, 'SIGTERM'); } catch {}
+      sueltos++;
+    }
+  }
+
+  if (!pidsDev.length && !sueltos) paso('No había nada local de este repositorio corriendo');
+  process.exit(0);
+}
+
 // ---------- 1. dejar el terreno limpio ----------
 paso('Parando contenedores api y web (van a correr locales)');
 correr('docker', ['compose', 'stop', 'api', 'web'], { stdio: 'ignore' });
