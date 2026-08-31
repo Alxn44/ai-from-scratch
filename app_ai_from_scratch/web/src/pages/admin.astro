@@ -74,8 +74,17 @@ const cobrado = [...porMoneda.entries()]
           <!-- 16px y 44 de alto: el estilo en linea le ganaba a .input{font-size:16px}
                del bloque movil, y por debajo de 16 iOS Safari hace zoom al enfocar.
                34px tambien incumplia el suelo tactil de 44. -->
-          <select data-role={u.id} class="input" style="font:500 16px/1 var(--m);letter-spacing:.06em;padding:0 8px">
-            {['student', 'tutor', 'admin', 'root'].map((r) => <option value={r} selected={u.role === r} style={`color:${ROLEC[r]}`}>{ROLE_ES[r]}</option>)}
+          {/* La api es la guardia: solo un root da o quita root (403 solo_root).
+              Aqui solo se evita ofrecer lo que siempre seria rechazado.
+
+              `root` se incluye tambien cuando la FILA ya es root, aunque quien
+              mira no lo sea. Sin esa mitad, la fila del root se quedaria sin
+              opcion coincidente y el select pintaria «Estudiante»: una mentira
+              en pantalla, y un descuido a un clic de intentar degradarlo. */}
+          <select data-role={u.id} class="input" disabled={u.role === 'root' && user!.role !== 'root'}
+            style="font:500 16px/1 var(--m);letter-spacing:.06em;padding:0 8px">
+            {['student', 'tutor', 'admin', ...(user!.role === 'root' || u.role === 'root' ? ['root'] : [])]
+              .map((r) => <option value={r} selected={u.role === r} style={`color:${ROLEC[r]}`}>{ROLE_ES[r]}</option>)}
           </select>
           <span class="num s">{u.created_at.slice(0, 10)}</span>
           <span class="s" style={`color:${u.paid ? 'var(--ok)' : 'var(--l3)'}`}>{u.paid ? 'Sí' : 'No'}</span>

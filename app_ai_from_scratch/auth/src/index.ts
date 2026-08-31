@@ -241,6 +241,30 @@ export function createAuth(deps: AuthDependencies) {
       if (typeof role !== 'string' || !(ROLES as readonly string[]).includes(role)) {
         return reply.code(400).send({ error: 'rol_invalido' });
       }
+      // El rol root lo reparte root, en las dos direcciones.
+      //
+      // Sin esto la separacion admin//root no existia donde importa. El resto
+      // del sistema se esfuerza en que un admin NO lea el registro global --
+      // ver el comentario sobre /api/root/solved-labs en api/src/server.ts, que
+      // razona que «this platform-wide view must never become available to every
+      // administrator». Pero esta ruta exigia solo ['admin'] y aceptaba
+      // role: 'root', asi que la guarda de lectura se saltaba con un <select>:
+      // un admin se elegia a si mismo, marcaba Root, y en esa misma peticion
+      // ganaba todo lo que se le habia guardado.
+      //
+      // La direccion contraria importa igual. Sin la mitad `target.role`, un
+      // admin podia degradar al unico root a estudiante -- pasa el control de
+      // abajo mientras queden dos admins -- y quedarse mandando sobre una
+      // plataforma sin root. Quitar el rol es tan privilegiado como darlo.
+      //
+      // No hay problema de arranque: el primer root no se crea aqui, sale de la
+      // base al desplegar. Si algun dia no hubiera ninguno, se crea por SQL, que
+      // es donde ya vive esa decision.
+      if ((role === 'root' || target.role === 'root') && !satisface(actor.role, ['root'])) {
+        return reply.code(403).send({ error: 'solo_root',
+          msg: 'Solo un root puede dar o quitar el rol root.' });
+      }
+
       // «quedarse sin admins» incluye a root: degradar al ultimo root deja la
       // plataforma igual de huerfana que degradar al ultimo admin.
       if (mandaPlataforma(target.role) && !mandaPlataforma(role)) {
