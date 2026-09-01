@@ -794,12 +794,15 @@ app.get<{ Params: { lang: string } }>('/api/pdf/:lang', async (req, reply) => {
   if (!u.paid) return reply.code(402).send({ error: 'sin_compra' });
   const lang = req.params.lang === 'en' ? 'en' : 'es';
   const { existsSync, createReadStream } = await import('node:fs');
-  // The PDFs live at api/files/, and this module runs from TWO places: src/ under
-  // `node --experimental-strip-types` and dist/src/ after `tsgo -p .`. One hop up
-  // is right in the first case and two in the second, so both are tried. The
-  // fallback keeps the old single-hop path so the 503 below still names the file
-  // somebody has to generate.
-  const candidates = [`../files/curso-${lang}.pdf`, `../../files/curso-${lang}.pdf`];
+  // The PDFs live at api/files/. This module runs from src/ in development and
+  // from dist/api/src/ in the production image; older build layouts emitted to
+  // dist/src/. Try each real layout explicitly instead of making the Dockerfile
+  // duplicate the same paid artifact under a compiler-owned directory.
+  const candidates = [
+    `../files/curso-${lang}.pdf`,
+    `../../files/curso-${lang}.pdf`,
+    `../../../files/curso-${lang}.pdf`,
+  ];
   const path = candidates.map((rel) => new URL(rel, import.meta.url).pathname)
     .find((p) => existsSync(p)) ?? new URL(candidates[0]!, import.meta.url).pathname;
   if (!existsSync(path)) {

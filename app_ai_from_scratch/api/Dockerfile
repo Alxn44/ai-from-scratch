@@ -68,6 +68,7 @@ COPY api/package.json api/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=build /app/api/dist ./dist
+COPY api/files ./files
 
 ENV HOST=0.0.0.0 PORT=8787
 EXPOSE 8787

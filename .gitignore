@@ -93,6 +93,7 @@ claves/
 *.mov
 *.wav
 *.pdf
+!app_ai_from_scratch/api/files/curso-es.pdf
 *.zip
 /landing-full.png
 /registro-en-oscuro.png
