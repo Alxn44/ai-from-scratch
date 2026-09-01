@@ -37,6 +37,19 @@ const root = await register('Root solved labs');
 await run('UPDATE users SET paid = 1 WHERE id = ?', [paid.id]);
 await run("UPDATE users SET role = 'root' WHERE id = ?", [root.id]);
 
+// The course PDF is a paid asset, not a public file served by the web image.
+// Exercise the exact browser -> API -> file response boundary so a release
+// cannot silently ship the button while leaving the artifact out of Docker.
+assert.equal((await req('/api/pdf/es')).status, 401);
+assert.equal((await req('/api/pdf/es', {}, free.sid)).status, 402);
+const spanishPdf = await req('/api/pdf/es', {}, paid.sid);
+assert.equal(spanishPdf.status, 200);
+assert.equal(spanishPdf.headers.get('content-type'), 'application/pdf');
+assert.match(spanishPdf.headers.get('content-disposition') ?? '', /ia-desde-cero-es\.pdf/);
+const spanishPdfBytes = new Uint8Array(await spanishPdf.arrayBuffer());
+assert.ok(spanishPdfBytes.byteLength > 100_000, 'Spanish course PDF must not be an empty placeholder');
+assert.equal(new TextDecoder().decode(spanishPdfBytes.subarray(0, 5)), '%PDF-');
+
 // The root register is deliberately narrower than an admin capability. A
 // normal signed-in student is still forbidden, while root receives completion
 // metadata only -- never a student's submission or a lab solution.

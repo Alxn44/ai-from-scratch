@@ -47,6 +47,7 @@
 !api/prisma/
 !api/init/
 !api/src/
+!api/files/
 !auth/
 
 # Never, under any allowlist. Listed explicitly because a future `!something`

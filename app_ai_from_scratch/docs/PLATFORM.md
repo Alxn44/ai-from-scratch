@@ -147,7 +147,7 @@ The package manager is **pnpm** for JS and **uv** for Python (`packageManager` a
 | Legal | works · `/terminos` and `/privacidad`, and the guarantee ended up at **14 days** (7 was below the EU minimum) |
 | Contrast | measured: 0 WCAG AA failures on the public and app pages × dark and paper |
 | Tutor / admin dashboard | works · real data, role change audited |
-| PDF | route ready · 402 without a purchase, 503 for as long as `api/files/curso-{es,en}.pdf` does not exist |
+| PDF | Spanish production artifact bundled and paywalled · 401 without a session, 402 without a purchase, PDF download for a paid account. English remains pending |
 | Mercado Pago | **does not charge**: without `MP_ACCESS_TOKEN` it returns 501. The webhook verifies the signature and there are already `back_urls` to `/pago/gracias` and `/pago/error` |
 
 ## Routes
@@ -190,7 +190,7 @@ pnpm --dir web exec astro check   # types (needs typescript 6: 7 breaks the API 
 2. A provider key for AI mode (any of the six).
 3. Stripe for the United States and the European Union: Mercado Pago does not operate there (`REGIONS.md`).
 4. An email provider, or whoever loses their password is locked out.
-5. Generating `api/files/curso-es.pdf` and `curso-en.pdf`.
+5. Generating `api/files/curso-en.pdf`; the Spanish V6 artifact is already bundled.
 6. French and Portuguese: the wiring is there, the dictionaries are missing (`LESSON-CONTENT.md`).
 7. A per-IP limit on `/api/auth/recover` (today there is only a per-account limit: 3 per hour).
 8. Turning the seed off in production: it creates three accounts with a known password and one is admin.
